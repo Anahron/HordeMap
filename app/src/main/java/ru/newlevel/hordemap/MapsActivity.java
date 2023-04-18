@@ -6,6 +6,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.SensorManager;
@@ -19,6 +20,7 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -128,7 +130,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
         // Создаем объект отправителя данных
-        DataSender sender = new DataSender(id, name);
+        DataSender sender = new DataSender(id, name, this);
         // Получаем менеджер местоположений, название провайдера
         LocationListener locationListener = new LocationListener() {
             @Override
@@ -183,6 +185,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        MarkerUpdator markerUpdator = new MarkerUpdator(mMap, id);
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
@@ -191,7 +194,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.addMarker(new MarkerOptions().position(location).title("test marker"));
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 12));
-
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
