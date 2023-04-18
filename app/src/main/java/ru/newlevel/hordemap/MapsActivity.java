@@ -1,12 +1,20 @@
 package ru.newlevel.hordemap;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.SensorManager;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.ContactsContract;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
@@ -30,6 +38,9 @@ import java.io.IOException;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.InputStream;
+import java.util.Calendar;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -39,21 +50,45 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
+    private LocationManager locationManager;
     private static final int REQUEST_LOCATION_PERMISSION = 1;
+    private int id = 1; //временно, нужно вводить при входе
+    private String name = "TestName"; //временно, нужно вводить при входе
+    double latitude;
+    double longitude;
 
+    @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        // Запрос прав если отсутствуют
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{
+                    android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
+        }
+        // Получаем фрагмент карты
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+        // Добавляем тулбар
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
         toolbar.getMenu();
+
+        // Добавляем кнопки на тулбар
+        // Кнопка смены провайдера
+        Button changeProviderButton = new Button(this);
+        changeProviderButton.setText("GPS/NET");
+        toolbar.addView(changeProviderButton);
+        changeProviderButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+            }
+        });
+        // Кнопка загрузки оверлея
         Button button = new Button(this);
-        button.setText("Кнопка");
+        button.setText("Карта");
         toolbar.addView(button);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -92,6 +127,47 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
+        // Создаем объект отправителя данных
+        DataSender sender = new DataSender(id, name);
+        // Получаем менеджер местоположений, название провайдера
+        LocationListener locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                latitude = location.getLatitude();
+                longitude = location.getLongitude();
+                System.out.println(location.getProvider());
+                Log.d("TAG", "latitude: " + latitude + ", longitude: " + longitude);
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+                System.out.println("Провайдер изменил статус");
+            }
+
+            @Override
+            public void onProviderEnabled(String provider) {
+                System.out.println("Провайдер включен");
+            }
+
+            @Override
+            public void onProviderDisabled(String provider) {
+                System.out.println("Провайдер выключен");
+            }
+        };
+
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 5, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 5, locationListener);
+        // Запускаем таймер на отправку данных раз в минуту
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                System.out.println(latitude);
+                System.out.println(longitude);
+                sender.updateLocation(latitude, longitude);
+                new Thread(sender).start();
+            }
+        }, 0, 10000); // 30000 - 30 сек
     }
 
     /**
@@ -110,7 +186,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
-        mMap.setPadding(0,actionBarHeight,0,0);
+        mMap.setPadding(0, actionBarHeight, 0, 0);
         // Add a marker in Sydney and move the camera
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.addMarker(new MarkerOptions().position(location).title("test marker"));
@@ -132,8 +208,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.e("MapsActivity", "Error: " + e.getMessage());
             System.out.println("не включилась");
         }
-
-
     }
 
     private File unpackKmz(File kmzFile) {
@@ -171,8 +245,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     outputStream.close();
                     zipInputStream.closeEntry();
                     System.out.println(outputFile.exists() + " mz файл существует? " + outputFile.getAbsolutePath() + " путь к нему и " + outputFile.length() + " его размер");
-                    if (outputFile.getName().endsWith("kmz"))
-                        kmlfile = outputFile;
+                    if (outputFile.getName().endsWith("kmz")) kmlfile = outputFile;
                 }
             }
             zipInputStream.close();
