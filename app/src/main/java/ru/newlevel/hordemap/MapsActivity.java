@@ -5,8 +5,10 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import android.content.pm.PackageManager;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 
@@ -14,6 +16,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.maps.android.data.kml.KmlLayer;
@@ -41,8 +44,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -106,20 +107,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
+        TypedValue tv = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
+        int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
+        mMap.setPadding(0,actionBarHeight,0,0);
         // Add a marker in Sydney and move the camera
-        LatLng panda = new LatLng(56.0901, 93.2329);
-        mMap.addMarker(new MarkerOptions().position(panda).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(panda));
+        LatLng location = new LatLng(56.0901, 93.2329);
+        mMap.addMarker(new MarkerOptions().position(location).title("test marker"));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 12));
 
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            mMap.setMyLocationEnabled(true);
         } else {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
         }
-
         try {
             mMap.setMyLocationEnabled(true);
+            mMap.getUiSettings().setCompassEnabled(true);
+            mMap.getUiSettings().setMyLocationButtonEnabled(true); // Включить кнопку перехода к местоположению пользователя
+            mMap.getUiSettings().setCompassEnabled(true); // Включить отображение компаса
+            mMap.getUiSettings().setAllGesturesEnabled(true);
+            mMap.getUiSettings().setZoomControlsEnabled(true);
             System.out.println("включилась");
         } catch (SecurityException e) {
             Log.e("MapsActivity", "Error: " + e.getMessage());
