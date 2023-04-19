@@ -27,6 +27,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.maps.android.data.kml.KmlLayer;
@@ -41,6 +42,7 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.InputStream;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.ZipEntry;
@@ -50,14 +52,15 @@ import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
-    private GoogleMap mMap;
+    private static final int REQUEST_INTERNET_PERMISSION = 1001;
+    public static GoogleMap mMap;
     private ActivityMapsBinding binding;
     private LocationManager locationManager;
-    private static final int REQUEST_LOCATION_PERMISSION = 1;
-    private int id = 1; //временно, нужно вводить при входе
+    private static final int REQUEST_LOCATION_PERMISSION = 1001;
+    public static int id = 1; //временно, нужно вводить при входе
     private String name = "TestName"; //временно, нужно вводить при входе
-    double latitude;
-    double longitude;
+    private double latitude;
+    private double longitude;
 
     @SuppressLint("MissingPermission")
     @Override
@@ -70,6 +73,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{
                     android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
+        }
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.INTERNET}, REQUEST_INTERNET_PERMISSION);
         }
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -169,7 +175,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 sender.updateLocation(latitude, longitude);
                 new Thread(sender).start();
             }
-        }, 0, 10000); // 30000 - 30 сек
+        }, 10000, 30000); // 30000 - 30 сек
     }
 
     /**
@@ -182,18 +188,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * installed Google Play services and returned to the app.
      */
 
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        MarkerUpdator markerUpdator = new MarkerUpdator(mMap, id);
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         mMap.setPadding(0, actionBarHeight, 0, 0);
-        // Add a marker in Sydney and move the camera
+        // Add a marker and move the camera
         LatLng location = new LatLng(56.0901, 93.2329);
-        mMap.addMarker(new MarkerOptions().position(location).title("test marker"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 12));
+      //  mMap.addMarker(new MarkerOptions().position(location).title("test marker").icon(BitmapDescriptorFactory.fromResource(R.drawable.orc2)));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 3));
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
