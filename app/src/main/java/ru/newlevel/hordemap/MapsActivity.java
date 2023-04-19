@@ -1,6 +1,8 @@
 package ru.newlevel.hordemap;
 
+import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -8,6 +10,7 @@ import androidx.fragment.app.FragmentActivity;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.hardware.SensorManager;
 import android.location.Criteria;
@@ -18,8 +21,10 @@ import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -43,6 +48,7 @@ import org.xmlpull.v1.XmlPullParserException;
 import java.io.InputStream;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.ZipEntry;
@@ -53,14 +59,15 @@ import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private static final int REQUEST_INTERNET_PERMISSION = 1001;
-    public static GoogleMap mMap;
+    private static final int REQUEST_LOCATION_PERMISSION = 1001;
     private ActivityMapsBinding binding;
     private LocationManager locationManager;
-    private static final int REQUEST_LOCATION_PERMISSION = 1001;
-    public static int id = 1; //временно, нужно вводить при входе
-    private String name = "TestName"; //временно, нужно вводить при входе
-    private double latitude;
-    private double longitude;
+    public static GoogleMap mMap;
+    public static Long id;
+    public static String name;
+    private static double latitude;
+    private static double longitude;
+    private Context context;
 
     @SuppressLint("MissingPermission")
     @Override
@@ -68,11 +75,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        context = this;
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         // Запрос прав если отсутствуют
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{
-                    android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
         }
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.INTERNET}, REQUEST_INTERNET_PERMISSION);
@@ -135,8 +142,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
-        // Создаем объект отправителя данных
-        DataSender sender = new DataSender(id, name, this);
         // Получаем менеджер местоположений, название провайдера
         LocationListener locationListener = new LocationListener() {
             @Override
@@ -166,17 +171,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 5, locationListener);
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 5, locationListener);
         // Запускаем таймер на отправку данных раз в минуту
-        Timer timer = new Timer();
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                System.out.println(latitude);
-                System.out.println(longitude);
-                sender.updateLocation(latitude, longitude);
-                new Thread(sender).start();
-            }
-        }, 10000, 30000); // 30000 - 30 сек
+//        Timer timer = new Timer();
+//        timer.scheduleAtFixedRate(new TimerTask() {
+//            @Override
+//            public void run() {
+//                System.out.println(latitude);
+//                System.out.println(longitude);
+//                sender.updateLocation(latitude, longitude);
+//                new Thread(sender).start();
+//            }
+//        }, 10000, 30000); // 30000 - 30 сек
+        // timer.cancel();
     }
+
 
     /**
      * Manipulates the map once available.
@@ -198,13 +205,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setPadding(0, actionBarHeight, 0, 0);
         // Add a marker and move the camera
         LatLng location = new LatLng(56.0901, 93.2329);
-      //  mMap.addMarker(new MarkerOptions().position(location).title("test marker").icon(BitmapDescriptorFactory.fromResource(R.drawable.orc2)));
+        //  mMap.addMarker(new MarkerOptions().position(location).title("test marker").icon(BitmapDescriptorFactory.fromResource(R.drawable.orc2)));
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 3));
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
         }
         try {
+
             mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setCompassEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true); // Включить кнопку перехода к местоположению пользователя
@@ -216,7 +224,70 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.e("MapsActivity", "Error: " + e.getMessage());
             System.out.println("не включилась");
         }
+        dialodForNumber();
     }
+
+    private void dialodForNumber() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Введите номер телефона формата '8912312341212'");
+
+        // добавляем компонент EditText в AlertDialog
+        final EditText input = new EditText(this);
+        builder.setView(input);
+
+        // добавляем кнопки "Отмена" и "Ок" в AlertDialog
+        builder.setPositiveButton("Ок", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                DataSender.context = context;
+                String phoneNumber = input.getText().toString().trim();
+                System.out.println(phoneNumber);
+                Thread thread = new Thread(new Runnable() {
+                    public void run() {
+                        DataSender.getLoginAccess(phoneNumber);
+                    }
+                });
+                thread.start();
+                try {
+                    thread.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if (DataSender.answer.matches("^[a-zA-Zа-яА-Я]+$")) {
+                    name = DataSender.answer;
+                    id = Long.parseLong(phoneNumber);
+                    Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
+                    Timer timer = new Timer();
+                    DataSender sender = new DataSender(id, name);
+                    timer.scheduleAtFixedRate(new TimerTask() {
+                        @Override
+                        public void run() {
+                            // Создаем объект отправителя данных
+                            System.out.println(latitude);
+                            System.out.println(longitude);
+                            sender.updateLocation(latitude, longitude);
+                            new Thread(sender).start();
+                        }
+                    }, 0, 30000); // 30000 - 30 сек
+                } else {
+                    Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        builder.setNegativeButton("Отмена", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();// закрытие диалога при нажатии на кнопку "Отмена"
+                dialog.cancel();
+            }
+        });
+        // запрет на закрытие диалога при нажатии на кнопку "Назад" на устройстве
+        builder.setCancelable(false);
+        // создаем и отображаем AlertDialog
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
 
     private File unpackKmz(File kmzFile) {
         System.out.println("вызван метод анпак");

@@ -38,20 +38,21 @@ import java.util.TimerTask;
 
 public class DataSender implements Runnable {
     private HashMap<Integer, String> gpsList = new HashMap();
-    private int id;
-    private String ipAdress;
-    private String name;
-    private double latitude;
-    private double longitude;
+    private static Long id;
+    private static String ipAdress = "192.168.1.21";
+    ;
+    private static int port = 8000;
+    private static String name;
+    private static double latitude;
+    private static double longitude;
     private Gson gson = new Gson();
     private static ArrayList<Marker> markers = new ArrayList<>();
-    Context context;
+    public static Context context;
+    public static String answer;
 
-    public DataSender(int id, String name, Context context) {
+    public DataSender(Long id, String name) {
         this.id = id;
         this.name = name;
-        this.context = context;
-        ipAdress = "192.168.1.21"; //local - "192.168.1.21" net "176.232.57.120" - не работает
     }
 
     public void setIpAdress(String ipAdress) {
@@ -67,7 +68,7 @@ public class DataSender implements Runnable {
         this.longitude = longitude;
     }
 
-    public void createMarkers(HashMap<Integer, String> map) {
+    public void createMarkers(HashMap<Long, String> map) {
         Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hordecircle);
         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 60, 60, false));
         ((Activity) context).runOnUiThread(new Runnable() {
@@ -77,8 +78,8 @@ public class DataSender implements Runnable {
                     marker.remove();
                 }
                 markers.clear();
-                for (Integer id : map.keySet()) {
-                    if (MapsActivity.id != 6) {
+                for (Long id : map.keySet()) {
+                    if (MapsActivity.id != id) {
                         System.out.println(map.get(id));
                         String[] data = Objects.requireNonNull(map.get(id)).split("/");
                         String dateTimeString = data[3].substring(11, 16);
@@ -87,13 +88,46 @@ public class DataSender implements Runnable {
                                 .title(data[0])
                                 .snippet(dateTimeString)
                                 .icon(icon));
-                               // .icon(BitmapDescriptorFactory.fromResource(R.drawable.orc2))); // Задание изображения маркера
+                        // .icon(BitmapDescriptorFactory.fromResource(R.drawable.orc2))); // Задание изображения маркера
                         markers.add(marker);
                     }
                 }
             }
         });
     }
+
+    public static void getLoginAccess (String phonenumber) {
+        // Создаем сокет на порту 8080
+        Socket clientSocket = new Socket();
+        DataSender.answer = "404";
+        try {
+            clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
+        } catch (IOException e) {
+            e.printStackTrace();
+            ((Activity) context).runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+        // Получаем входной и выходной потоки для обмена данными с сервером
+        try (InputStream inputStream = clientSocket.getInputStream();
+             OutputStream outputStream = clientSocket.getOutputStream();
+             PrintWriter writer = new PrintWriter(outputStream);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            // Отправляем запрос серверу
+            writer.println(phonenumber);
+            writer.flush();
+            System.out.println("Запрос на авторизацию отправлен: " + phonenumber);
+            // Читаем данные из входного потока
+            DataSender.answer = reader.readLine();
+            System.out.println(answer + " полученый ответ");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void run() {
         try {
@@ -120,10 +154,10 @@ public class DataSender implements Runnable {
             String json = reader.readLine();
 
             // Определяем тип данных, в которые нужно преобразовать JSON-строку
-            Type type = new TypeToken<HashMap<Integer, String>>() {
+            Type type = new TypeToken<HashMap<Long, String>>() {
             }.getType();
             // Преобразуем JSON-строку в HashMap
-            HashMap<Integer, String> hashMap = gson.fromJson(json, type);
+            HashMap<Long, String> hashMap = gson.fromJson(json, type);
             System.out.println("Запрос получен: " + hashMap.toString());
             // Закрываем соединение с клиентом
             clientSocket.close();
@@ -133,11 +167,9 @@ public class DataSender implements Runnable {
             ((Activity) context).runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show();
+                    Toast.makeText(context, "Соединение не установлено, проверьте подключение к интернету", Toast.LENGTH_LONG).show();
                 }
             });
-
-
             ex.printStackTrace();
         }
     }
