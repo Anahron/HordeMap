@@ -2,6 +2,7 @@ package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.MapsActivity.mMap;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -37,26 +38,26 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class DataSender implements Runnable {
-    private HashMap<Integer, String> gpsList = new HashMap();
+    private static HashMap<Integer, String> gpsList = new HashMap();
     private static Long id;
     private static String ipAdress = "192.168.1.21";
-    ;
     private static int port = 8000;
     private static String name;
     private static double latitude;
     private static double longitude;
-    private Gson gson = new Gson();
     private static ArrayList<Marker> markers = new ArrayList<>();
+    @SuppressLint("StaticFieldLeak")
     public static Context context;
     public static String answer;
+    public static Boolean isMarkersON = true;
 
     public DataSender(Long id, String name) {
-        this.id = id;
-        this.name = name;
+        DataSender.id = id;
+        DataSender.name = name;
     }
 
     public void setIpAdress(String ipAdress) {
-        this.ipAdress = ipAdress;
+        DataSender.ipAdress = ipAdress;
     }
 
     public String getIpAdress() {
@@ -64,11 +65,17 @@ public class DataSender implements Runnable {
     }
 
     public void updateLocation(double latitude, double longitude) {
-        this.latitude = latitude;
-        this.longitude = longitude;
+        DataSender.latitude = latitude;
+        DataSender.longitude = longitude;
+    }
+    public static void offMarkers(){
+        for (Marker marker : markers) {
+            System.out.println(marker);
+            marker.remove();
+        }
     }
 
-    public void createMarkers(HashMap<Long, String> map) {
+    public static void createMarkers(HashMap<Long, String> map) {
         Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hordecircle);
         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 60, 60, false));
         ((Activity) context).runOnUiThread(new Runnable() {
@@ -78,8 +85,8 @@ public class DataSender implements Runnable {
                     marker.remove();
                 }
                 markers.clear();
-                for (Long id : map.keySet()) {
-                    if (MapsActivity.id != id) {
+                for (Long id : map.keySet() ) {
+                    if (MapsActivity.id != id && isMarkersON) {
                         System.out.println(map.get(id));
                         String[] data = Objects.requireNonNull(map.get(id)).split("/");
                         String dateTimeString = data[3].substring(11, 16);
@@ -97,7 +104,7 @@ public class DataSender implements Runnable {
     }
 
     public static void getLoginAccess (String phonenumber) {
-        // Создаем сокет на порту 8080
+        // Создаем сокет
         Socket clientSocket = new Socket();
         DataSender.answer = "404";
         try {
@@ -133,7 +140,6 @@ public class DataSender implements Runnable {
         try {
             // Формируем запрос. Макет запроса id:name:latitude:longitude
             String post = id + "/" + name + "/" + latitude + "/" + longitude;
-            System.out.println("Запрос серверу: " + post);
 
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
@@ -157,6 +163,7 @@ public class DataSender implements Runnable {
             Type type = new TypeToken<HashMap<Long, String>>() {
             }.getType();
             // Преобразуем JSON-строку в HashMap
+            Gson gson = new Gson();
             HashMap<Long, String> hashMap = gson.fromJson(json, type);
             System.out.println("Запрос получен: " + hashMap.toString());
             // Закрываем соединение с клиентом
@@ -170,7 +177,7 @@ public class DataSender implements Runnable {
                     Toast.makeText(context, "Соединение не установлено, проверьте подключение к интернету", Toast.LENGTH_LONG).show();
                 }
             });
-            ex.printStackTrace();
+            System.out.println("Соединение с сервером не установлено");
         }
     }
 }

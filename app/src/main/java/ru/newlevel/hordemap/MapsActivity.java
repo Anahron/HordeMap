@@ -17,6 +17,7 @@ import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.util.Log;
@@ -24,8 +25,10 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -68,6 +71,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static double latitude;
     private static double longitude;
     private Context context;
+    private Timer timer;
+    private Boolean permission = false;
 
     @SuppressLint("MissingPermission")
     @Override
@@ -77,6 +82,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(binding.getRoot());
         context = this;
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
         // Запрос прав если отсутствуют
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
@@ -93,12 +99,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Добавляем кнопки на тулбар
         // Кнопка смены провайдера
+        ToggleButton toggleButton = new ToggleButton(this);
+        toggleButton.setText("ON/OFF");
+        toolbar.addView(toggleButton);
+        toggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                // Обработка изменения состояния переключателя
+                if (isChecked && permission) {
+                    DataSender.isMarkersON = true;
+                    sendingRequests();
+                } else {
+                    DataSender.isMarkersON = false;
+                    DataSender.offMarkers();
+                }
+            }
+        });
         Button changeProviderButton = new Button(this);
-        changeProviderButton.setText("GPS/NET");
+        changeProviderButton.setText("ON/OFF");
         toolbar.addView(changeProviderButton);
         changeProviderButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
             }
         });
         // Кнопка загрузки оверлея
@@ -167,21 +189,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 System.out.println("Провайдер выключен");
             }
         };
-
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 5, locationListener);
         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 1000, 5, locationListener);
-        // Запускаем таймер на отправку данных раз в минуту
-//        Timer timer = new Timer();
-//        timer.scheduleAtFixedRate(new TimerTask() {
-//            @Override
-//            public void run() {
-//                System.out.println(latitude);
-//                System.out.println(longitude);
-//                sender.updateLocation(latitude, longitude);
-//                new Thread(sender).start();
-//            }
-//        }, 10000, 30000); // 30000 - 30 сек
-        // timer.cancel();
     }
 
 
@@ -227,6 +236,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         dialodForNumber();
     }
 
+    public void sendingRequests() {
+        if (timer != null)
+            try {
+                timer.cancel();
+                System.out.println("Таймер остановлен");
+            } catch (Exception e) {
+                System.out.println("Таймер не был запущен");
+            }
+        timer = new Timer();
+        DataSender sender = new DataSender(id, name);
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                // Создаем объект отправителя данных
+                System.out.println(latitude);
+                System.out.println(longitude);
+                sender.updateLocation(latitude, longitude);
+                new Thread(sender).start();
+            }
+        }, 0, 30000); // 30000 - 30 сек
+        System.out.println("Таймер запущен");
+    }
+
     private void dialodForNumber() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Введите номер телефона формата '8912312341212'");
@@ -257,18 +289,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     name = DataSender.answer;
                     id = Long.parseLong(phoneNumber);
                     Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
-                    Timer timer = new Timer();
-                    DataSender sender = new DataSender(id, name);
-                    timer.scheduleAtFixedRate(new TimerTask() {
-                        @Override
-                        public void run() {
-                            // Создаем объект отправителя данных
-                            System.out.println(latitude);
-                            System.out.println(longitude);
-                            sender.updateLocation(latitude, longitude);
-                            new Thread(sender).start();
-                        }
-                    }, 0, 30000); // 30000 - 30 сек
+                    permission = true;
+                    sendingRequests();
                 } else {
                     Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
                 }
