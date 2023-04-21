@@ -172,7 +172,7 @@ public class LoginRequest extends Service {
             public void run() {
                 Intent intent = new Intent(context, DataSender.class);
                 context.startForegroundService(intent);
-                sender.run(); //обновление списка координат сразу после запуска не дожидаясь алармменеджера
+                sender.sendGPS(); //обновление списка координат сразу после запуска не дожидаясь алармменеджера
             }
         }).start();
     }

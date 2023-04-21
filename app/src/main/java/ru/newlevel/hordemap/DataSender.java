@@ -68,10 +68,10 @@ import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class DataSender extends Service implements Runnable {
+public class DataSender extends Service {
     private static HashMap<Integer, String> gpsList = new HashMap();
-    public static String ipAdress = "horde.krasteplovizor.ru";
-    public static int port = 49283;
+    public static String ipAdress = "horde.krasteplovizor.ru";  // "horde.krasteplovizor.ru" - сервер" 192.168.1.21 - локал
+    public static int port = 49283; //49383 -сервер
     private static ArrayList<Marker> markers = new ArrayList<>();
     @SuppressLint("StaticFieldLeak")
     public static Context context;
@@ -79,11 +79,14 @@ public class DataSender extends Service implements Runnable {
     private static final int NOTIFICATION_ID = 1;
     private Handler handler;
     private Runnable runnable;
+    @SuppressLint("StaticFieldLeak")
     public static DataSender sender = DataSender.getInstance();
+    @SuppressLint("StaticFieldLeak")
     private static DataSender instance = null;
 
     public DataSender() {
     }
+
     public static DataSender getInstance() {
         if (instance == null) {
             instance = new DataSender();
@@ -167,8 +170,10 @@ public class DataSender extends Service implements Runnable {
 
     public static void createMarkers(HashMap<Long, String> map) {
         System.out.println("Удаляются старые и создаются новые маркеры");
-        Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hordecircle);
+        Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
+        Bitmap bitmapcom = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwingcomander);
         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 60, 60, false));
+        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, 60, 60, false));
         ((Activity) context).runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -181,26 +186,29 @@ public class DataSender extends Service implements Runnable {
                         String[] data = Objects.requireNonNull(map.get(id)).split("/");
                         String hour = data[3].substring(11, 13);
                         int hourkrsk = Integer.parseInt(hour) + 7;
-                        String minuts = data[3].substring(13, 16);
+                        String minutes = data[3].substring(13, 16);
+                        String rank = (Integer.parseInt(data[4]) == 1? "Сержант" : "Рядовой");
                         Marker marker = mMap.addMarker(new MarkerOptions()
                                 .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
                                 .title(data[0])
-                                .snippet(hourkrsk+minuts)
-                                .icon(icon));
+                                .alpha(Float.parseFloat(data[5]))
+                                .snippet(rank + hourkrsk + minutes)
+                                .icon(Integer.parseInt(data[4]) == 1? iconcom : icon));
                         markers.add(marker);
                     }
                 }
             }
         });
     }
-    public void run() {
+
+    public void sendGPS() {
         try {
             System.out.println("Вызван метод RUN, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
             String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.getLastKnownLocation();
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
-            clientSocket.connect(new InetSocketAddress("horde.krasteplovizor.ru", port), 10000);
+            clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
             // Получаем входной и выходной потоки для обмена данными с сервером
             InputStream inputStream = clientSocket.getInputStream();
             OutputStream outputStream = clientSocket.getOutputStream();
@@ -247,6 +255,44 @@ public class DataSender extends Service implements Runnable {
         }
     }
 
+    public static String requestInfoFromServer(String request) {
+        final String[] answer = {""};
+        Thread thread = new Thread(new Runnable() {
+            @RequiresApi(api = Build.VERSION_CODES.O)
+            public void run() {
+                try {
+                    // Создаем сокет на порту 8080
+                    Socket clientSocket = new Socket();
+                    clientSocket.connect(new InetSocketAddress(ipAdress, port), 5000);
+                    // Получаем входной и выходной потоки для обмена данными с сервером
+                    InputStream inputStream = clientSocket.getInputStream();
+                    OutputStream outputStream = clientSocket.getOutputStream();
+
+                    // Отправляем запрос серверу
+                    PrintWriter writer = new PrintWriter(outputStream);
+                    writer.println(request);
+                    writer.flush();
+                    System.out.println("Запрос отправлен: " + request);
+
+                    // Читаем данные из входного потока
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                    answer[0] = reader.readLine();
+                    clientSocket.close();
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+        thread.start();
+        try {
+            thread.join(); // Ожидаем завершения выполнения потока
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return answer[0];
+    }
+
     public static class MyWakefulReceiver extends WakefulBroadcastReceiver {
 
         public MyWakefulReceiver() {
@@ -267,7 +313,7 @@ public class DataSender extends Service implements Runnable {
                 @RequiresApi(api = Build.VERSION_CODES.O)
                 @Override
                 public void run() {
-                    sender.run();
+                    sender.sendGPS();
                 }
             });
             thread.start();

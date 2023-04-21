@@ -5,6 +5,7 @@ import static ru.newlevel.hordemap.DataSender.getInstance;
 
 import android.annotation.SuppressLint;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -12,6 +13,7 @@ import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import androidx.core.app.ActivityCompat;
@@ -31,9 +33,12 @@ import org.xmlpull.v1.XmlPullParserException;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -73,10 +78,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
         // Добавляем тулбар
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
-
-
-        // Добавляем кнопки на тулбар
-        // Кнопка выключения маркеров
+//добавляем кнопки на туобар
         ToggleButton toggleButton = new ToggleButton(this);
         toggleButton.setText("ON/OFF");
         toolbar.addView(toggleButton);
@@ -87,7 +89,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     DataSender.isMarkersON = true;
                     DataSender sender = DataSender.getInstance();
                     //обновление списка координат сразу после запуска не дожидаясь алармменеджера
-                    new Thread(sender).start();
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            URL url = null;
+                            sender.sendGPS();
+                        }
+                    });
                 } else {
                     DataSender.isMarkersON = false;
                     DataSender.offMarkers();
@@ -112,41 +120,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                File kmlfile = null;
                 try {
-                    //Копируем файл из папки raw в папку files (getFilesDir() задаем новое имя "krsk.kmz")
-                    int resourceId = R.raw.krsk1;
-                    InputStream inputStream = getResources().openRawResource(resourceId);
-                    File kmzfile = new File(getFilesDir(), "krks.kmz");
-                    try {
-                        FileOutputStream outputStream = new FileOutputStream(kmzfile);
-                        byte[] buffer = new byte[5024];
-                        int read;
-                        while ((read = inputStream.read(buffer)) != -1) {
-                            outputStream.write(buffer, 0, read);
-                        }
-                        outputStream.close();
-                        inputStream.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    //Анпаким krsk.kmz получая doc.kml и папку files с jpg возвращая файл kml
-                    //Вызываем метод ребилда, меняя в файле doc пути с относительных на getFilesDir
-                    File newfile = RebuildKML.rebuildKML(Objects.requireNonNull(unpackKmz(kmzfile)));
+                    kmlfile = KMZhandler.DownloadKMZ(context, getFilesDir());
                     //Создали поток для ребилженого файла и наложили на экран.
-                    InputStream in = new FileInputStream(newfile);
+                    InputStream in = new FileInputStream(kmlfile);
                     KmlLayer kmlLayer = new KmlLayer(mMap, in, getApplicationContext());
                     kmlLayer.addLayerToMap();
                     System.out.println("Кнопка отработала");
                     in.close();
-                } catch (IOException | XmlPullParserException e) {
+                } catch (XmlPullParserException | IOException ex) {
+                    System.out.println("Ошибка загрузки или распаковки карты");
+                    Toast.makeText(context, "Ошибка загрузки, проверьте соединение с интернетом", Toast.LENGTH_LONG).show();
+                    ex.printStackTrace();
+                } catch (InterruptedException e) {
                     e.printStackTrace();
-
                 }
             }
         });
         loginRequest.logIn(context);
     }
-
 
     /**
      * Manipulates the map once available.
@@ -208,54 +201,4 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-    private File unpackKmz(File kmzFile) {
-        try {
-            File outputDir = getFilesDir();
-            FileInputStream inputStream = new FileInputStream(kmzFile);
-            ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(inputStream));
-            ZipEntry zipEntry;
-            File kmlfile = new File(outputDir, "doc.kml");
-            while ((zipEntry = zipInputStream.getNextEntry()) != null) {
-                String fileName = zipEntry.getName();
-                if (zipEntry.isDirectory()) {
-                    File newDir = new File(outputDir, fileName);
-                    newDir.mkdir();
-                    ZipEntry newEntry;
-                    while ((newEntry = zipInputStream.getNextEntry()) != null) {
-                        String newFileName = newEntry.getName();
-                        File newFile = new File(newDir, newFileName);
-                        FileOutputStream outputStream = new FileOutputStream(newFile);
-                        byte[] buffer = new byte[1024];
-                        int count;
-                        while ((count = zipInputStream.read(buffer)) != -1) {
-                            outputStream.write(buffer, 0, count);
-                        }
-                        outputStream.close();
-                        zipInputStream.closeEntry();
-                        if (newFileName.endsWith("kmz")) {
-                            kmlfile = newFile;
-                        }
-                    }
-                } else {
-                    File outputFile = new File(outputDir, fileName);
-                    FileOutputStream outputStream = new FileOutputStream(outputFile);
-                    byte[] buffer = new byte[1024];
-                    int count;
-                    while ((count = zipInputStream.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, count);
-                    }
-                    outputStream.close();
-                    zipInputStream.closeEntry();
-                    if (outputFile.getName().endsWith("kmz")) {
-                        kmlfile = outputFile;
-                    }
-                }
-            }
-            zipInputStream.close();
-            return kmlfile;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 }
