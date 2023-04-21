@@ -186,13 +186,15 @@ public class DataSender extends Service {
                         String[] data = Objects.requireNonNull(map.get(id)).split("/");
                         String hour = data[3].substring(11, 13);
                         int hourkrsk = Integer.parseInt(hour) + 7;
+                        if (hourkrsk >= 24)
+                            hourkrsk = hourkrsk-24;
                         String minutes = data[3].substring(13, 16);
                         String rank = (Integer.parseInt(data[4]) == 1? "Сержант" : "Рядовой");
                         Marker marker = mMap.addMarker(new MarkerOptions()
                                 .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
                                 .title(data[0])
                                 .alpha(Float.parseFloat(data[5]))
-                                .snippet(rank + hourkrsk + minutes)
+                                .snippet(rank + " " + hourkrsk + minutes)
                                 .icon(Integer.parseInt(data[4]) == 1? iconcom : icon));
                         markers.add(marker);
                     }

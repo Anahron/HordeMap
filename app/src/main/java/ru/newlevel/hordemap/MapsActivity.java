@@ -13,6 +13,7 @@ import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.Switch;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
@@ -78,9 +79,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
         // Добавляем тулбар
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
-//добавляем кнопки на туобар
-        ToggleButton toggleButton = new ToggleButton(this);
-        toggleButton.setText("ON/OFF");
+        //добавляем кнопки на туобар
+        Switch toggleButton = new Switch(this);
+        toggleButton.setChecked(true);
+        toggleButton.setText("MARKERS");
         toolbar.addView(toggleButton);
         toggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
