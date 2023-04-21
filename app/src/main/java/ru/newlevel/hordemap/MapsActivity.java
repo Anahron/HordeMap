@@ -34,6 +34,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -128,10 +129,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-
                     //Анпаким krsk.kmz получая doc.kml и папку files с jpg возвращая файл kml
                     //Вызываем метод ребилда, меняя в файле doc пути с относительных на getFilesDir
-                    File newfile = RebuildKML.rebuildKML(unpackKmz(kmzfile));
+                    File newfile = RebuildKML.rebuildKML(Objects.requireNonNull(unpackKmz(kmzfile)));
                     //Создали поток для ребилженого файла и наложили на экран.
                     InputStream in = new FileInputStream(newfile);
                     KmlLayer kmlLayer = new KmlLayer(mMap, in, getApplicationContext());

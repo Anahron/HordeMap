@@ -173,7 +173,7 @@ public class DataSender extends Service implements Runnable {
             @Override
             public void run() {
                 for (Marker marker : markers) {
-                   // marker.remove();
+                    marker.remove();
                 }
                 markers.clear();
                 for (Long id : map.keySet()) {
