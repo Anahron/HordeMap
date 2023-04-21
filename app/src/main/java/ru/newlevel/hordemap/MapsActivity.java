@@ -2,21 +2,29 @@ package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.getInstance;
+import static ru.newlevel.hordemap.DataSender.sender;
 
 import android.annotation.SuppressLint;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.SeekBar;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -25,8 +33,10 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.maps.android.data.kml.KmlLayer;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -82,19 +92,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //добавляем кнопки на туобар
         Switch toggleButton = new Switch(this);
         toggleButton.setChecked(true);
-        toggleButton.setText("MARKERS");
+        toggleButton.setText("MARKER");
+        toggleButton.setTextScaleX(0.8f);
         toolbar.addView(toggleButton);
         toggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 // Обработка изменения состояния переключателя
                 if (isChecked && permission) {
                     DataSender.isMarkersON = true;
-                    DataSender sender = DataSender.getInstance();
+                    DataSender.apDateMarkers();
                     //обновление списка координат сразу после запуска не дожидаясь алармменеджера
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            URL url = null;
                             sender.sendGPS();
                         }
                     });
@@ -117,7 +127,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
         // Кнопка загрузки оверлея
         Button button = new Button(this);
-        button.setText("Карта");
+        button.setText("MAP");
         toolbar.addView(button);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -140,8 +150,95 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
+
+        Button markersize = new Button(this);
+        resetLogin.setWidth(10);
+        resetLogin.setHeight(10);
+        markersize.setWidth(10);
+        markersize.setHeight(10);
+        button.setWidth(10);
+        button.setHeight(10);
+        markersize.setText("SIZE");
+        toolbar.addView(markersize);
+        markersize.setOnClickListener(new View.OnClickListener() {
+            @SuppressLint("SetTextI18n")
+            @Override
+            public void onClick(View v) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                builder.setTitle("Изменение размера маркеров");
+                SeekBar seekBar = new SeekBar(context);
+                builder.setView(seekBar);
+                builder.setTitle("Изменение размера маркеров");
+                // Установка диапазона значений
+                seekBar.setMax(10);
+                seekBar.setProgress(5);
+                seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            seekBar.setTooltipText(String.valueOf(progress));
+                        }
+
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+
+                    }
+                });
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        int value = seekBar.getProgress();
+                        System.out.println("РАЗМЕР В ЦИФРАХ" + value);
+                        DataSender.markerSize = (value * 10) + 10;
+                        System.out.println("РАЗМЕР В ПИКСЕЛЯ БУДЕТ: + " + value * 10);
+                        DataSender.apDateMarkers();
+                    }
+                });
+                AlertDialog dialog = builder.create();
+                dialog.show();
+
+
+            }
+        });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         loginRequest.logIn(context);
     }
+
 
     /**
      * Manipulates the map once available.
@@ -158,6 +255,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+
         // Сдвиг карты ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
@@ -172,6 +270,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
         }
         try {
+            mMap.setMyLocationEnabled(true);
+            mMap.getUiSettings().setMapToolbarEnabled(true);
             mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true); // Включить кнопку перехода к местоположению пользователя
             mMap.getUiSettings().setCompassEnabled(true); // Включить отображение компаса

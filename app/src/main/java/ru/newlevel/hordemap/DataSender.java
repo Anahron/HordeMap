@@ -83,6 +83,9 @@ public class DataSender extends Service {
     public static DataSender sender = DataSender.getInstance();
     @SuppressLint("StaticFieldLeak")
     private static DataSender instance = null;
+    public static int markerSize = 60;
+    private static HashMap<Long, String> savedmarkers = new HashMap<>();
+
 
     public DataSender() {
     }
@@ -168,12 +171,43 @@ public class DataSender extends Service {
         }
     }
 
-    public static void createMarkers(HashMap<Long, String> map) {
-        System.out.println("Удаляются старые и создаются новые маркеры");
+    public static void apDateMarkers() {
         Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
         Bitmap bitmapcom = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwingcomander);
-        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 60, 60, false));
-        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, 60, 60, false));
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, markerSize, markerSize, false));
+        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, markerSize, markerSize, false));
+        if (!savedmarkers.isEmpty()) {
+            for (Marker marker : markers) {
+                marker.remove();
+            }
+            for (Long id : savedmarkers.keySet()) {
+                if (MapsActivity.id != 0 && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
+                    String[] data = Objects.requireNonNull(savedmarkers.get(id)).split("/");
+                    String hour = data[3].substring(11, 13);
+                    int hourkrsk = Integer.parseInt(hour) + 7;
+                    if (hourkrsk >= 24)
+                        hourkrsk = hourkrsk - 24;
+                    String minutes = data[3].substring(13, 16);
+                    String rank = (Integer.parseInt(data[4]) == 1 ? "Сержант" : "Рядовой");
+                    Marker marker = mMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
+                            .title(data[0])
+                            .alpha(Float.parseFloat(data[5]))
+                            .snippet(rank + " " + hourkrsk + minutes)
+                            .icon(Integer.parseInt(data[4]) == 1 ? iconcom : icon));
+                    markers.add(marker);
+                }
+            }
+        }
+    }
+
+    public static void createMarkers(HashMap<Long, String> map) {  //boolean - нужно ли удалять
+        System.out.println("Удаляются старые и создаются новые маркеры");
+        savedmarkers = map;
+        Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
+        Bitmap bitmapcom = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwingcomander);
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, markerSize, markerSize, false));
+        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, markerSize, markerSize, false));
         ((Activity) context).runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -187,15 +221,15 @@ public class DataSender extends Service {
                         String hour = data[3].substring(11, 13);
                         int hourkrsk = Integer.parseInt(hour) + 7;
                         if (hourkrsk >= 24)
-                            hourkrsk = hourkrsk-24;
+                            hourkrsk = hourkrsk - 24;
                         String minutes = data[3].substring(13, 16);
-                        String rank = (Integer.parseInt(data[4]) == 1? "Сержант" : "Рядовой");
+                        String rank = (Integer.parseInt(data[4]) == 1 ? "Сержант" : "Рядовой");
                         Marker marker = mMap.addMarker(new MarkerOptions()
                                 .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
                                 .title(data[0])
                                 .alpha(Float.parseFloat(data[5]))
                                 .snippet(rank + " " + hourkrsk + minutes)
-                                .icon(Integer.parseInt(data[4]) == 1? iconcom : icon));
+                                .icon(Integer.parseInt(data[4]) == 1 ? iconcom : icon));
                         markers.add(marker);
                     }
                 }
