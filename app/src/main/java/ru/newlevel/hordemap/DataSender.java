@@ -70,12 +70,11 @@ import java.util.TimerTask;
 
 public class DataSender extends Service implements Runnable {
     private static HashMap<Integer, String> gpsList = new HashMap();
-    private static String ipAdress = "horde.krasteplovizor.ru";
-    private static int port = 49283;
+    public static String ipAdress = "horde.krasteplovizor.ru";
+    public static int port = 49283;
     private static ArrayList<Marker> markers = new ArrayList<>();
     @SuppressLint("StaticFieldLeak")
     public static Context context;
-    public static String answer;
     public static Boolean isMarkersON = true;
     private static final int NOTIFICATION_ID = 1;
     private Handler handler;
@@ -123,7 +122,6 @@ public class DataSender extends Service implements Runnable {
     public int onStartCommand(Intent intent, int flags, int startId) {
         System.out.println("onStartCommand вызвана");
         startForeground(NOTIFICATION_ID, createNotification());
-//        new Thread(this::startAlarmManager);
         startAlarmManager();
         return START_STICKY;
     }
@@ -175,17 +173,19 @@ public class DataSender extends Service implements Runnable {
             @Override
             public void run() {
                 for (Marker marker : markers) {
-                    marker.remove();
+                   // marker.remove();
                 }
                 markers.clear();
                 for (Long id : map.keySet()) {
                     if (MapsActivity.id != 0 && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
                         String[] data = Objects.requireNonNull(map.get(id)).split("/");
-                        String dateTimeString = data[3].substring(11, 16);
+                        String hour = data[3].substring(11, 13);
+                        int hourkrsk = Integer.parseInt(hour) + 7;
+                        String minuts = data[3].substring(13, 16);
                         Marker marker = mMap.addMarker(new MarkerOptions()
                                 .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
                                 .title(data[0])
-                                .snippet(dateTimeString)
+                                .snippet(hourkrsk+minuts)
                                 .icon(icon));
                         markers.add(marker);
                     }
@@ -193,39 +193,6 @@ public class DataSender extends Service implements Runnable {
             }
         });
     }
-
-    public static void getLoginAccess(String phonenumber) {
-        // Создаем сокет
-        Socket clientSocket = new Socket();
-        DataSender.answer = "404";
-        try {
-            clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
-        } catch (IOException e) {
-            e.printStackTrace();
-            ((Activity) context).runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show();
-                }
-            });
-        }
-        // Получаем входной и выходной потоки для обмена данными с сервером
-        try (InputStream inputStream = clientSocket.getInputStream();
-             OutputStream outputStream = clientSocket.getOutputStream();
-             PrintWriter writer = new PrintWriter(outputStream);
-             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            // Отправляем запрос серверу
-            writer.println(phonenumber);
-            writer.flush();
-            System.out.println("Запрос на авторизацию отправлен: " + phonenumber);
-            // Читаем данные из входного потока
-            DataSender.answer = reader.readLine();
-            System.out.println(answer + " полученый ответ");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     public void run() {
         try {
             System.out.println("Вызван метод RUN, отсылаем данные и получаем ответ");
@@ -233,8 +200,7 @@ public class DataSender extends Service implements Runnable {
             String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.getLastKnownLocation();
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
-            clientSocket.connect(new InetSocketAddress("horde.krasteplovizor.ru", port), 1000);
-
+            clientSocket.connect(new InetSocketAddress("horde.krasteplovizor.ru", port), 10000);
             // Получаем входной и выходной потоки для обмена данными с сервером
             InputStream inputStream = clientSocket.getInputStream();
             OutputStream outputStream = clientSocket.getOutputStream();
@@ -267,7 +233,6 @@ public class DataSender extends Service implements Runnable {
                 System.out.println(json);
             }
             // Закрываем соединение с клиентом
-
             clientSocket.close();
 
         } catch (Exception ex) {

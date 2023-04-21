@@ -1,27 +1,23 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataSender.context;
+import static ru.newlevel.hordemap.DataSender.getInstance;
+
 import android.annotation.SuppressLint;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.text.InputType;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.EditText;
-import android.widget.Toast;
 import android.widget.ToggleButton;
-import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AlertDialog;
+
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -29,16 +25,18 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.maps.android.data.kml.KmlLayer;
+
 import org.xmlpull.v1.XmlPullParserException;
+
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Timer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -49,8 +47,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static GoogleMap mMap;
     public static Long id;
     public static String name;
-    private static Timer timer;
-    private Boolean permission = false;
+    public static Boolean permission = false;
     private SharedPreferences prefs;
 
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride"})
@@ -60,6 +57,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         context = this;
+        LoginRequest loginRequest = new LoginRequest();
         // Запрос прав если отсутствуют
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
@@ -86,7 +84,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // Обработка изменения состояния переключателя
                 if (isChecked && permission) {
                     DataSender.isMarkersON = true;
-                    sendingRequests();
+                    DataSender sender = DataSender.getInstance();
+                    //обновление списка координат сразу после запуска не дожидаясь алармменеджера
+                    new Thread(sender).start();
                 } else {
                     DataSender.isMarkersON = false;
                     DataSender.offMarkers();
@@ -98,13 +98,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         resetLogin.setText("RESET");
         toolbar.addView(resetLogin);
         resetLogin.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("CommitPrefEdits")
             @Override
             public void onClick(View v) {
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.clear();
-                editor.apply();
-                loginRequest();
+                loginRequest.logOut();
+                loginRequest.logIn(context);
             }
         });
         // Кнопка загрузки оверлея
@@ -133,9 +130,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
 
                     //Анпаким krsk.kmz получая doc.kml и папку files с jpg возвращая файл kml
-                    File kmlfile = unpackKmz(kmzfile);
                     //Вызываем метод ребилда, меняя в файле doc пути с относительных на getFilesDir
-                    File newfile = RebuildKML.rebuildKML(kmlfile);
+                    File newfile = RebuildKML.rebuildKML(unpackKmz(kmzfile));
                     //Создали поток для ребилженого файла и наложили на экран.
                     InputStream in = new FileInputStream(newfile);
                     KmlLayer kmlLayer = new KmlLayer(mMap, in, getApplicationContext());
@@ -148,35 +144,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
-        // Получаем менеджер местоположений, название провайдера
-//        LocationListener locationListener = new LocationListener() {
-//            @Override
-//            public void onLocationChanged(Location location) {
-//                latitude = location.getLatitude();
-//                longitude = location.getLongitude();
-//                DataSender.updateLocation(latitude, longitude);
-//                System.out.println(location.getProvider());
-//                Log.d("TAG", "latitude: " + latitude + ", longitude: " + longitude);
-//            }
-//
-//            @Override
-//            public void onStatusChanged(String provider, int status, Bundle extras) {
-//                System.out.println("Провайдер изменил статус");
-//            }
-//
-//            @Override
-//            public void onProviderEnabled(String provider) {
-//                System.out.println("Провайдер включен");
-//            }
-//
-//            @Override
-//            public void onProviderDisabled(String provider) {
-//                System.out.println("Провайдер выключен");
-//            }
-//        };
-//        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10000, 5, locationListener);
-//        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 5, locationListener);
-        loginRequest();
+        loginRequest.logIn(context);
     }
 
 
@@ -240,185 +208,54 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-    public void sendingRequests() {
-        if (timer != null) {
-            try {
-                timer.cancel();
-                System.out.println("Таймер остановлен");
-            } catch (Exception e) {
-                System.out.println("Таймер не был запущен");
-            }
-        }
-        timer = new Timer();
-        System.out.println("Создан sender");
-        DataSender sender = DataSender.getInstance();
-        new Thread(new Runnable() {
-            @RequiresApi(api = Build.VERSION_CODES.O)
-            public void run() {
-                Intent intent = new Intent(context, DataSender.class);
-                startForegroundService(intent);
-            }
-//        timer.scheduleAtFixedRate(new TimerTask() {
-//            @RequiresApi(api = Build.VERSION_CODES.N)
-//            @Override
-//            public void run() {
-//                // Создаем объект отправителя данных
-//           //     DataSender.updateLocation(latitude, longitude);
-//               // new Thread(sender).start();
-//                Intent intent = new Intent(context, DataSender.class);
-//                startService(intent);
-//            }
-//        }, 10, 120000); // 30000 - 30 сек
-//        System.out.println("Таймер запущен");
-        }).start();
-        sender.run();
-    }
-
-    private void loginRequest() {
-        prefs = getSharedPreferences("HordePref", MODE_PRIVATE);
-        String mySavedName = prefs.getString("name", ""); // вернуть "" если ключ не найден
-        Long mySavedID = prefs.getLong("id", 0L); // вернуть "" если ключ не найден
-        if (mySavedID != 0L) {
-            name = mySavedName;
-            id = mySavedID;
-            Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
-            System.out.println("Авторизация пройдена через сохраненный логин");
-            permission = true;
-            sendingRequests();
-        } else {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Введите номер телефона формата '891312341212'");
-
-            // добавляем компонент EditText в AlertDialog
-            final EditText input = new EditText(this);
-            input.setInputType(InputType.TYPE_CLASS_PHONE);
-            builder.setView(input);
-
-            // добавляем кнопки "Отмена" и "Ок" в AlertDialog
-            builder.setPositiveButton("Ок", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    String phoneNumber = input.getText().toString().trim();
-                    System.out.println(phoneNumber);
-                    Thread thread = new Thread(new Runnable() {
-                        public void run() {
-                            DataSender.getLoginAccess(phoneNumber);
-                        }
-                    });
-                    thread.start();
-                    try {
-                        thread.join();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    if (DataSender.answer.matches("^[a-zA-Zа-яА-Я]+$")) {
-                        name = DataSender.answer;
-                        id = Long.parseLong(phoneNumber);
-                        Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
-                        SharedPreferences.Editor editor = prefs.edit();
-                        editor.putString("name", name);
-                        editor.putLong("id", id);
-                        editor.apply();
-                        permission = true;
-                        sendingRequests();
-                    } else {
-                        Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
-                    }
-                }
-            });
-            builder.setNegativeButton("Отмена", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();// закрытие диалога при нажатии на кнопку "Отмена"
-                    dialog.cancel();
-                }
-            });
-            // запрет на закрытие диалога при нажатии на кнопку "Назад" на устройстве
-            builder.setCancelable(false);
-            // создаем и отображаем AlertDialog
-            AlertDialog dialog = builder.create();
-            dialog.show();
-        }
-    }
-
     private File unpackKmz(File kmzFile) {
-        System.out.println("вызван метод анпак");
-        System.out.println(kmzFile.exists());
-        System.out.println(kmzFile.length());
-        File kmlfile = new File(kmzFile.getParent(), "doc.kml");
         try {
+            File outputDir = getFilesDir();
             FileInputStream inputStream = new FileInputStream(kmzFile);
             ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(inputStream));
             ZipEntry zipEntry;
-            System.out.println(zipInputStream.available());
+            File kmlfile = new File(outputDir, "doc.kml");
             while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                 String fileName = zipEntry.getName();
-                System.out.println(fileName + " - имя файла");
-                System.out.println(zipEntry.isDirectory() + " это директория?");
-
-                // directories
                 if (zipEntry.isDirectory()) {
-                    //       File outputDir = new File(getFilesDir(), "files");
-                    //       System.out.println(outputDir.toString() + "директория на запись на начало входа");
-                    unpackZipEntry(zipInputStream, zipEntry, getFilesDir());
-                    System.out.println(getFilesDir() + " это файловая директория которая подается во второй анпак");
+                    File newDir = new File(outputDir, fileName);
+                    newDir.mkdir();
+                    ZipEntry newEntry;
+                    while ((newEntry = zipInputStream.getNextEntry()) != null) {
+                        String newFileName = newEntry.getName();
+                        File newFile = new File(newDir, newFileName);
+                        FileOutputStream outputStream = new FileOutputStream(newFile);
+                        byte[] buffer = new byte[1024];
+                        int count;
+                        while ((count = zipInputStream.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, count);
+                        }
+                        outputStream.close();
+                        zipInputStream.closeEntry();
+                        if (newFileName.endsWith("kmz")) {
+                            kmlfile = newFile;
+                        }
+                    }
                 } else {
-                    // Extract file
-                    File outputFile = new File(getFilesDir(), fileName);
-                    System.out.println(outputFile + " это имя файла на запись");
+                    File outputFile = new File(outputDir, fileName);
                     FileOutputStream outputStream = new FileOutputStream(outputFile);
                     byte[] buffer = new byte[1024];
                     int count;
-
                     while ((count = zipInputStream.read(buffer)) != -1) {
                         outputStream.write(buffer, 0, count);
                     }
                     outputStream.close();
                     zipInputStream.closeEntry();
-                    System.out.println(outputFile.exists() + " mz файл существует? " + outputFile.getAbsolutePath() + " путь к нему и " + outputFile.length() + " его размер");
-                    if (outputFile.getName().endsWith("kmz")) kmlfile = outputFile;
+                    if (outputFile.getName().endsWith("kmz")) {
+                        kmlfile = outputFile;
+                    }
                 }
             }
             zipInputStream.close();
-            System.out.println("анзип отработал");
+            return kmlfile;
         } catch (IOException e) {
             e.printStackTrace();
-        }
-        return kmlfile;
-    }
-
-    private void unpackZipEntry(ZipInputStream zipInputStream, ZipEntry zipEntry, File
-            outputDir) {
-        // Check if entry is a directory
-        System.out.println(outputDir.toString() + " - output dir");
-        System.out.println("зашли во второй анпак");
-        try {
-            if (zipEntry.isDirectory()) {
-                // Create directory on filesystem
-                File newDir = new File(outputDir, zipEntry.getName());
-                newDir.mkdir();
-                ZipEntry newEntry;
-                while ((newEntry = zipInputStream.getNextEntry()) != null) {
-                    unpackZipEntry(zipInputStream, newEntry, outputDir);
-                }
-            } else {
-                // Create output file and stream
-                File outputFile = new File(outputDir, zipEntry.getName());
-                FileOutputStream outputStream = new FileOutputStream(outputFile);
-                // Copy bytes from zip entry stream to output file stream
-                byte[] buffer = new byte[1024];
-                int count;
-                while ((count = zipInputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, count);
-                }
-                System.out.println(outputDir + "это директория для записи и " + outputFile + " это файл");
-                System.out.println(outputFile.toString() + " " + outputFile.length());
-                // Close output stream
-                outputStream.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+            return null;
         }
     }
-
 }

@@ -14,6 +14,8 @@ import java.io.OutputStreamWriter;
 public class RebuildKML {
     static File rebuildKML (File inputFile){
         File outputFile = null;
+        System.out.println("зашли в ребилд кмз");
+        System.out.println("проверяем на наличие инпут файла " + inputFile.exists());
         try {
 
             //На основе прошлого файла получаем родительский каталог и объявляем новый файл
