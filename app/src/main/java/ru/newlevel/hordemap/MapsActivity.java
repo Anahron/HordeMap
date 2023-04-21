@@ -2,12 +2,10 @@ package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataSender.context;
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
@@ -48,7 +46,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int REQUEST_INTERNET_PERMISSION = 1001;
     private static final int REQUEST_LOCATION_PERMISSION = 1001;
     private ActivityMapsBinding binding;
-    public static LocationManager locationManager;
     public static GoogleMap mMap;
     public static Long id;
     public static String name;
@@ -63,7 +60,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         context = this;
-        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         // Запрос прав если отсутствуют
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
@@ -71,6 +67,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.INTERNET}, REQUEST_INTERNET_PERMISSION);
         }
+        MyLocationListener.startLocationListener();
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;

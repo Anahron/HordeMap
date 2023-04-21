@@ -2,7 +2,6 @@ package ru.newlevel.hordemap;
 
 import static android.content.ContentValues.TAG;
 import static ru.newlevel.hordemap.DataSender.context;
-import static ru.newlevel.hordemap.MapsActivity.locationManager;
 import static ru.newlevel.hordemap.MapsActivity.mMap;
 
 import android.Manifest;
@@ -73,8 +72,6 @@ public class DataSender extends Service implements Runnable {
     private static HashMap<Integer, String> gpsList = new HashMap();
     private static String ipAdress = "horde.krasteplovizor.ru";
     private static int port = 49283;
-    private static double latitude;
-    private static double longitude;
     private static ArrayList<Marker> markers = new ArrayList<>();
     @SuppressLint("StaticFieldLeak")
     public static Context context;
@@ -148,46 +145,18 @@ public class DataSender extends Service implements Runnable {
     @RequiresApi(api = Build.VERSION_CODES.N)
     protected static void startAlarmManager() {
         System.out.println("Запустился Аларм Менеджер");
-        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        @SuppressLint("MissingPermission")
-        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        @SuppressLint("MissingPermission")
-        Location locationNet = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        LocationListener locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                latitude = location.getLatitude();
-                longitude = location.getLongitude();
-                System.out.println(location.getProvider() + this.toString());
-                Log.d("TAG", "latitude: " + latitude + ", longitude: " + longitude);
-            }
-        };
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 1, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 1, locationListener);
         AlarmManager alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
         Intent intent = new Intent(context, MyWakefulReceiver.class);
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
-//        try {
-//            MyWakefulReceiver myWakefulReceiver = new MyWakefulReceiver(); хуита получилась
-//            myWakefulReceiver.onReceive(context, intent);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
         @SuppressLint("UnspecifiedImmutableFlag")
         PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         calendar.set(Calendar.SECOND, 30);
         calendar.set(Calendar.MILLISECOND, 0);
         calendar.add(Calendar.MINUTE, 0);
-        //    alarmMgr.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 35000, pendingIntent);
         alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 30000, pendingIntent);
-
         System.out.println("Аларм менеджер отработал");
     }
 
@@ -261,11 +230,7 @@ public class DataSender extends Service implements Runnable {
         try {
             System.out.println("Вызван метод RUN, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
-            String post = "";
-            if (longitude == 0.0)
-                post = MapsActivity.id + "/" + MapsActivity.name + "/" + "00.00" + "/" + "00.00";
-            else
-                post = MapsActivity.id + "/" + MapsActivity.name + "/" + latitude + "/" + longitude;
+            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.getLastKnownLocation();
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
             clientSocket.connect(new InetSocketAddress("horde.krasteplovizor.ru", port), 1000);
@@ -319,8 +284,6 @@ public class DataSender extends Service implements Runnable {
 
     public static class MyWakefulReceiver extends WakefulBroadcastReceiver {
 
-        private static MyWakefulReceiver instance = null;
-
         public MyWakefulReceiver() {
         }
 
@@ -332,8 +295,6 @@ public class DataSender extends Service implements Runnable {
             startWakefulService(context, service);
             setResultCode(Activity.RESULT_OK);
             // Получение последних доступных координат
-
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 startAlarmManager();
             }
