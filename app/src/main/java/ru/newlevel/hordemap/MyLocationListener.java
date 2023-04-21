@@ -13,12 +13,18 @@ import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 
+import com.google.android.gms.maps.model.LatLng;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class MyLocationListener {
 
     private static MyLocationListener instance = null;
     private static LocationManager locationManager;
     private static double latitude;
     private static double longitude;
+    public static List<LatLng> coordinates = new ArrayList<>();
 
     private MyLocationListener() {
     }
@@ -37,6 +43,7 @@ public class MyLocationListener {
             public void onLocationChanged(Location location) {
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();
+                coordinates.add(new LatLng(latitude, longitude));
                 System.out.println(location.getProvider() + this.toString());
                 Log.d("TAG", "latitude: " + latitude + ", longitude: " + longitude);
             }
@@ -44,8 +51,8 @@ public class MyLocationListener {
         if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 1, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 1, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 7000, 0, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 7000, 0, locationListener);
     }
 
     public static String getLastKnownLocation() {

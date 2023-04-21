@@ -3,17 +3,25 @@ package ru.newlevel.hordemap;
 import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.getInstance;
 import static ru.newlevel.hordemap.DataSender.sender;
+import static ru.newlevel.hordemap.MyLocationListener.coordinates;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
@@ -25,6 +33,9 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.widget.PopupMenu;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -37,6 +48,11 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.material.chip.Chip;
+import com.google.maps.android.PolyUtil;
+import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -50,6 +66,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -65,7 +84,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static Long id;
     public static String name;
     public static Boolean permission = false;
-    private SharedPreferences prefs;
+    private Polyline polyline;
 
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride"})
     @Override
@@ -75,12 +94,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(binding.getRoot());
         context = this;
         LoginRequest loginRequest = new LoginRequest();
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         // Запрос прав если отсутствуют
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
         }
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.INTERNET}, REQUEST_INTERNET_PERMISSION);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, REQUEST_INTERNET_PERMISSION);
         }
         MyLocationListener.startLocationListener();
         // Получаем фрагмент карты
@@ -88,14 +108,122 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
         // Добавляем тулбар
-        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
-        //добавляем кнопки на туобар
-        Switch toggleButton = new Switch(this);
-        toggleButton.setChecked(true);
-        toggleButton.setText("MARKER");
-        toggleButton.setTextScaleX(0.8f);
-        toolbar.addView(toggleButton);
-        toggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        //добавляем кнопки на тулбар
+        Button menubutton = new Button(this);
+        menubutton.setText("MENU");
+        toolbar.addView(menubutton);
+        menubutton.setOnClickListener(new View.OnClickListener() {
+            @SuppressLint("ResourceType")
+            @Override
+            public void onClick(View v) {
+                PopupMenu popupMenu = new PopupMenu(context, menubutton);
+                popupMenu.getMenuInflater().inflate(R.xml.popup_menu, popupMenu.getMenu());
+                popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+                    @SuppressLint({"NonConstantResourceId", "SetTextI18n"})
+                    @Override
+                    public boolean onMenuItemClick(MenuItem item) {
+                        switch (item.getItemId()) {
+                            case R.id.menu_item1:
+                                File kmlfile = null;
+                                try {
+                                    kmlfile = KMZhandler.DownloadKMZ(context, getFilesDir());
+                                    InputStream in = new FileInputStream(kmlfile);
+                                    KmlLayer kmlLayer = new KmlLayer(mMap, in, getApplicationContext());
+                                    kmlLayer.addLayerToMap();
+                                    System.out.println("Кнопка отработала");
+                                    in.close();
+                                } catch (XmlPullParserException | IOException ex) {
+                                    System.out.println("Ошибка загрузки или распаковки карты");
+                                    Toast.makeText(context, "Ошибка загрузки, проверьте соединение с интернетом", Toast.LENGTH_LONG).show();
+                                    ex.printStackTrace();
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                return true;
+                            case R.id.menu_item2:
+                                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                                builder.setTitle("Изменение размера маркеров");
+                                SeekBar seekBar = new SeekBar(context);
+                                builder.setView(seekBar);
+                                builder.setTitle("Изменение размера маркеров");
+                                // Установка диапазона значений
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    seekBar.setMin(10);
+                                }
+                                seekBar.setMax(120);
+                                seekBar.setProgress(60);
+                                seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                                    @Override
+                                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                            seekBar.setTooltipText(String.valueOf(progress));
+                                        }
+                                    }
+                                    @Override
+                                    public void onStartTrackingTouch(SeekBar seekBar) {
+
+                                    }
+
+                                    @Override
+                                    public void onStopTrackingTouch(SeekBar seekBar) {
+
+                                    }
+                                });
+                                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        int value = seekBar.getProgress();
+                                        DataSender.markerSize = value + 1;
+                                        DataSender.apDateMarkers();
+                                    }
+                                });
+                                AlertDialog dialog = builder.create();
+                                dialog.show();
+                                return true;
+                            case R.id.menu_item3:
+                                float[] results = new float[1];
+                                // Создаем объект PolylineOptions
+                                PolylineOptions polylineOptions = new PolylineOptions()
+                                        .addAll(coordinates)
+                                        .color(Color.RED) // Задаем цвет линии
+                                        .width(10); // Задаем ширину линии
+                                // Добавляем Polyline на карту
+                                polyline = mMap.addPolyline(polylineOptions);
+                                return true;
+                            case R.id.menu_item4:
+                                if (polyline!=null)
+                                    polyline.remove();
+                                return true;
+                            case R.id.menu_item5:
+                                coordinates.clear();
+                                return true;
+                            case R.id.menu_item6:
+                            List<LatLng> simplifiedCoordinates  = PolyUtil.simplify(coordinates, 20);
+                            Toast.makeText(context, "Пройденная дистанция: " +  String.valueOf((int) Math.round(SphericalUtil.computeLength(simplifiedCoordinates))) + " метров.", Toast.LENGTH_LONG).show();
+                                return true;
+                            case R.id.menu_item7:
+                                loginRequest.logOut();
+                                loginRequest.logIn(context);
+                                return true;
+                            default:
+                                return false;
+                        }
+                    }
+                });
+                popupMenu.show();
+            }
+        });
+        @SuppressLint("UseSwitchCompatOrMaterialCode") SwitchCompat markerswitch = new SwitchCompat(this);
+        markerswitch.setChecked(true);
+        markerswitch.setText("  MARKERS");
+        markerswitch.setTextColor(Color.WHITE);
+        ColorStateList thumbColorStateList = ColorStateList.valueOf(getResources().getColor(R.color.black));
+        markerswitch.setThumbTintList(thumbColorStateList);
+        markerswitch.getThumbDrawable().setColorFilter(getResources().getColor(R.color.teal_700), PorterDuff.Mode.MULTIPLY);
+        markerswitch.getTrackDrawable().setColorFilter(getResources().getColor(R.color.white), PorterDuff.Mode.MULTIPLY);
+        toolbar.addView(markerswitch);
+        markerswitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 // Обработка изменения состояния переключателя
                 if (isChecked && permission) {
@@ -114,131 +242,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
-        // Кнопка сброса логина
-        Button resetLogin = new Button(this);
-        resetLogin.setText("RESET");
-        toolbar.addView(resetLogin);
-        resetLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                loginRequest.logOut();
-                loginRequest.logIn(context);
-            }
-        });
-        // Кнопка загрузки оверлея
-        Button button = new Button(this);
-        button.setText("MAP");
-        toolbar.addView(button);
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                File kmlfile = null;
-                try {
-                    kmlfile = KMZhandler.DownloadKMZ(context, getFilesDir());
-                    //Создали поток для ребилженого файла и наложили на экран.
-                    InputStream in = new FileInputStream(kmlfile);
-                    KmlLayer kmlLayer = new KmlLayer(mMap, in, getApplicationContext());
-                    kmlLayer.addLayerToMap();
-                    System.out.println("Кнопка отработала");
-                    in.close();
-                } catch (XmlPullParserException | IOException ex) {
-                    System.out.println("Ошибка загрузки или распаковки карты");
-                    Toast.makeText(context, "Ошибка загрузки, проверьте соединение с интернетом", Toast.LENGTH_LONG).show();
-                    ex.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-
-        Button markersize = new Button(this);
-        resetLogin.setWidth(10);
-        resetLogin.setHeight(10);
-        markersize.setWidth(10);
-        markersize.setHeight(10);
-        button.setWidth(10);
-        button.setHeight(10);
-        markersize.setText("SIZE");
-        toolbar.addView(markersize);
-        markersize.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("SetTextI18n")
-            @Override
-            public void onClick(View v) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                builder.setTitle("Изменение размера маркеров");
-                SeekBar seekBar = new SeekBar(context);
-                builder.setView(seekBar);
-                builder.setTitle("Изменение размера маркеров");
-                // Установка диапазона значений
-                seekBar.setMax(10);
-                seekBar.setProgress(5);
-                seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                    @Override
-                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            seekBar.setTooltipText(String.valueOf(progress));
-                        }
-
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(SeekBar seekBar) {
-
-                    }
-
-                    @Override
-                    public void onStopTrackingTouch(SeekBar seekBar) {
-
-                    }
-                });
-                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        int value = seekBar.getProgress();
-                        System.out.println("РАЗМЕР В ЦИФРАХ" + value);
-                        DataSender.markerSize = (value * 10) + 10;
-                        System.out.println("РАЗМЕР В ПИКСЕЛЯ БУДЕТ: + " + value * 10);
-                        DataSender.apDateMarkers();
-                    }
-                });
-                AlertDialog dialog = builder.create();
-                dialog.show();
-
-
-            }
-        });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
         loginRequest.logIn(context);
     }
-
 
     /**
      * Manipulates the map once available.
