@@ -1,15 +1,42 @@
 package ru.newlevel.hordemap;
 
+import static android.content.ContentValues.TAG;
+import static ru.newlevel.hordemap.DataSender.context;
+import static ru.newlevel.hordemap.MapsActivity.locationManager;
 import static ru.newlevel.hordemap.MapsActivity.mMap;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.icu.util.Calendar;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.SystemClock;
+import android.util.Log;
 import android.widget.Toast;
+
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.legacy.content.WakefulBroadcastReceiver;
 
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -17,6 +44,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.BufferedReader;
@@ -28,21 +56,23 @@ import java.io.PrintWriter;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URL;
 import java.net.UnknownHostException;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class DataSender implements Runnable {
+public class DataSender extends Service implements Runnable {
     private static HashMap<Integer, String> gpsList = new HashMap();
-    private static Long id;
-    private static String ipAdress = "192.168.1.21";
-    private static int port = 8000;
-    private static String name;
+    private static String ipAdress = "horde.krasteplovizor.ru";
+    private static int port = 49283;
     private static double latitude;
     private static double longitude;
     private static ArrayList<Marker> markers = new ArrayList<>();
@@ -50,25 +80,118 @@ public class DataSender implements Runnable {
     public static Context context;
     public static String answer;
     public static Boolean isMarkersON = true;
+    private static final int NOTIFICATION_ID = 1;
+    private Handler handler;
+    private Runnable runnable;
+    public static DataSender sender = DataSender.getInstance();
+    private static DataSender instance = null;
 
-    public DataSender(Long id, String name) {
-        DataSender.id = id;
-        DataSender.name = name;
+    public DataSender() {
+    }
+    public static DataSender getInstance() {
+        if (instance == null) {
+            instance = new DataSender();
+        }
+        return instance;
     }
 
-    public void setIpAdress(String ipAdress) {
-        DataSender.ipAdress = ipAdress;
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        System.out.println("Зашли в ONCREATE");
+        startForeground(NOTIFICATION_ID, createNotification());
+        handler = new Handler();
+        runnable = new Runnable() {
+            @Override
+            public void run() {
+                Log.d("MyForegroundService", "Current time: " + new Date().toString());
+                //  handler.postDelayed(this, 50000); //50000 норм
+                System.out.println("В методе onCreate вызываем Аларм Менеджер");
+                startAlarmManager();
+            }
+        };
+        runnable.run();
     }
 
-    public String getIpAdress() {
-        return ipAdress;
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 
-    public void updateLocation(double latitude, double longitude) {
-        DataSender.latitude = latitude;
-        DataSender.longitude = longitude;
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        System.out.println("onStartCommand вызвана");
+        startForeground(NOTIFICATION_ID, createNotification());
+//        new Thread(this::startAlarmManager);
+        startAlarmManager();
+        return START_STICKY;
     }
-    public static void offMarkers(){
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private Notification createNotification() {
+        NotificationChannel channel = new NotificationChannel("CHANNEL_ID", "channel_name", NotificationManager.IMPORTANCE_LOW);
+        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        notificationManager.createNotificationChannel(channel);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_ID")
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle("Horde Map")
+                .setContentText("Похищаем твои данные и передаем орде")
+                .setPriority(NotificationCompat.PRIORITY_HIGH);
+        ;
+        return builder.build();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    protected static void startAlarmManager() {
+        System.out.println("Запустился Аларм Менеджер");
+        LocationManager locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+        @SuppressLint("MissingPermission")
+        Location location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        @SuppressLint("MissingPermission")
+        Location locationNet = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        LocationListener locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                latitude = location.getLatitude();
+                longitude = location.getLongitude();
+                System.out.println(location.getProvider() + this.toString());
+                Log.d("TAG", "latitude: " + latitude + ", longitude: " + longitude);
+            }
+        };
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 1, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 1, locationListener);
+        AlarmManager alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+
+        Intent intent = new Intent(context, MyWakefulReceiver.class);
+        intent.setAction("com.newlevel.ACTION_SEND_DATA");
+//        try {
+//            MyWakefulReceiver myWakefulReceiver = new MyWakefulReceiver(); хуита получилась
+//            myWakefulReceiver.onReceive(context, intent);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+        @SuppressLint("UnspecifiedImmutableFlag")
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(System.currentTimeMillis());
+        calendar.set(Calendar.SECOND, 30);
+        calendar.set(Calendar.MILLISECOND, 0);
+        calendar.add(Calendar.MINUTE, 0);
+        //    alarmMgr.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 35000, pendingIntent);
+        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 30000, pendingIntent);
+
+        System.out.println("Аларм менеджер отработал");
+    }
+
+    public static void offMarkers() {
         for (Marker marker : markers) {
             System.out.println(marker);
             marker.remove();
@@ -76,6 +199,7 @@ public class DataSender implements Runnable {
     }
 
     public static void createMarkers(HashMap<Long, String> map) {
+        System.out.println("Удаляются старые и создаются новые маркеры");
         Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hordecircle);
         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, 60, 60, false));
         ((Activity) context).runOnUiThread(new Runnable() {
@@ -85,9 +209,8 @@ public class DataSender implements Runnable {
                     marker.remove();
                 }
                 markers.clear();
-                for (Long id : map.keySet() ) {
-                    if (MapsActivity.id != id && isMarkersON) {
-                        System.out.println(map.get(id));
+                for (Long id : map.keySet()) {
+                    if (MapsActivity.id != 0 && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
                         String[] data = Objects.requireNonNull(map.get(id)).split("/");
                         String dateTimeString = data[3].substring(11, 16);
                         Marker marker = mMap.addMarker(new MarkerOptions()
@@ -95,7 +218,6 @@ public class DataSender implements Runnable {
                                 .title(data[0])
                                 .snippet(dateTimeString)
                                 .icon(icon));
-                        // .icon(BitmapDescriptorFactory.fromResource(R.drawable.orc2))); // Задание изображения маркера
                         markers.add(marker);
                     }
                 }
@@ -103,7 +225,7 @@ public class DataSender implements Runnable {
         });
     }
 
-    public static void getLoginAccess (String phonenumber) {
+    public static void getLoginAccess(String phonenumber) {
         // Создаем сокет
         Socket clientSocket = new Socket();
         DataSender.answer = "404";
@@ -135,15 +257,18 @@ public class DataSender implements Runnable {
         }
     }
 
-    @Override
     public void run() {
         try {
+            System.out.println("Вызван метод RUN, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
-            String post = id + "/" + name + "/" + latitude + "/" + longitude;
-
+            String post = "";
+            if (longitude == 0.0)
+                post = MapsActivity.id + "/" + MapsActivity.name + "/" + "00.00" + "/" + "00.00";
+            else
+                post = MapsActivity.id + "/" + MapsActivity.name + "/" + latitude + "/" + longitude;
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
-            clientSocket.connect(new InetSocketAddress(ipAdress, 8000), 10000);
+            clientSocket.connect(new InetSocketAddress("horde.krasteplovizor.ru", port), 1000);
 
             // Получаем входной и выходной потоки для обмена данными с сервером
             InputStream inputStream = clientSocket.getInputStream();
@@ -164,20 +289,65 @@ public class DataSender implements Runnable {
             }.getType();
             // Преобразуем JSON-строку в HashMap
             Gson gson = new Gson();
-            HashMap<Long, String> hashMap = gson.fromJson(json, type);
-            System.out.println("Запрос получен: " + hashMap.toString());
+            try {
+                if (json != null) {
+                    HashMap<Long, String> hashMap = gson.fromJson(json, type);
+                    System.out.println("Запрос получен: " + hashMap.toString());
+                    createMarkers(hashMap);
+                } else {
+                    System.out.println("Данные пусты");
+                }
+            } catch (JsonSyntaxException e) {
+                System.out.println("Данные ошибочны");
+                System.out.println(json);
+            }
             // Закрываем соединение с клиентом
+
             clientSocket.close();
-            createMarkers(hashMap);
 
         } catch (Exception ex) {
-            ((Activity) context).runOnUiThread(new Runnable() {
+//            ((Activity) context).runOnUiThread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    Toast.makeText(context, "Соединение не установлено, проверьте подключение к интернету", Toast.LENGTH_LONG).show();
+//                }
+//            });
+            ex.printStackTrace();
+            System.out.println("Соединение с сервером не установлено");
+        }
+    }
+
+    public static class MyWakefulReceiver extends WakefulBroadcastReceiver {
+
+        private static MyWakefulReceiver instance = null;
+
+        public MyWakefulReceiver() {
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            System.out.println("Запустился метод MyWakefulReceiver, получает координаты и вызывает RUN в новом потоке");
+            Intent service = new Intent(context, DataSender.class);
+            service.setAction("com.newlevel.ACTION_SEND_DATA");
+            startWakefulService(context, service);
+            setResultCode(Activity.RESULT_OK);
+            // Получение последних доступных координат
+
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                startAlarmManager();
+            }
+            Thread thread = new Thread(new Runnable() {
+                @RequiresApi(api = Build.VERSION_CODES.O)
                 @Override
                 public void run() {
-                    Toast.makeText(context, "Соединение не установлено, проверьте подключение к интернету", Toast.LENGTH_LONG).show();
+                    sender.run();
                 }
             });
-            System.out.println("Соединение с сервером не установлено");
+            thread.start();
+            // Завершение работы сервиса
+            completeWakefulIntent(intent);
+            this.abortBroadcast();
         }
     }
 }

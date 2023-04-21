@@ -4,10 +4,17 @@
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES"/>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+
 
     <application
         android:allowBackup="true"
@@ -20,6 +27,22 @@
         android:theme="@style/Theme.HordeMap"
         tools:targetApi="32">
 
+        <!-- Register WakefulBroadcastReceiver -->
+        <receiver
+            android:name=".DataSender$MyWakefulReceiver"
+            android:enabled="true"
+            android:exported="false"
+            android:permission="android.permission.WAKE_LOCK">
+            <intent-filter>
+                <action android:name="com.newlevel.ACTION_SEND_DATA" />
+                <!--                <action android:name="android.intent.action.BOOT_COMPLETED" />-->
+                <!--                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />-->
+            </intent-filter>
+        </receiver>
+        <!-- Declare service -->
+        <service
+            android:name=".DataSender"
+            android:enabled="true" />
         <!--
              TODO: Before you run your application, you need a Google Maps API key.
 
@@ -41,7 +64,6 @@
             android:label="@string/title_activity_maps">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
