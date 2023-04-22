@@ -20,7 +20,6 @@ import java.util.List;
 
 public class MyLocationListener {
 
-    private static MyLocationListener instance = null;
     private static LocationManager locationManager;
     private static double latitude;
     private static double longitude;
@@ -29,24 +28,13 @@ public class MyLocationListener {
     private MyLocationListener() {
     }
 
-    public static MyLocationListener getInstance() {
-        if (instance == null) {
-            instance = new MyLocationListener();
-        }
-        return instance;
-    }
-
     public static void startLocationListener() {
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        LocationListener locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                latitude = location.getLatitude();
-                longitude = location.getLongitude();
-                coordinates.add(new LatLng(latitude, longitude));
-                System.out.println(location.getProvider() + this.toString());
-                Log.d("TAG", "latitude: " + latitude + ", longitude: " + longitude);
-            }
+        LocationListener locationListener = location -> {
+            latitude = location.getLatitude();
+            longitude = location.getLongitude();
+            coordinates.add(new LatLng(latitude, longitude));
+            Log.d("TAG", "latitude: " + latitude + ", longitude: " + longitude);
         };
         if (ActivityCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;

@@ -1,10 +1,7 @@
 package ru.newlevel.hordemap;
 
-import android.app.DownloadManager;
-import android.content.Context;
-import android.net.Uri;
-import android.os.Environment;
 
+import android.content.Context;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -18,6 +15,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -25,26 +23,23 @@ public class KMZhandler {
 
     public static File DownloadKMZ(Context context, File filedir) throws MalformedURLException, InterruptedException {
         File newDir = new File(filedir, "krsk.kmz");
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                URL url = null;
-                try {
-                    System.out.println("Пытаемся скачать файл карты");
-                    url = new URL(DataSender.requestInfoFromServer("mapurl"));
-                    try (BufferedInputStream inputStream = new BufferedInputStream(url.openStream());
-                         FileOutputStream outputStream = new FileOutputStream(newDir);) {
-                        byte[] buffer = new byte[1024];
-                        int bytesRead;
-                        while ((bytesRead = inputStream.read(buffer, 0, buffer.length)) >= 0) {
-                            outputStream.write(buffer, 0, bytesRead);
-                        }
-                    } catch (IOException e) {
-                        System.out.println("Ошибка скачивания");
+        Thread thread = new Thread(() -> {
+            URL url;
+            try {
+                System.out.println("Пытаемся скачать файл карты");
+                url = new URL(DataSender.requestInfoFromServer("mapurl"));
+                try (BufferedInputStream inputStream = new BufferedInputStream(url.openStream());
+                     FileOutputStream outputStream = new FileOutputStream(newDir)) {
+                    byte[] buffer = new byte[1024];
+                    int bytesRead;
+                    while ((bytesRead = inputStream.read(buffer, 0, buffer.length)) >= 0) {
+                        outputStream.write(buffer, 0, bytesRead);
                     }
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
+                } catch (IOException e) {
+                    System.out.println("Ошибка скачивания");
                 }
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
             }
         });
         thread.start();
@@ -71,15 +66,14 @@ public class KMZhandler {
     public static File unpackKmz(File kmzFile, File filedir) {
         try {
             System.out.println("Распаковываем");
-            File outputDir = filedir;
             FileInputStream inputStream = new FileInputStream(kmzFile);
             ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(inputStream));
             ZipEntry zipEntry;
-            File kmlfile = new File(outputDir, "doc.kml");
+            File kmlfile = new File(filedir, "doc.kml");
             while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                 String fileName = zipEntry.getName();
                 if (zipEntry.isDirectory()) {
-                    File newDir = new File(outputDir, fileName);
+                    File newDir = new File(filedir, fileName);
                     newDir.mkdir();
                     ZipEntry newEntry;
                     while ((newEntry = zipInputStream.getNextEntry()) != null) {
@@ -98,7 +92,7 @@ public class KMZhandler {
                         }
                     }
                 } else {
-                    File outputFile = new File(outputDir, fileName);
+                    File outputFile = new File(filedir, fileName);
                     FileOutputStream outputStream = new FileOutputStream(outputFile);
                     byte[] buffer = new byte[1024];
                     int count;
@@ -133,8 +127,8 @@ public class KMZhandler {
             } else {
                 System.out.println("Failed to delete file.");
             }
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(inputFile), "UTF-8"));
-            BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFile), "UTF-8"));
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(inputFile), StandardCharsets.UTF_8));
+            BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFile), StandardCharsets.UTF_8));
             //читаем построчно и меняем пути
             String line;
             while ((line = bufferedReader.readLine()) != null) {
