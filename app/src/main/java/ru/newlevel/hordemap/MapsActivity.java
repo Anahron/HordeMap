@@ -70,14 +70,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
         }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, REQUEST_INTERNET_PERMISSION);
-        }
         super.onCreate(savedInstanceState);
         ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         context = this;
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+       // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
         // Запрос прав если отсутствуют
         MyLocationListener.startLocationListener();
         // Получаем фрагмент карты
@@ -87,7 +85,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Добавляем тулбар
         Toolbar toolbar = findViewById(R.id.toolbar);
         LoginRequest loginRequest = new LoginRequest();
-        loginRequest.logIn(context);
+        if (name == null || name.equals("name"))
+            loginRequest.logIn(context);
         //добавляем кнопки на тулбар
         Button menubutton = new Button(this);
         menubutton.setText("MENU");
@@ -217,27 +216,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
-
         // Сдвиг карты ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         mMap.setPadding(0, actionBarHeight, 0, 0);
-        // Add a marker and move the camera
+        // Камера на Красноярск
         LatLng location = new LatLng(56.0901, 93.2329);
-        //  mMap.addMarker(new MarkerOptions().position(location).title("test marker").icon(BitmapDescriptorFactory.fromResource(R.drawable.orc2)));
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 5));
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
-        }
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
         try {
             mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setMapToolbarEnabled(true);
-            mMap.setMyLocationEnabled(true);
-            mMap.getUiSettings().setMyLocationButtonEnabled(true); // Включить кнопку перехода к местоположению пользователя
-            mMap.getUiSettings().setCompassEnabled(true); // Включить отображение компаса
-            //  mMap.getUiSettings().setAllGesturesEnabled(true);
+            mMap.getUiSettings().setMyLocationButtonEnabled(true);
+            mMap.getUiSettings().setCompassEnabled(true);
             mMap.getUiSettings().setZoomControlsEnabled(true);
             System.out.println("включилась");
         } catch (SecurityException e) {
@@ -246,14 +237,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         // Показываем только текст маркера, без перемещения к нему камеры
         mMap.setOnMarkerClickListener(marker -> {
-            // показываем текст маркера
-            System.out.println(marker.isInfoWindowShown());
             if (marker.isInfoWindowShown()) {
                 marker.hideInfoWindow();
-                System.out.println("Скрыть инфо");
             } else {
                 marker.showInfoWindow();
-                System.out.println("Показать инфо");
             }
             return true;
         });

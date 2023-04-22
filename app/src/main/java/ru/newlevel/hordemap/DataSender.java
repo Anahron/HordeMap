@@ -272,24 +272,19 @@ public class DataSender extends Service {
         final String[] answer = {""};
         Thread thread = new Thread(() -> {
             try {
-                // Создаем сокет на порту 8080
                 Socket clientSocket = new Socket();
                 clientSocket.connect(new InetSocketAddress(ipAdress, port), 5000);
                 // Получаем входной и выходной потоки для обмена данными с сервером
                 InputStream inputStream = clientSocket.getInputStream();
                 OutputStream outputStream = clientSocket.getOutputStream();
-
                 // Отправляем запрос серверу
                 PrintWriter writer = new PrintWriter(outputStream);
                 writer.println(request);
                 writer.flush();
                 System.out.println("Запрос отправлен: " + request);
-
-                // Читаем данные из входного потока
                 BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
                 answer[0] = reader.readLine();
                 clientSocket.close();
-
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
