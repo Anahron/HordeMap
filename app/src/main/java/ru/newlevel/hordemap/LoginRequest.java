@@ -93,7 +93,9 @@ public class LoginRequest extends Service {
         prefs = context.getSharedPreferences("HordePref", MODE_PRIVATE);
         long mySavedID = prefs.getLong("id", 0L);
         String mySavedName = prefs.getString("name", "name");
-        if (mySavedID != 0L || !mySavedName.equals("name")) {
+        if (mySavedID == 0L || mySavedName.equals("name")) {
+            createDialog(context);
+        } else {
             MapsActivity.id = mySavedID;
             MapsActivity.name = mySavedName;
             startGPSsender();
@@ -128,8 +130,6 @@ public class LoginRequest extends Service {
 //                Intent intent = new Intent(context, DataSender.class);
 //                context.stopService(intent);
 //            }
-        } else {
-            createDialog(context);
         }
     }
     private static void getLoginAccessFromServer(String phonenumber) {

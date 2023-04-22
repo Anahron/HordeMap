@@ -52,7 +52,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int REQUEST_INTERNET_PERMISSION = 1001;
     private static final int REQUEST_LOCATION_PERMISSION = 1001;
     public static GoogleMap mMap;
-    public static Long id;
+    public static Long id = 0L;
     public static String name;
     public static Boolean permission = false;
     private Polyline polyline;
