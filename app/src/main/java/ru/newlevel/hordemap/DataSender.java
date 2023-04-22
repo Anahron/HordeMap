@@ -216,7 +216,7 @@ public class DataSender extends Service {
                 }
                 markers.clear();
                 for (Long id : map.keySet()) {
-                    if (MapsActivity.id != 0 && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
+                    if (MapsActivity.id != id && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
                         String[] data = Objects.requireNonNull(map.get(id)).split("/");
                         String hour = data[3].substring(11, 13);
                         int hourkrsk = Integer.parseInt(hour) + 7;
