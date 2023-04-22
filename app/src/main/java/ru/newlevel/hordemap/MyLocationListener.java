@@ -60,11 +60,11 @@ public class MyLocationListener {
         Location locationNet = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
         @SuppressLint("MissingPermission")
         Location locationGPS = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        if (latitude == 0.0) {
+        if (latitude == 0.0 && locationGPS != null) {
             MyLocationListener.latitude = locationGPS.getLatitude();
             MyLocationListener.longitude = locationGPS.getLatitude();
         }
-        if (longitude == 0.0) {
+        if (longitude == 0.0 && locationGPS != null) {
             MyLocationListener.latitude = locationNet.getLatitude();
             MyLocationListener.longitude = locationNet.getLatitude();
         }

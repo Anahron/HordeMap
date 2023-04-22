@@ -85,6 +85,7 @@ public class DataSender extends Service {
     private static DataSender instance = null;
     public static int markerSize = 60;
     private static HashMap<Long, String> savedmarkers = new HashMap<>();
+    private static PendingIntent pendingIntent;
 
 
     public DataSender() {
@@ -103,17 +104,17 @@ public class DataSender extends Service {
         super.onCreate();
         System.out.println("Зашли в ONCREATE");
         startForeground(NOTIFICATION_ID, createNotification());
-        handler = new Handler();
-        runnable = new Runnable() {
-            @Override
-            public void run() {
-                Log.d("MyForegroundService", "Current time: " + new Date().toString());
-                //  handler.postDelayed(this, 50000); //50000 норм
-                System.out.println("В методе onCreate вызываем Аларм Менеджер");
-                startAlarmManager();
-            }
-        };
-        runnable.run();
+//        handler = new Handler();
+//        runnable = new Runnable() {
+//            @Override
+//            public void run() {
+//                Log.d("MyForegroundService", "Current time: " + new Date().toString());
+//                //  handler.postDelayed(this, 50000); //50000 норм
+//                System.out.println("В методе onCreate вызываем Аларм Менеджер");
+//            //    startAlarmManager();
+//            }
+//        };
+//        runnable.run();
     }
 
     @Nullable
@@ -126,8 +127,9 @@ public class DataSender extends Service {
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
         System.out.println("onStartCommand вызвана");
-        startForeground(NOTIFICATION_ID, createNotification());
+     //   startForeground(NOTIFICATION_ID, createNotification());
         startAlarmManager();
         return START_STICKY;
     }
@@ -146,6 +148,23 @@ public class DataSender extends Service {
         return builder.build();
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (pendingIntent != null) {
+            alarmMgr.cancel(pendingIntent);
+        }
+        stopSelf();
+    }
+
+        public void stopAlarmManager(){
+            AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
+            if (pendingIntent != null) {
+                alarmMgr.cancel(pendingIntent);
+            }
+        }
+
     @RequiresApi(api = Build.VERSION_CODES.N)
     protected static void startAlarmManager() {
         System.out.println("Запустился Аларм Менеджер");
@@ -153,8 +172,7 @@ public class DataSender extends Service {
 
         Intent intent = new Intent(context, MyWakefulReceiver.class);
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
-        @SuppressLint("UnspecifiedImmutableFlag")
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         calendar.set(Calendar.SECOND, 30);
@@ -181,7 +199,7 @@ public class DataSender extends Service {
                 marker.remove();
             }
             for (Long id : savedmarkers.keySet()) {
-                if (MapsActivity.id != 0 && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
+                if (MapsActivity.id != id && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
                     String[] data = Objects.requireNonNull(savedmarkers.get(id)).split("/");
                     String hour = data[3].substring(11, 13);
                     int hourkrsk = Integer.parseInt(hour) + 7;
@@ -239,7 +257,7 @@ public class DataSender extends Service {
 
     public void sendGPS() {
         try {
-            System.out.println("Вызван метод RUN, отсылаем данные и получаем ответ");
+            System.out.println("Вызван метод sendGPS, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
             String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.getLastKnownLocation();
             // Создаем сокет на порту 8080
@@ -342,9 +360,9 @@ public class DataSender extends Service {
             startWakefulService(context, service);
             setResultCode(Activity.RESULT_OK);
             // Получение последних доступных координат
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                startAlarmManager();
-            }
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+//                startAlarmManager();
+//            }
             Thread thread = new Thread(new Runnable() {
                 @RequiresApi(api = Build.VERSION_CODES.O)
                 @Override

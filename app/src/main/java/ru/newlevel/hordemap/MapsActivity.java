@@ -1,40 +1,33 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataSender.context;
-import static ru.newlevel.hordemap.DataSender.getInstance;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.MyLocationListener.coordinates;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.DialogInterface;
-import android.content.SharedPreferences;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
-import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
-import android.text.InputType;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.Gravity;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.Switch;
-import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.PopupMenu;
-import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -44,34 +37,21 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.android.material.chip.Chip;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
 
 import org.xmlpull.v1.XmlPullParserException;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
@@ -85,23 +65,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static String name;
     public static Boolean permission = false;
     private Polyline polyline;
-
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Intent intent = new Intent(context, DataSender.class); // замените MyService на имя своего сервиса
+        stopService(intent);
+    }
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        binding = ActivityMapsBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-        context = this;
-        LoginRequest loginRequest = new LoginRequest();
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-        // Запрос прав если отсутствуют
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
         }
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, REQUEST_INTERNET_PERMISSION);
         }
+        super.onCreate(savedInstanceState);
+        binding = ActivityMapsBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        context = this;
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        // Запрос прав если отсутствуют
         MyLocationListener.startLocationListener();
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -109,6 +93,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
         // Добавляем тулбар
         Toolbar toolbar = findViewById(R.id.toolbar);
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.logIn(context);
         //добавляем кнопки на тулбар
         Button menubutton = new Button(this);
         menubutton.setText("MENU");
@@ -199,12 +185,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 coordinates.clear();
                                 return true;
                             case R.id.menu_item6:
-                            List<LatLng> simplifiedCoordinates  = PolyUtil.simplify(coordinates, 20);
+                                List<LatLng> simplifiedCoordinates  = PolyUtil.simplify(coordinates, 10);
                             Toast.makeText(context, "Пройденная дистанция: " +  String.valueOf((int) Math.round(SphericalUtil.computeLength(simplifiedCoordinates))) + " метров.", Toast.LENGTH_LONG).show();
                                 return true;
                             case R.id.menu_item7:
-                                loginRequest.logOut();
-                                loginRequest.logIn(context);
+                                loginRequest.logOut(context);
                                 return true;
                             default:
                                 return false;
@@ -214,7 +199,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 popupMenu.show();
             }
         });
-        @SuppressLint("UseSwitchCompatOrMaterialCode") SwitchCompat markerswitch = new SwitchCompat(this);
+        @SuppressLint("UseSwitchCompatOrMaterialCode") Switch markerswitch = new Switch(this);
         markerswitch.setChecked(true);
         markerswitch.setText("  MARKERS");
         markerswitch.setTextColor(Color.WHITE);
@@ -242,7 +227,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
-        loginRequest.logIn(context);
     }
 
     /**
@@ -287,7 +271,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.e("MapsActivity", "Error: " + e.getMessage());
             System.out.println("не включилась");
         }
-
         // Показываем только текст маркера, без перемещения к нему камеры
         mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @SuppressLint("PotentialBehaviorOverride")
