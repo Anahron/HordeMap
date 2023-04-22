@@ -21,7 +21,7 @@ import java.util.zip.ZipInputStream;
 
 public class KMZhandler {
 
-    public static File DownloadKMZ(Context context, File filedir) throws MalformedURLException, InterruptedException {
+    public static File DownloadKMZ(Context context, File filedir) throws InterruptedException {
         File newDir = new File(filedir, "krsk.kmz");
         Thread thread = new Thread(() -> {
             URL url;

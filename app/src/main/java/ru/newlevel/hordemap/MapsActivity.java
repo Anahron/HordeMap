@@ -17,6 +17,7 @@ import android.util.TypedValue;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -76,7 +77,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         context = this;
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
        // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
-        // Запрос прав если отсутствуют
         MyLocationListener.startLocationListener();
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -96,21 +96,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             popupMenu.getMenuInflater().inflate(R.xml.popup_menu, popupMenu.getMenu());
             popupMenu.setOnMenuItemClickListener(item -> {
                 switch (item.getItemId()) {
-                    case R.id.menu_item1:
-                        File kmlfile;
-                        try {
-                            kmlfile = KMZhandler.DownloadKMZ(context, getFilesDir());
-                            InputStream in = new FileInputStream(kmlfile);
-                            KmlLayer kmlLayer = new KmlLayer(mMap, in, getApplicationContext());
-                            kmlLayer.addLayerToMap();
-                            System.out.println("Кнопка отработала");
-                            in.close();
-                        } catch (XmlPullParserException | IOException ex) {
-                            System.out.println("Ошибка загрузки или распаковки карты");
-                            Toast.makeText(context, "Ошибка загрузки, проверьте соединение с интернетом", Toast.LENGTH_LONG).show();
-                            ex.printStackTrace();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                    case R.id.menu_item1:{
+                        new KmlLayerLoaderTask(this, mMap).execute();
                         }
                         return true;
                     case R.id.menu_item2:
@@ -118,31 +105,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         builder.setTitle("Изменение размера маркеров");
                         SeekBar seekBar = new SeekBar(context);
                         builder.setView(seekBar);
-                        builder.setTitle("Изменение размера маркеров");
                         // Установка диапазона значений
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             seekBar.setMin(10);
                         }
                         seekBar.setMax(120);
                         seekBar.setProgress(60);
-                        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                            @Override
-                            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                    seekBar.setTooltipText(String.valueOf(progress));
-                                }
-                            }
-
-                            @Override
-                            public void onStartTrackingTouch(SeekBar seekBar) {
-
-                            }
-
-                            @Override
-                            public void onStopTrackingTouch(SeekBar seekBar) {
-
-                            }
-                        });
                         builder.setPositiveButton("OK", (dialog, which) -> {
                             int value = seekBar.getProgress();
                             DataSender.markerSize = value + 1;

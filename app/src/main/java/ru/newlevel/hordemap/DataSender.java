@@ -16,7 +16,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.icu.util.Calendar;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.util.Log;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -39,6 +41,7 @@ import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Objects;
 
@@ -57,6 +60,8 @@ public class DataSender extends Service {
     public static int markerSize = 60;
     private static HashMap<Long, String> savedmarkers = new HashMap<>();
     private static PendingIntent pendingIntent;
+    private Handler handler;
+    private Runnable runnable;
 
 
     public DataSender() {
@@ -75,15 +80,12 @@ public class DataSender extends Service {
         super.onCreate();
         System.out.println("Зашли в ONCREATE");
         startForeground(NOTIFICATION_ID, createNotification());
-//        handler = new Handler();
-//        runnable = new Runnable() {
-//            @Override
-//            public void run() {
-//                Log.d("MyForegroundService", "Current time: " + new Date().toString());
-//                //  handler.postDelayed(this, 50000); //50000 норм
-//                System.out.println("В методе onCreate вызываем Аларм Менеджер");
-//            //    startAlarmManager();
-//            }
+//        handler = new Handler();                                                не имеет смысла
+//        runnable = () -> {
+//            Log.d("MyForegroundService", "Current time: " + new Date().toString());
+//              handler.postDelayed(this, 50000); //50000 норм
+//            System.out.println("В методе onCreate вызываем Аларм Менеджер");
+//            startAlarmManager();
 //        };
 //        runnable.run();
     }
@@ -100,7 +102,7 @@ public class DataSender extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         System.out.println("onStartCommand вызвана");
-        //   startForeground(NOTIFICATION_ID, createNotification());
+      //  startForeground(NOTIFICATION_ID, createNotification());
         startAlarmManager();
         return START_STICKY;
     }
@@ -185,7 +187,7 @@ public class DataSender extends Service {
         }
     }
 
-    public static void createMarkers(HashMap<Long, String> map) {  //boolean - нужно ли удалять
+    public static void createMarkers(HashMap<Long, String> map) {
         System.out.println("Удаляются старые и создаются новые маркеры");
         savedmarkers = map;
         Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
@@ -198,7 +200,7 @@ public class DataSender extends Service {
             }
             markers.clear();
             for (Long id : map.keySet()) {
-                if (!Objects.equals(MapsActivity.id, id) && isMarkersON) { //ЗАМЕНИТЬ 0 НА id Чтобы удалялись мои метки
+                if (!Objects.equals(MapsActivity.id, id) && isMarkersON) {
                     String[] data = Objects.requireNonNull(map.get(id)).split("/");
                     String hour = data[3].substring(11, 13);
                     int hourkrsk = Integer.parseInt(hour) + 7;
@@ -310,8 +312,8 @@ public class DataSender extends Service {
             service.setAction("com.newlevel.ACTION_SEND_DATA");
             startWakefulService(context, service);
             setResultCode(Activity.RESULT_OK);
-            // Получение последних доступных координат
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            //запускаем заново startalarm
+//           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
 //                startAlarmManager();
 //            }
             Thread thread = new Thread(() -> sender.sendGPS());
