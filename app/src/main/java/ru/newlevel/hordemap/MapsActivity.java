@@ -10,11 +10,23 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -33,6 +45,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.PolyUtil;
@@ -48,15 +61,18 @@ import java.io.InputStream;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SensorEventListener {
 
-    private static final int REQUEST_INTERNET_PERMISSION = 1001;
-    private static final int REQUEST_LOCATION_PERMISSION = 1001;
     public static GoogleMap mMap;
     public static Long id = 0L;
     public static String name;
     public static Boolean permission = false;
     private Polyline polyline;
+    private SensorManager sensorManager;
+    private Sensor rotationVectorSensor;
+    // private ImageView compassImage;
+    private float currentDegree = 0f;
+    private TextView textView1;
 
     @Override
     protected void onDestroy() {
@@ -68,38 +84,72 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_PERMISSION);
-        }
         super.onCreate(savedInstanceState);
         ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        // Инициализация SensorManager
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+        // Инициализация Rotation Vector Sensor
+        rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+
         context = this;
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-       // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
-        MyLocationListener.startLocationListener();
+        // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
+        MyLocationListener.startLocationListener(this);
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
         // Добавляем тулбар
         Toolbar toolbar = findViewById(R.id.toolbar);
+        Drawable logo = getResources().getDrawable(R.drawable.toolbar);
+        TypedValue tv = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
+        int heightPx = getResources().getDimensionPixelSize(tv.resourceId);
+
+     //   int heightPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 64, getResources().getDisplayMetrics());
+       // int widthPx = (int) (heightPx * aspectRatio); // aspectRatio - соотношение сторон вашего логотипа
+        toolbar.setBackground(logo);
         LoginRequest loginRequest = new LoginRequest();
         if (name == null || name.equals("name"))
             loginRequest.logIn(context);
         //добавляем кнопки на тулбар
         Button menubutton = new Button(this);
-        menubutton.setText("MENU");
+
+        ImageView myImage = new ImageView(this);
+        myImage.setLayoutParams(new LinearLayout.LayoutParams(getResources().getDimensionPixelSize(tv.resourceId), getResources().getDimensionPixelSize(tv.resourceId)));
+        myImage.setImageResource(R.drawable.menu); // установка изображения по идентификатору ресурса
+        myImage.setMinimumWidth(getResources().getDimensionPixelSize(tv.resourceId)); // установка минимальной ширины изображения
+        myImage.setMinimumHeight(getResources().getDimensionPixelSize(tv.resourceId)); // установка минимальной высоты изображения
+        myImage.setMaxHeight(getResources().getDimensionPixelSize(tv.resourceId));
+        myImage.setMaxWidth(getResources().getDimensionPixelSize(tv.resourceId));
+        myImage.setScaleType(ImageView.ScaleType.FIT_CENTER); // установка типа масштабирования
+        Drawable myDrawable = getResources().getDrawable(R.drawable.menu);
+        myDrawable.setBounds(0, 20, 100, 100); // задаем размер 100x100 пикселей
+      //  button.setCompoundDrawables(null, myDrawable, null, null);
+        menubutton.setBackgroundResource(R.drawable.menu);
+
+        // установка размеров кнопки
+        menubutton.setLayoutParams(new ViewGroup.LayoutParams(180, 80)); // установка ширины и высоты кнопки
+  //      menubutton.setBackgroundResource(R.drawable.menu);
+//        if(menubutton.isEnabled())
+//            menubutton.setBackgroundResource(R.drawable.menuon);
+//        menubutton.setText("MENU");
+
+
+
         toolbar.addView(menubutton);
         menubutton.setOnClickListener(v -> {
             PopupMenu popupMenu = new PopupMenu(context, menubutton);
             popupMenu.getMenuInflater().inflate(R.xml.popup_menu, popupMenu.getMenu());
             popupMenu.setOnMenuItemClickListener(item -> {
                 switch (item.getItemId()) {
-                    case R.id.menu_item1:{
+                    case R.id.menu_item1: {
                         new KmlLayerLoaderTask(this, mMap).execute();
-                        }
-                        return true;
+                    }
+                    return true;
                     case R.id.menu_item2:
                         AlertDialog.Builder builder = new AlertDialog.Builder(context);
                         builder.setTitle("Изменение размера маркеров");
@@ -167,8 +217,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 DataSender.offMarkers();
             }
         });
-    }
+        textView1 = new TextView(this);
+        textView1.setText(String.valueOf(currentDegree));
+        textView1.setTextColor(Color.WHITE);
+        Toolbar.LayoutParams layoutParams1 = new Toolbar.LayoutParams(Toolbar.LayoutParams.WRAP_CONTENT, Toolbar.LayoutParams.WRAP_CONTENT);
+        layoutParams1.gravity = Gravity.CENTER_HORIZONTAL;
+        toolbar.addView(textView1, layoutParams1);
 
+    }
+    private void updateDirection(float degrees) {
+        // Находим TextView для отображения текущего направления и обновляем его текст
+        textView1.setText(String.format("%.0f°", degrees));
+    }
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -178,7 +238,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * it inside the SupportMapFragment. This method will only be triggered once the user has
      * installed Google Play services and returned to the app.
      */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Регистрация слушателя для Rotation Vector Sensor
+        sensorManager.registerListener(this, rotationVectorSensor, SensorManager.SENSOR_DELAY_GAME);
+    }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Отмена регистрации слушателя для Rotation Vector Sensor
+        sensorManager.unregisterListener(this);
+    }
 
     @SuppressLint("PotentialBehaviorOverride")
     @Override
@@ -192,8 +264,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Камера на Красноярск
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
+        sensorManager.registerListener(this, rotationVectorSensor, SensorManager.SENSOR_DELAY_NORMAL);
         try {
             mMap.setMyLocationEnabled(true);
+            mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {
+                @Override
+                public void onMyLocationClick(@NonNull Location location) {
+                    double latitude = location.getLatitude();
+                    double longitude = location.getLongitude();
+                    Toast.makeText(MapsActivity.this, "Lat: " + latitude + "\nLong: " + longitude, Toast.LENGTH_LONG).show();
+                }
+            });
             mMap.getUiSettings().setMapToolbarEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
             mMap.getUiSettings().setCompassEnabled(true);
@@ -215,4 +296,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        // Получение данных от Rotation Vector Sensor
+        if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+            float[] rotationMatrix = new float[9];
+            SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values);
+            float[] orientation = new float[3];
+            SensorManager.getOrientation(rotationMatrix, orientation);
+            float azimuthInRadians = orientation[0];
+            float azimuthInDegrees = (float) Math.toDegrees(azimuthInRadians);
+            azimuthInDegrees = (azimuthInDegrees + 360) % 360;
+
+            // Поворот изображения компаса
+            RotateAnimation rotateAnimation = new RotateAnimation(
+                    currentDegree,
+                    -azimuthInDegrees,
+                    Animation.RELATIVE_TO_SELF, 0.5f,
+                    Animation.RELATIVE_TO_SELF,
+                    0.5f);
+            rotateAnimation.setDuration(250);
+            rotateAnimation.setFillAfter(true);
+            //compassImage.startAnimation(rotateAnimation);
+            currentDegree = -azimuthInDegrees;
+            System.out.println("изменился угол азимута " + azimuthInDegrees);
+            updateDirection(-azimuthInDegrees);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
 }

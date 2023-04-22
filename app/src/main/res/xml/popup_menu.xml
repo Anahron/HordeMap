@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/preview">
     <item
         android:id="@+id/menu_item1"
         android:title="Открыть карту полигона" />
@@ -22,4 +23,5 @@
     <item
         android:id="@+id/menu_item7"
         android:title="Сбросить логин" />
+
 </menu>

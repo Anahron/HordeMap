@@ -4,10 +4,15 @@
     android:id="@+id/toolbar"
     android:layout_width="match_parent"
     android:layout_height="?attr/actionBarSize"
-    android:background="@color/teal_200"
+    android:background="@color/main_color"
     android:elevation="4dp"
     android:popupTheme="@style/ThemeOverlay.AppCompat.Light"
     android:scrollbarStyle="insideInset"
     android:theme="@style/ThemeOverlay.AppCompat.ActionBar">
+    <ImageButton
+        android:id="@+id/my_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/menu" />
 
 </androidx.appcompat.widget.Toolbar>
