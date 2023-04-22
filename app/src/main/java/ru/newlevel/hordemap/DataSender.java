@@ -140,7 +140,7 @@ public class DataSender extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_ID")
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle("Horde Map")
-                .setContentText("Похищаем твои данные и передаем орде")
+                .setContentText("Приложение работает в фоновом режиме")
                 .setPriority(NotificationCompat.PRIORITY_HIGH);
         ;
         return builder.build();
