@@ -1,7 +1,9 @@
 package ru.newlevel.hordemap;
+
 import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.MyLocationListener.coordinates;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -133,91 +135,95 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // установка размеров кнопки
         menubutton.setLayoutParams(new ViewGroup.LayoutParams(240, 100)); // установка ширины и высоты кнопки
-        //      menubutton.setBackgroundResource(R.drawable.menu);
-//        if(menubutton.isEnabled())
-//            menubutton.setBackgroundResource(R.drawable.menuon);
-//        menubutton.setText("MENU");
-
-
         toolbar.addView(menubutton);
         menubutton.setOnClickListener(v -> {
             //  View view = LayoutInflater.from(context).inflate(R.xml.popup_menu, null);
             PopupWindow popupWindow = new PopupWindow(context);
 
             View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu, null, false);
-        //    view.setLayoutParams(new LinearLayout.LayoutParams(300, 300));
+            //    view.setLayoutParams(new LinearLayout.LayoutParams(300, 300));
 
             popupWindow.setContentView(view);
-          //  popupWindow.setWindowLayoutMode(300, 300);
+            //  popupWindow.setWindowLayoutMode(300, 300);
             popupWindow.setWidth(450); //474
-           // popupWindow.setHeight(474);//474
+            // popupWindow.setHeight(474);//474
             popupWindow.setFocusable(true);
             popupWindow.showAsDropDown(menubutton);
             Button menuItem1 = view.findViewById(R.id.menu_item1);
             menuItem1.setBackgroundResource(R.drawable.menubutton);
-            menuItem1.setWidth(350);
             menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
-         //   popupWindow.setBackgroundDrawable(colorDrawable);
             menuItem1.setOnClickListener(s -> {
                 new KmlLayerLoaderTask(this, mMap).execute();
                 popupWindow.dismiss();
             });
-            popupWindow.showAtLocation(menubutton, Gravity.TOP|Gravity.LEFT, 0, 0);
-//            PopupMenu popupMenu = new PopupMenu(context, menubutton);
-//            popupMenu.getMenuInflater().inflate(R.xml.popup_menu, popupMenu.getMenu());
-//              popupWindow.setOnMenuItemClickListener(item -> {
-//                switch (item.getItemId()) {
-//                    case R.id.menu_item1: {
-//                        new KmlLayerLoaderTask(this, mMap).execute();
-//                    }
-//                    return true;
-//                    case R.id.menu_item2:
-//                        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-//                        builder.setTitle("Изменение размера маркеров");
-//                        SeekBar seekBar = new SeekBar(context);
-//                        builder.setView(seekBar);
-//                        // Установка диапазона значений
-//                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//                            seekBar.setMin(10);
-//                        }
-//                        seekBar.setMax(120);
-//                        seekBar.setProgress(60);
-//                        builder.setPositiveButton("OK", (dialog, which) -> {
-//                            int value = seekBar.getProgress();
-//                            DataSender.markerSize = value + 1;
-//                            DataSender.apDateMarkers();
-//                        });
-//                        AlertDialog dialog = builder.create();
-//                        dialog.show();
-//                        return true;
-//                    case R.id.menu_item3:
-//                        // Создаем объект PolylineOptions
-//                        PolylineOptions polylineOptions = new PolylineOptions()
-//                                .addAll(PolyUtil.simplify(coordinates, 10))
-//                                .color(Color.RED) // Задаем цвет линии
-//                                .width(10); // Задаем ширину линии
-//                        // Добавляем Polyline на карту
-//                        polyline = mMap.addPolyline(polylineOptions);
-//                        return true;
-//                    case R.id.menu_item4:
-//                        if (polyline != null)
-//                            polyline.remove();
-//                        return true;
-//                    case R.id.menu_item5:
-//                        coordinates.clear();
-//                        return true;
-//                    case R.id.menu_item6:
-//                        Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(coordinates, 10)))) + " метров.", Toast.LENGTH_LONG).show();
-//                        return true;
-//                    case R.id.menu_item7:
-//                        loginRequest.logOut(context);
-//                        loginRequest.logIn(context);
-//                        return true;
-//                    default:
-//                        return false;
-//                }
-//            });
-//            popupMenu.show();
+            Button menuItem2 = view.findViewById(R.id.menu_item2);
+            menuItem2.setBackgroundResource(R.drawable.menubutton);
+            menuItem2.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem2.setOnClickListener(s -> {
+                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                builder.setTitle("Размера маркеров");
+                SeekBar seekBar = new SeekBar(context);
+                builder.setView(seekBar);
+                // Установка диапазона значений
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    seekBar.setMin(10);
+                }
+                seekBar.setMax(120);
+                seekBar.setProgress(60);
+                builder.setPositiveButton("OK", (dialog, which) -> {
+                    int value = seekBar.getProgress();
+                    DataSender.markerSize = value + 1;
+                    DataSender.apDateMarkers();
+                });
+                AlertDialog dialog = builder.create();
+                dialog.show();
+                popupWindow.dismiss();
+            });
+            Button menuItem3 = view.findViewById(R.id.menu_item3);
+            menuItem3.setBackgroundResource(R.drawable.menubutton);
+            menuItem3.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem3.setOnClickListener(s -> {
+                // Создаем объект PolylineOptions
+                PolylineOptions polylineOptions = new PolylineOptions()
+                        .addAll(PolyUtil.simplify(coordinates, 10))
+                        .color(Color.RED) // Задаем цвет линии
+                        .width(10); // Задаем ширину линии
+                // Добавляем Polyline на карту
+                polyline = mMap.addPolyline(polylineOptions);
+                popupWindow.dismiss();
+            });
+            Button menuItem4 = view.findViewById(R.id.menu_item4);
+            menuItem4.setBackgroundResource(R.drawable.menubutton);
+            menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem4.setOnClickListener(s -> {
+                if (polyline != null)
+                    polyline.remove();
+                popupWindow.dismiss();
+            });
+            Button menuItem5 = view.findViewById(R.id.menu_item5);
+            menuItem5.setBackgroundResource(R.drawable.menubutton);
+            menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem5.setOnClickListener(s -> {
+                coordinates.clear();
+                popupWindow.dismiss();
+            });
+            Button menuItem6 = view.findViewById(R.id.menu_item6);
+            menuItem5.setBackgroundResource(R.drawable.menubutton);
+            menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem5.setOnClickListener(s -> {
+                Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(coordinates, 10)))) + " метров.", Toast.LENGTH_LONG).show();
+                popupWindow.dismiss();
+            });
+            Button menuItem7 = view.findViewById(R.id.menu_item7);
+            menuItem5.setBackgroundResource(R.drawable.menubutton);
+            menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem5.setOnClickListener(s -> {
+                loginRequest.logOut(context);
+                loginRequest.logIn(context);
+                popupWindow.dismiss();
+            });
+            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
+
         });
         @SuppressLint("UseSwitchCompatOrMaterialCode") Switch markerswitch = new Switch(this);
         markerswitch.setChecked(true);
