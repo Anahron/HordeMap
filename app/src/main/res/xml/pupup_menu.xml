@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="240dp"
     android:layout_height="wrap_content"
     android:layout_margin="16dp"
     android:background="@drawable/wowgamemenu"
@@ -8,7 +8,7 @@
 
     <Button
         android:id="@+id/menu_item1"
-        android:layout_width="match_parent"
+        android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
@@ -24,7 +24,7 @@
         />
     <Button
         android:id="@+id/menu_item2"
-        android:layout_width="match_parent"
+        android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
@@ -40,7 +40,7 @@
         />
     <Button
         android:id="@+id/menu_item3"
-        android:layout_width="match_parent"
+        android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
@@ -56,7 +56,7 @@
         />
     <Button
         android:id="@+id/menu_item4"
-        android:layout_width="match_parent"
+        android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
@@ -72,7 +72,7 @@
         />
     <Button
         android:id="@+id/menu_item5"
-        android:layout_width="match_parent"
+        android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
@@ -88,7 +88,7 @@
         />
     <Button
         android:id="@+id/menu_item6"
-        android:layout_width="match_parent"
+        android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
@@ -104,7 +104,7 @@
         />
     <Button
         android:id="@+id/menu_item7"
-        android:layout_width="match_parent"
+        android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"

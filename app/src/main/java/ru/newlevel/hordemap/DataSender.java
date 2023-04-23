@@ -16,7 +16,9 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.icu.util.Calendar;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.util.Log;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -39,6 +41,7 @@ import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Objects;
 
@@ -57,8 +60,8 @@ public class DataSender extends Service {
     public static int markerSize = 60;
     private static HashMap<Long, String> savedmarkers = new HashMap<>();
     private static PendingIntent pendingIntent;
-  //  private Handler handler;
-  //  private Runnable runnable;
+    private Handler handler;
+    private Runnable runnable;
 
 
     public DataSender() {
@@ -77,13 +80,13 @@ public class DataSender extends Service {
         super.onCreate();
         System.out.println("Зашли в ONCREATE");
         startForeground(NOTIFICATION_ID, createNotification());
-//        handler = new Handler();                                            //    раскоментить если не будет обновления раз в 30
-//        runnable = () -> {
-//            Log.d("MyForegroundService", "Current time: " + new Date().toString());
-//            System.out.println("В методе onCreate вызываем Аларм Менеджер");
-//            startAlarmManager();
-//        };
-//        runnable.run();
+        handler = new Handler();                                            //    раскоментить если не будет обновления раз в 30
+        runnable = () -> {
+            Log.d("MyForegroundService", "Current time: " + new Date().toString());
+            System.out.println("В методе onCreate вызываем Аларм Менеджер");
+            startAlarmManager();
+        };
+        runnable.run();
     }
 
     @Nullable
@@ -98,7 +101,7 @@ public class DataSender extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         System.out.println("onStartCommand вызвана");
-      //  startForeground(NOTIFICATION_ID, createNotification()); //раскоментить если не будет обновления раз в 30
+        startForeground(NOTIFICATION_ID, createNotification()); //раскоментить если не будет обновления раз в 30
         startAlarmManager();
         return START_STICKY;
     }
@@ -118,12 +121,13 @@ public class DataSender extends Service {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
-        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
-        if (pendingIntent != null) {
-            alarmMgr.cancel(pendingIntent);
-        }
-        stopSelf();
+//        System.out.println("Вызван ондестрой");
+//        super.onDestroy();
+//        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
+//        if (pendingIntent != null) {
+//            alarmMgr.cancel(pendingIntent);
+//        }
+//        stopSelf();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -308,9 +312,9 @@ public class DataSender extends Service {
             startWakefulService(context, service);
             setResultCode(Activity.RESULT_OK);
             //запускаем заново startalarm              // раскоментить если не будет обновления раз в 30
-//           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-//                startAlarmManager();
-//            }
+           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                startAlarmManager();
+            }
             Thread thread = new Thread(() -> sender.sendGPS());
             thread.start();
             // Завершение работы сервиса

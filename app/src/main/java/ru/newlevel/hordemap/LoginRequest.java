@@ -29,15 +29,16 @@ public class LoginRequest extends Service {
     private static SharedPreferences prefs;
     public static String answer = "";
 
-    private void createDialog(Context context) {
+    private static void createDialog(Context context) {
         logOut(context);
         final String[] phoneNumber = new String[1];
+
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setTitle("Введите номер телефона формата '891312341212'");
-        // добавляем компонент EditText в AlertDialog
         EditText input = new EditText(context);
         input.setInputType(InputType.TYPE_CLASS_PHONE);
         builder.setView(input);
+
         // добавляем кнопки "Отмена" и "Ок" в AlertDialog
         builder.setPositiveButton("Ок", (dialog, which) -> {
             phoneNumber[0] = input.getText().toString().trim();
@@ -72,12 +73,12 @@ public class LoginRequest extends Service {
         });
         // запрет на закрытие диалога при нажатии на кнопку "Назад" на устройстве
         builder.setCancelable(false);
-        // создаем и отображаем AlertDialog
+
         AlertDialog dialog = builder.create();
         dialog.show();
     }
 
-    public void logOut(Context context) {
+    public static void logOut(Context context) {
         SharedPreferences.Editor editor = prefs.edit();
         editor.clear();
         editor.apply();
@@ -89,7 +90,7 @@ public class LoginRequest extends Service {
         context.stopService(intent);
     }
 
-    public void logIn(Context context) {
+    public static void logIn(Context context) {
         prefs = context.getSharedPreferences("HordePref", MODE_PRIVATE);
         long mySavedID = prefs.getLong("id", 0L);
         String mySavedName = prefs.getString("name", "name");
@@ -160,7 +161,7 @@ public class LoginRequest extends Service {
     }
 
 
-    public void startGPSsender() {
+    public static void startGPSsender() {
         System.out.println("Запущено выполнение фонового сбора и отправки данных");
         DataSender.isMarkersON = true;
         DataSender sender = DataSender.getInstance(); // getInstance чтобы не плодить экземпляры класса

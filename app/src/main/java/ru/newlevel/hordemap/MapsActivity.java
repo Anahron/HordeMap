@@ -80,7 +80,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polyline polyline;
     private SensorManager sensorManager;
     private Sensor rotationVectorSensor;
-    // private ImageView compassImage;
     private float currentDegree = 0f;
     private TextView textView1;
 
@@ -90,6 +89,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Intent intent = new Intent(context, DataSender.class); // замените MyService на имя своего сервиса
         stopService(intent);
     }
+
     private int convertDpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round((float) dp * density);
@@ -101,51 +101,48 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
-        // Инициализация SensorManager
-        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-
-        // Инициализация Rotation Vector Sensor
-        rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-
-        context = this;
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
-        MyLocationListener.startLocationListener(this);
+        context = this;
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
+
+        //Запуск слушателя месторасположений
+        MyLocationListener.startLocationListener(this);
+        // Инициализация SensorManager и Rotation Vector Sensor
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+
+        //Запрос логина
+        if (name == null || name.equals("name"))
+            LoginRequest.logIn(context);
+        // Создаем меню
+        createButtons();
+    }
+
+    private void createButtons(){
         // Добавляем тулбар
         Toolbar toolbar = findViewById(R.id.toolbar);
         Drawable logo = getResources().getDrawable(R.drawable.toolbar);
         TypedValue tv = new TypedValue();
-        // Отступы
-        toolbar.setPadding(convertDpToPx(10),0,convertDpToPx(30),convertDpToPx(5));
+        toolbar.setPadding(convertDpToPx(10), 0, convertDpToPx(30), convertDpToPx(5));
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int heightPx = getResources().getDimensionPixelSize(tv.resourceId);
         toolbar.setBackground(logo);
-        LoginRequest loginRequest = new LoginRequest();
-        if (name == null || name.equals("name"))
-            loginRequest.logIn(context);
-        //добавляем кнопки на тулбар
-        Button menubutton = new Button(this);
 
-        ImageView myImage = new ImageView(this);
-     //   myImage.setLayoutParams(new LinearLayout.LayoutParams(getResources().getDimensionPixelSize(tv.resourceId), getResources().getDimensionPixelSize(tv.resourceId)));
-     //   myImage.setImageResource(R.drawable.menu); // установка изображения по идентификатору ресурса
-      //  myImage.setScaleType(ImageView.ScaleType.FIT_CENTER); // установка типа масштабирования
+        // Добавляем кнопку Меню на тулбар
+        Button menubutton = new Button(this);
         Drawable myDrawable = getResources().getDrawable(R.drawable.menu);
         menubutton.setBackgroundResource(R.drawable.menu);
-        // установка размеров кнопки
-        menubutton.setLayoutParams(new ViewGroup.LayoutParams(heightPx*2, heightPx*9/10)); // установка ширины и высоты кнопки
+        menubutton.setLayoutParams(new ViewGroup.LayoutParams(heightPx * 2, heightPx * 9 / 10)); // установка ширины и высоты кнопки
         toolbar.addView(menubutton);
         menubutton.setOnClickListener(v -> {
             PopupWindow popupWindow = new PopupWindow(context);
             View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu, null, false);
-
             popupWindow.setContentView(view);
-            popupWindow.setWidth(450); //474
+            popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setFocusable(true);
             popupWindow.showAsDropDown(menubutton);
             Button menuItem1 = view.findViewById(R.id.menu_item1);
@@ -224,21 +221,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem7.setBackgroundResource(R.drawable.menubutton);
             menuItem7.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem7.setOnClickListener(s -> {
-                loginRequest.logOut(context);
-                loginRequest.logIn(context);
+                LoginRequest.logOut(context);
+                LoginRequest.logIn(context);
                 popupWindow.dismiss();
             });
             popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
         });
+
+        // Добавляем кнопку выключатель маркеров
         @SuppressLint("UseSwitchCompatOrMaterialCode")
         ToggleButton markerswitch = new ToggleButton(this);
         markerswitch.setBackgroundResource(R.xml.custom_switch);
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams((heightPx*7)/10, (heightPx*7)/10);
-        //Отступ слева
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams((heightPx * 6) / 10, (heightPx * 6) / 10);
         layoutParams.setMarginStart(convertDpToPx(30));
         layoutParams.setMarginEnd(convertDpToPx(30));
         markerswitch.setLayoutParams(layoutParams);
-        markerswitch.setChecked(true);
+       //markerswitch.setChecked(true);
         markerswitch.setText(null);
         markerswitch.setTextOff(null);
         markerswitch.setTextOn(null);
@@ -258,31 +256,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-
-
+        //Добавляем тект направления
         textView1 = new TextView(this);
         textView1.setText(String.valueOf(currentDegree));
         textView1.setTextColor(Color.WHITE);
         Toolbar.LayoutParams layoutParams1 = new Toolbar.LayoutParams(Toolbar.LayoutParams.WRAP_CONTENT, Toolbar.LayoutParams.WRAP_CONTENT);
         layoutParams1.gravity = Gravity.CENTER_HORIZONTAL;
         toolbar.addView(textView1, layoutParams1);
-
     }
 
+    //
     private void updateDirection(float degrees) {
         // Находим TextView для отображения текущего направления и обновляем его текст
         textView1.setText(String.format("%.0f°", degrees));
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -297,15 +285,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         sensorManager.unregisterListener(this);
     }
 
+
     @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
+
         // Сдвиг карты ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         mMap.setPadding(0, actionBarHeight, 0, 0);
+
         // Камера на Красноярск
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
@@ -329,6 +320,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.e("MapsActivity", "Error: " + e.getMessage());
             System.out.println("не включилась");
         }
+
         // Показываем только текст маркера, без перемещения к нему камеры
         mMap.setOnMarkerClickListener(marker -> {
             if (marker.isInfoWindowShown()) {
@@ -344,7 +336,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onSensorChanged(SensorEvent event) {
         // Получение данных от Rotation Vector Sensor
-        if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) { //Sensor.TYPE_ROTATION_VECTOR - все 3
             float[] rotationMatrix = new float[9];
             SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values);
             float[] orientation = new float[3];
@@ -352,20 +344,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             float azimuthInRadians = orientation[0];
             float azimuthInDegrees = (float) Math.toDegrees(azimuthInRadians);
             azimuthInDegrees = (azimuthInDegrees + 360) % 360;
-
-            // Поворот изображения компаса
-            RotateAnimation rotateAnimation = new RotateAnimation(
-                    currentDegree,
-                    -azimuthInDegrees,
-                    Animation.RELATIVE_TO_SELF, 0.5f,
-                    Animation.RELATIVE_TO_SELF,
-                    0.5f);
-            rotateAnimation.setDuration(250);
-            rotateAnimation.setFillAfter(true);
-            //compassImage.startAnimation(rotateAnimation);
             currentDegree = -azimuthInDegrees;
-            System.out.println("изменился угол азимута " + azimuthInDegrees);
-            updateDirection(-azimuthInDegrees);
+            System.out.println( + azimuthInDegrees);
+            updateDirection(azimuthInDegrees);
         }
     }
 

@@ -78,6 +78,8 @@ public class KMZhandler {
                     while ((newEntry = zipInputStream.getNextEntry()) != null) {
                         String newFileName = newEntry.getName();
                         File newFile = new File(filedir, newFileName);
+                        File newDir = new File(filedir, fileName);
+                        newDir.mkdir();
                         FileOutputStream outputStream = new FileOutputStream(newFile);
                         byte[] buffer = new byte[1024];
                         int count;
