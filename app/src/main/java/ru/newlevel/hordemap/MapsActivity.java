@@ -1,9 +1,7 @@
 package ru.newlevel.hordemap;
-
 import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.MyLocationListener.coordinates;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -21,12 +19,17 @@ import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -34,6 +37,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.view.menu.MenuBuilder;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -109,8 +113,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int heightPx = getResources().getDimensionPixelSize(tv.resourceId);
 
-     //   int heightPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 64, getResources().getDisplayMetrics());
-       // int widthPx = (int) (heightPx * aspectRatio); // aspectRatio - соотношение сторон вашего логотипа
+        //   int heightPx = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 64, getResources().getDisplayMetrics());
+        // int widthPx = (int) (heightPx * aspectRatio); // aspectRatio - соотношение сторон вашего логотипа
         toolbar.setBackground(logo);
         LoginRequest loginRequest = new LoginRequest();
         if (name == null || name.equals("name"))
@@ -121,82 +125,99 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ImageView myImage = new ImageView(this);
         myImage.setLayoutParams(new LinearLayout.LayoutParams(getResources().getDimensionPixelSize(tv.resourceId), getResources().getDimensionPixelSize(tv.resourceId)));
         myImage.setImageResource(R.drawable.menu); // установка изображения по идентификатору ресурса
-        myImage.setMinimumWidth(getResources().getDimensionPixelSize(tv.resourceId)); // установка минимальной ширины изображения
-        myImage.setMinimumHeight(getResources().getDimensionPixelSize(tv.resourceId)); // установка минимальной высоты изображения
-        myImage.setMaxHeight(getResources().getDimensionPixelSize(tv.resourceId));
-        myImage.setMaxWidth(getResources().getDimensionPixelSize(tv.resourceId));
         myImage.setScaleType(ImageView.ScaleType.FIT_CENTER); // установка типа масштабирования
         Drawable myDrawable = getResources().getDrawable(R.drawable.menu);
         myDrawable.setBounds(0, 20, 100, 100); // задаем размер 100x100 пикселей
-      //  button.setCompoundDrawables(null, myDrawable, null, null);
+        //  button.setCompoundDrawables(null, myDrawable, null, null);
         menubutton.setBackgroundResource(R.drawable.menu);
 
         // установка размеров кнопки
-        menubutton.setLayoutParams(new ViewGroup.LayoutParams(180, 80)); // установка ширины и высоты кнопки
-  //      menubutton.setBackgroundResource(R.drawable.menu);
+        menubutton.setLayoutParams(new ViewGroup.LayoutParams(240, 100)); // установка ширины и высоты кнопки
+        //      menubutton.setBackgroundResource(R.drawable.menu);
 //        if(menubutton.isEnabled())
 //            menubutton.setBackgroundResource(R.drawable.menuon);
 //        menubutton.setText("MENU");
 
 
-
         toolbar.addView(menubutton);
         menubutton.setOnClickListener(v -> {
-            PopupMenu popupMenu = new PopupMenu(context, menubutton);
-            popupMenu.getMenuInflater().inflate(R.xml.popup_menu, popupMenu.getMenu());
-            popupMenu.setOnMenuItemClickListener(item -> {
-                switch (item.getItemId()) {
-                    case R.id.menu_item1: {
-                        new KmlLayerLoaderTask(this, mMap).execute();
-                    }
-                    return true;
-                    case R.id.menu_item2:
-                        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                        builder.setTitle("Изменение размера маркеров");
-                        SeekBar seekBar = new SeekBar(context);
-                        builder.setView(seekBar);
-                        // Установка диапазона значений
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            seekBar.setMin(10);
-                        }
-                        seekBar.setMax(120);
-                        seekBar.setProgress(60);
-                        builder.setPositiveButton("OK", (dialog, which) -> {
-                            int value = seekBar.getProgress();
-                            DataSender.markerSize = value + 1;
-                            DataSender.apDateMarkers();
-                        });
-                        AlertDialog dialog = builder.create();
-                        dialog.show();
-                        return true;
-                    case R.id.menu_item3:
-                        // Создаем объект PolylineOptions
-                        PolylineOptions polylineOptions = new PolylineOptions()
-                                .addAll(PolyUtil.simplify(coordinates, 10))
-                                .color(Color.RED) // Задаем цвет линии
-                                .width(10); // Задаем ширину линии
-                        // Добавляем Polyline на карту
-                        polyline = mMap.addPolyline(polylineOptions);
-                        return true;
-                    case R.id.menu_item4:
-                        if (polyline != null)
-                            polyline.remove();
-                        return true;
-                    case R.id.menu_item5:
-                        coordinates.clear();
-                        return true;
-                    case R.id.menu_item6:
-                        Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(coordinates, 10)))) + " метров.", Toast.LENGTH_LONG).show();
-                        return true;
-                    case R.id.menu_item7:
-                        loginRequest.logOut(context);
-                        loginRequest.logIn(context);
-                        return true;
-                    default:
-                        return false;
-                }
+            //  View view = LayoutInflater.from(context).inflate(R.xml.popup_menu, null);
+            PopupWindow popupWindow = new PopupWindow(context);
+
+            View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu, null, false);
+        //    view.setLayoutParams(new LinearLayout.LayoutParams(300, 300));
+
+            popupWindow.setContentView(view);
+          //  popupWindow.setWindowLayoutMode(300, 300);
+            popupWindow.setWidth(450); //474
+           // popupWindow.setHeight(474);//474
+            popupWindow.setFocusable(true);
+            popupWindow.showAsDropDown(menubutton);
+            Button menuItem1 = view.findViewById(R.id.menu_item1);
+            menuItem1.setBackgroundResource(R.drawable.menubutton);
+            menuItem1.setWidth(350);
+            menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
+         //   popupWindow.setBackgroundDrawable(colorDrawable);
+            menuItem1.setOnClickListener(s -> {
+                new KmlLayerLoaderTask(this, mMap).execute();
+                popupWindow.dismiss();
             });
-            popupMenu.show();
+            popupWindow.showAtLocation(menubutton, Gravity.TOP|Gravity.LEFT, 0, 0);
+//            PopupMenu popupMenu = new PopupMenu(context, menubutton);
+//            popupMenu.getMenuInflater().inflate(R.xml.popup_menu, popupMenu.getMenu());
+//              popupWindow.setOnMenuItemClickListener(item -> {
+//                switch (item.getItemId()) {
+//                    case R.id.menu_item1: {
+//                        new KmlLayerLoaderTask(this, mMap).execute();
+//                    }
+//                    return true;
+//                    case R.id.menu_item2:
+//                        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+//                        builder.setTitle("Изменение размера маркеров");
+//                        SeekBar seekBar = new SeekBar(context);
+//                        builder.setView(seekBar);
+//                        // Установка диапазона значений
+//                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                            seekBar.setMin(10);
+//                        }
+//                        seekBar.setMax(120);
+//                        seekBar.setProgress(60);
+//                        builder.setPositiveButton("OK", (dialog, which) -> {
+//                            int value = seekBar.getProgress();
+//                            DataSender.markerSize = value + 1;
+//                            DataSender.apDateMarkers();
+//                        });
+//                        AlertDialog dialog = builder.create();
+//                        dialog.show();
+//                        return true;
+//                    case R.id.menu_item3:
+//                        // Создаем объект PolylineOptions
+//                        PolylineOptions polylineOptions = new PolylineOptions()
+//                                .addAll(PolyUtil.simplify(coordinates, 10))
+//                                .color(Color.RED) // Задаем цвет линии
+//                                .width(10); // Задаем ширину линии
+//                        // Добавляем Polyline на карту
+//                        polyline = mMap.addPolyline(polylineOptions);
+//                        return true;
+//                    case R.id.menu_item4:
+//                        if (polyline != null)
+//                            polyline.remove();
+//                        return true;
+//                    case R.id.menu_item5:
+//                        coordinates.clear();
+//                        return true;
+//                    case R.id.menu_item6:
+//                        Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(coordinates, 10)))) + " метров.", Toast.LENGTH_LONG).show();
+//                        return true;
+//                    case R.id.menu_item7:
+//                        loginRequest.logOut(context);
+//                        loginRequest.logIn(context);
+//                        return true;
+//                    default:
+//                        return false;
+//                }
+//            });
+//            popupMenu.show();
         });
         @SuppressLint("UseSwitchCompatOrMaterialCode") Switch markerswitch = new Switch(this);
         markerswitch.setChecked(true);
@@ -225,10 +246,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         toolbar.addView(textView1, layoutParams1);
 
     }
+
     private void updateDirection(float degrees) {
         // Находим TextView для отображения текущего направления и обновляем его текст
         textView1.setText(String.format("%.0f°", degrees));
     }
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.

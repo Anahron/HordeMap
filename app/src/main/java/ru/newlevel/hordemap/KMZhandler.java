@@ -56,6 +56,8 @@ public class KMZhandler {
                 while ((length = inputStream.read(buffer)) > 0) {
                     outputStream.write(buffer, 0, length);
                 }
+                System.out.println(newDir.exists());
+                System.out.println(newDir.length());
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -65,7 +67,6 @@ public class KMZhandler {
 
     public static File unpackKmz(File kmzFile, File filedir) {
         try {
-            System.out.println("Распаковываем");
             FileInputStream inputStream = new FileInputStream(kmzFile);
             ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(inputStream));
             ZipEntry zipEntry;
@@ -73,12 +74,10 @@ public class KMZhandler {
             while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                 String fileName = zipEntry.getName();
                 if (zipEntry.isDirectory()) {
-                    File newDir = new File(filedir, fileName);
-                    newDir.mkdir();
                     ZipEntry newEntry;
                     while ((newEntry = zipInputStream.getNextEntry()) != null) {
                         String newFileName = newEntry.getName();
-                        File newFile = new File(newDir, newFileName);
+                        File newFile = new File(filedir, newFileName);
                         FileOutputStream outputStream = new FileOutputStream(newFile);
                         byte[] buffer = new byte[1024];
                         int count;
@@ -99,6 +98,7 @@ public class KMZhandler {
                     while ((count = zipInputStream.read(buffer)) != -1) {
                         outputStream.write(buffer, 0, count);
                     }
+                    System.out.println("Файл распакован " + outputFile);
                     outputStream.close();
                     zipInputStream.closeEntry();
                     if (outputFile.getName().endsWith("kmz")) {
