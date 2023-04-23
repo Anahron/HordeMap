@@ -4,8 +4,6 @@
     android:layout_height="wrap_content"
     android:layout_margin="16dp"
     android:background="@drawable/wowgamemenu"
-    android:clipToOutline="true"
-    android:elevation="8dp"
     android:orientation="vertical">
 
     <Button
@@ -22,7 +20,7 @@
         android:text="Загрузить карту"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="12dp"
+        android:textSize="13dp"
         />
     <Button
         android:id="@+id/menu_item2"
@@ -30,15 +28,15 @@
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
         android:shadowRadius="4"
-        android:text="Изменить размер маркеров"
+        android:text="Размер маркеров"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="12dp"
+        android:textSize="13dp"
         />
     <Button
         android:id="@+id/menu_item3"
@@ -46,7 +44,7 @@
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
@@ -54,7 +52,7 @@
         android:text="Показать мой путь"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="12dp"
+        android:textSize="13dp"
         />
     <Button
         android:id="@+id/menu_item4"
@@ -62,7 +60,7 @@
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
@@ -70,7 +68,7 @@
         android:text="Скрыть путь"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="12dp"
+        android:textSize="13dp"
         />
     <Button
         android:id="@+id/menu_item5"
@@ -78,7 +76,7 @@
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
@@ -86,7 +84,7 @@
         android:text="Удалить путь"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="12dp"
+        android:textSize="13dp"
         />
     <Button
         android:id="@+id/menu_item6"
@@ -94,7 +92,7 @@
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
@@ -102,7 +100,7 @@
         android:text="Показать дистанцию"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="12dp"
+        android:textSize="13dp"
         />
     <Button
         android:id="@+id/menu_item7"
@@ -110,7 +108,7 @@
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="8dp"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
@@ -118,6 +116,7 @@
         android:text="Сбросить логин"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="12dp"
+        android:textSize="13dp"
+        android:layout_marginBottom="20dp"
         />
 </LinearLayout>
