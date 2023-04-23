@@ -12,6 +12,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
@@ -54,10 +55,14 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Cap;
+import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.RoundCap;
+import com.google.android.gms.maps.model.SquareCap;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
@@ -83,12 +88,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private float currentDegree = 0f;
     private TextView textView1;
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        Intent intent = new Intent(context, DataSender.class); // замените MyService на имя своего сервиса
-        stopService(intent);
-    }
+//    @Override
+//    protected void onDestroy() {
+//        super.onDestroy();
+//        Intent intent = new Intent(context, DataSender.class); // замените MyService на имя своего сервиса
+//        stopService(intent);
+//    }
 
     private int convertDpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
@@ -110,7 +115,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
 
         //Запуск слушателя месторасположений
-        MyLocationListener.startLocationListener(this);
+        MyLocationListener.getInstance().startLocationListener();
         // Инициализация SensorManager и Rotation Vector Sensor
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
@@ -184,11 +189,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
                     PolylineOptions polylineOptions = new PolylineOptions()
-                            .addAll(PolyUtil.simplify(coordinates, 10))
+                            .addAll(PolyUtil.simplify(coordinates, 1))
+                            .jointType(JointType.ROUND)
+                            .startCap(new RoundCap())
+                            .endCap(new SquareCap())
+                            .geodesic(true)
                             .color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
                     // Добавляем Polyline на карту
                     polyline = mMap.addPolyline(polylineOptions);
+                    polyline.setVisible(true);
                     popupWindow.dismiss();
                 }
             });
@@ -196,8 +206,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem4.setBackgroundResource(R.drawable.menubutton);
             menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem4.setOnClickListener(s -> {
-                if (polyline != null)
-                    polyline.remove();
+                polyline.setVisible(false);
+                polyline.remove();
                 popupWindow.dismiss();
             });
             Button menuItem5 = view.findViewById(R.id.menu_item5);
@@ -205,6 +215,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem5.setOnClickListener(s -> {
                 coordinates.clear();
+                polyline.setVisible(false);
+                polyline.remove();
                 popupWindow.dismiss();
             });
             Button menuItem6 = view.findViewById(R.id.menu_item6);
@@ -214,7 +226,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (coordinates.isEmpty())
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else
-                    Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(coordinates, 10)))) + " метров.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(coordinates, 1)))) + " метров.", Toast.LENGTH_LONG).show();
                 popupWindow.dismiss();
             });
             Button menuItem7 = view.findViewById(R.id.menu_item7);
@@ -227,16 +239,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             });
             popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
         });
-
         // Добавляем кнопку выключатель маркеров
         @SuppressLint("UseSwitchCompatOrMaterialCode")
-        ToggleButton markerswitch = new ToggleButton(this);
+        Switch markerswitch = new Switch(this);
         markerswitch.setBackgroundResource(R.xml.custom_switch);
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams((heightPx * 6) / 10, (heightPx * 6) / 10);
         layoutParams.setMarginStart(convertDpToPx(30));
-        layoutParams.setMarginEnd(convertDpToPx(30));
+        layoutParams.setMarginEnd(convertDpToPx(50));
         markerswitch.setLayoutParams(layoutParams);
-       //markerswitch.setChecked(true);
+        markerswitch.setChecked(true);
+        markerswitch.setThumbDrawable(null);
         markerswitch.setText(null);
         markerswitch.setTextOff(null);
         markerswitch.setTextOn(null);
@@ -255,11 +267,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 DataSender.offMarkers();
             }
         });
-
         //Добавляем тект направления
         textView1 = new TextView(this);
         textView1.setText(String.valueOf(currentDegree));
-        textView1.setTextColor(Color.WHITE);
+        textView1.setTextColor(Color.parseColor("#FFe6ce6b"));
+        textView1.setTextSize(25F);
         Toolbar.LayoutParams layoutParams1 = new Toolbar.LayoutParams(Toolbar.LayoutParams.WRAP_CONTENT, Toolbar.LayoutParams.WRAP_CONTENT);
         layoutParams1.gravity = Gravity.CENTER_HORIZONTAL;
         toolbar.addView(textView1, layoutParams1);

@@ -2,6 +2,9 @@ package ru.newlevel.hordemap;
 
 
 import static ru.newlevel.hordemap.MapsActivity.mMap;
+import static ru.newlevel.hordemap.MyLocationListener.latitude;
+import static ru.newlevel.hordemap.MyLocationListener.longitude;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlarmManager;
@@ -83,6 +86,7 @@ public class DataSender extends Service {
         handler = new Handler();                                            //    раскоментить если не будет обновления раз в 30
         runnable = () -> {
             Log.d("MyForegroundService", "Current time: " + new Date().toString());
+          //  handler.postDelayed(runnable, 40000);
             System.out.println("В методе onCreate вызываем Аларм Менеджер");
             startAlarmManager();
         };
@@ -119,8 +123,8 @@ public class DataSender extends Service {
         return builder.build();
     }
 
-    @Override
-    public void onDestroy() {
+//    @Override
+//    public void onDestroy() {
 //        System.out.println("Вызван ондестрой");
 //        super.onDestroy();
 //        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
@@ -128,7 +132,7 @@ public class DataSender extends Service {
 //            alarmMgr.cancel(pendingIntent);
 //        }
 //        stopSelf();
-    }
+//    }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     protected static void startAlarmManager() {
@@ -223,7 +227,7 @@ public class DataSender extends Service {
         try {
             System.out.println("Вызван метод sendGPS, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
-            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.getLastKnownLocation();
+            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + latitude + "/" + longitude;
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
             clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
