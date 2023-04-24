@@ -73,7 +73,6 @@ public class LoginRequest extends Service {
         });
         // запрет на закрытие диалога при нажатии на кнопку "Назад" на устройстве
         builder.setCancelable(false);
-
         AlertDialog dialog = builder.create();
         dialog.show();
     }

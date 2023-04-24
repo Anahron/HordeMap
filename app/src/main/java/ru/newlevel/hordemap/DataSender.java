@@ -2,8 +2,6 @@ package ru.newlevel.hordemap;
 
 
 import static ru.newlevel.hordemap.MapsActivity.mMap;
-import static ru.newlevel.hordemap.MyLocationListener.latitude;
-import static ru.newlevel.hordemap.MyLocationListener.longitude;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -23,10 +21,12 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
+
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 import androidx.legacy.content.WakefulBroadcastReceiver;
+
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -35,6 +35,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -81,14 +82,14 @@ public class DataSender extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        System.out.println("Зашли в ONCREATE");
+        System.out.println();
         startForeground(NOTIFICATION_ID, createNotification());
         handler = new Handler();                                            //    раскоментить если не будет обновления раз в 30
         runnable = () -> {
             Log.d("MyForegroundService", "Current time: " + new Date().toString());
-          //  handler.postDelayed(runnable, 40000);
-            System.out.println("В методе onCreate вызываем Аларм Менеджер");
-            startAlarmManager();
+            //  handler.postDelayed(runnable, 40000);
+            System.out.println("В методе onCreate вызываем Аларм Менеджер " + this);
+            // startAlarmManager();
         };
         runnable.run();
     }
@@ -104,39 +105,57 @@ public class DataSender extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-        System.out.println("onStartCommand вызвана");
-        startForeground(NOTIFICATION_ID, createNotification()); //раскоментить если не будет обновления раз в 30
+        System.out.println("onStartCommand вызвана " + this);
+        //  startForeground(NOTIFICATION_ID, createNotification()); //раскоментить если не будет обновления раз в 30
         startAlarmManager();
         return START_STICKY;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private Notification createNotification() {
-        NotificationChannel channel = new NotificationChannel("CHANNEL_ID", "channel_name", NotificationManager.IMPORTANCE_LOW);
+        Intent intent = new Intent(context, MapsActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        NotificationChannel channel = new NotificationChannel("CHANNEL_1", "GPS", NotificationManager.IMPORTANCE_HIGH);
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
         notificationManager.createNotificationChannel(channel);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_ID")
-                .setSmallIcon(R.mipmap.ic_launcher)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_1")
+                .setSmallIcon(R.mipmap.hordecircle_round)
                 .setContentTitle("Horde Map")
                 .setContentText("Приложение работает в фоновом режиме")
-                .setPriority(NotificationCompat.PRIORITY_HIGH);
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true);
+        ;
         return builder.build();
     }
 
-//    @Override
-//    public void onDestroy() {
-//        System.out.println("Вызван ондестрой");
-//        super.onDestroy();
+    @Override
+    public void onDestroy() {
+        System.out.println("Вызван ондестрой в дата сендере");
+        super.onDestroy();
 //        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
 //        if (pendingIntent != null) {
+//            System.out.println("Аларм менеджер Остановлен в методе onDestroy");
 //            alarmMgr.cancel(pendingIntent);
 //        }
-//        stopSelf();
-//    }
+//       stopSelf();
+    }
+
+
+    public void myonDestroy() {
+        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (pendingIntent != null) {
+            System.out.println("Аларм менеджер Остановлен в методе onDestroy");
+            alarmMgr.cancel(pendingIntent);
+        }
+        stopSelf();
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     protected static void startAlarmManager() {
-        System.out.println("Запустился Аларм Менеджер");
+        System.out.println("Запустился Аларм Менеджер " + getInstance());
         AlarmManager alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, MyWakefulReceiver.class);
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
@@ -147,7 +166,7 @@ public class DataSender extends Service {
         calendar.set(Calendar.MILLISECOND, 0);
         calendar.add(Calendar.MINUTE, 0);
         alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 30000, pendingIntent);
-        System.out.println("Аларм менеджер отработал");
+        System.out.println("Аларм менеджер отработал " + getInstance());
     }
 
     public static void offMarkers() {
@@ -225,9 +244,22 @@ public class DataSender extends Service {
 
     public void sendGPS() {
         try {
+//            new Thread(new Runnable() {
+//                public void run() {
+//                    // код для выполнения в другом потоке
+//                    runOnUiThread(new Runnable() {
+//                        public void run() {
+//                            System.out.println("Вызываем слушатель их сенд гпс");
+//                            MyLocationListener.startLocationListener();
+//                        }
+//                    });
+//                }
+//            }).start();
+           // MyLocationListener.startLocationListener();
+
             System.out.println("Вызван метод sendGPS, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
-            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + latitude + "/" + longitude;
+            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.getLastKnownLocation();
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
             clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
@@ -266,11 +298,16 @@ public class DataSender extends Service {
             // Закрываем соединение с клиентом
             clientSocket.close();
 
-        } catch (Exception ex) {
+        } catch (
+                Exception ex) {
             ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
             ex.printStackTrace();
             System.out.println("Соединение с сервером не установлено");
         }
+    }
+
+    private void runOnUiThread(Runnable runnable) {
+
     }
 
     public static String requestInfoFromServer(String request) {
@@ -310,20 +347,26 @@ public class DataSender extends Service {
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            System.out.println("Запустился метод MyWakefulReceiver, получает координаты и вызывает RUN в новом потоке");
+            System.out.println("Запустился метод MyWakefulReceiver " + this + " -  получает координаты и вызывает sendData в новом потоке");
             Intent service = new Intent(context, DataSender.class);
             service.setAction("com.newlevel.ACTION_SEND_DATA");
             startWakefulService(context, service);
+            System.out.println("Запускаем startWakefulService из WakefulReceiver " + this);
             setResultCode(Activity.RESULT_OK);
             //запускаем заново startalarm              // раскоментить если не будет обновления раз в 30
-           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                startAlarmManager();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                MyLocationListener.startLocationListener();
+                //  startAlarmManager();
             }
             Thread thread = new Thread(() -> sender.sendGPS());
             thread.start();
-            // Завершение работы сервиса
-            completeWakefulIntent(intent);
-            this.abortBroadcast();
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                new Thread(DataSender::startAlarmManager);
+
+                // Завершение работы сервиса
+                completeWakefulIntent(intent);
+                this.abortBroadcast();
+            }
         }
     }
 }
