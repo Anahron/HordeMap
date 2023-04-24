@@ -20,6 +20,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
+import android.location.LocationListener;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -136,10 +137,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
 
         //Запуск слушателя месторасположений
-        MyLocationListener.getInstance().startLocationListener();
         // Инициализация SensorManager и Rotation Vector Sensor
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+
+        MyLocationListener.startLocationListener();
 
         //Запрос логина
         if (name == null || name.equals("name"))
@@ -427,14 +429,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         textView1 = new TextView(this);
         textView1.setText(String.valueOf(currentDegree));
         textView1.setTextColor(Color.parseColor("#FFe6ce6b"));
-        textView1.setTextSize(25F);
+        textView1.setTextSize(22F);
         Toolbar.LayoutParams layoutParams1 = new Toolbar.LayoutParams(Toolbar.LayoutParams.WRAP_CONTENT, Toolbar.LayoutParams.WRAP_CONTENT);
         layoutParams1.gravity = Gravity.CENTER_HORIZONTAL;
         toolbar.addView(textView1, layoutParams1);
 
     }
 
-    //
     @Override
     protected void onResume() {
         super.onResume();
@@ -521,22 +522,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             textView1.setText(azimuthInDegrees + " deg.");
         }
     }
-
-//        // Получение данных от Rotation Vector Sensor
-//        SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-//        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) { //Sensor.TYPE_ROTATION_VECTOR - все 3
-//            float[] rotationMatrix = new float[9];
-//            SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values);
-//            float[] orientation = new float[3];
-//            SensorManager.getOrientation(rotationMatrix, orientation);
-//            float azimuthInRadians = orientation[0];
-//            float azimuthInDegrees = (float) Math.toDegrees(azimuthInRadians);
-//            azimuthInDegrees = (azimuthInDegrees + 360) % 360;
-//            currentDegree = -azimuthInDegrees;
-//            System.out.println(+azimuthInDegrees);
-//            updateDirection(azimuthInDegrees);
-//        }
-//    }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {

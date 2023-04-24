@@ -143,7 +143,6 @@ public class DataSender extends Service {
 //       stopSelf();
     }
 
-
     public void myonDestroy() {
         AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
         if (pendingIntent != null) {
@@ -244,22 +243,9 @@ public class DataSender extends Service {
 
     public void sendGPS() {
         try {
-//            new Thread(new Runnable() {
-//                public void run() {
-//                    // код для выполнения в другом потоке
-//                    runOnUiThread(new Runnable() {
-//                        public void run() {
-//                            System.out.println("Вызываем слушатель их сенд гпс");
-//                            MyLocationListener.startLocationListener();
-//                        }
-//                    });
-//                }
-//            }).start();
-           // MyLocationListener.startLocationListener();
-
             System.out.println("Вызван метод sendGPS, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
-            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.getLastKnownLocation();
+            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + MyLocationListener.latitude + "/" + MyLocationListener.longitude;
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
             clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
@@ -304,10 +290,6 @@ public class DataSender extends Service {
             ex.printStackTrace();
             System.out.println("Соединение с сервером не установлено");
         }
-    }
-
-    private void runOnUiThread(Runnable runnable) {
-
     }
 
     public static String requestInfoFromServer(String request) {
@@ -362,7 +344,6 @@ public class DataSender extends Service {
             thread.start();
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                 new Thread(DataSender::startAlarmManager);
-
                 // Завершение работы сервиса
                 completeWakefulIntent(intent);
                 this.abortBroadcast();

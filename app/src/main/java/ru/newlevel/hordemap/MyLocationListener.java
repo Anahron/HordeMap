@@ -51,34 +51,20 @@ public class MyLocationListener {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
         LocationRequest locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(7000);
+        locationRequest.setInterval(5000);
         locationRequest.setFastestInterval(5000);
-        locationRequest.setSmallestDisplacement(8);
+        locationRequest.setSmallestDisplacement(1);
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
                 super.onLocationResult(locationResult);
                 Location location = locationResult.getLastLocation();
-                if (location != null) {
+                System.out.println(location.getLatitude() + "   " + location.getLongitude() + "  " + location.getAccuracy());
+                if (location.getAccuracy() < 22) {
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
                     if (lastLocation[0] == null || location.distanceTo(lastLocation[0]) < 2000) {
                         locationHistory.add(0, new LatLng(latitude, longitude));
-                        // Если количество координат в списке стало больше 2, сравниваем расстояния
-//                        if (locationHistory.size() > 2) {
-//                            LatLng firstLatLng = locationHistory.get(0);
-//                            LatLng secondLatLng = locationHistory.get(1);
-//                            LatLng thirdLatLng = locationHistory.get(2);
-//                            double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);
-//                            System.out.println("Дистанция до прошлой  " + distance1);
-//                            double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);
-//                            System.out.println("Дистанция до позапрошлой  " + distance2);
-//                            if (distance2 < distance1) {
-//                                // Удаляем вторую точку из списка
-//                                System.out.println("координата 2 удалена");
-//                                locationHistory.remove(1);
-//                            }
-//                        }
                         if (locationHistory.size() > 3) {
                             LatLng firstLatLng = locationHistory.get(0);
                             LatLng secondLatLng = locationHistory.get(1);
@@ -110,51 +96,5 @@ public class MyLocationListener {
             return;
         }
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-//        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-//        final Location[] lastLocation = {null};
-//        LocationListener locationListener = location -> {
-//            latitude = location.getLatitude();
-//            longitude = location.getLongitude();
-//            if (lastLocation[0] == null || location.distanceTo(lastLocation[0]) < 2000) {
-//                locationHistory.add(0, new LatLng(latitude, longitude));
-//                // Если количество координат в списке стало больше 2, сравниваем расстояния
-//                if (locationHistory.size() > 2) {
-//                    LatLng firstLatLng = locationHistory.get(0);
-//                    LatLng secondLatLng = locationHistory.get(1);
-//                    LatLng thirdLatLng = locationHistory.get(2);
-//                    double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);
-//                    System.out.println("Дистанция до прошлой  " + distance1);
-//                    double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);
-//                    System.out.println("Дистанция до позапрошлой  " + distance2);
-//                    if (distance2 < distance1) {
-//                        // Удаляем вторую точку из списка
-//                        System.out.println("координата 2 удалена");
-//                        locationHistory.remove(1);
-//                    }
-//                }
-//                System.out.println("В  coordinates добавлено " + latitude + " " + longitude);
-//                lastLocation[0] = location;
-//            }
-//        };
-//        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//            return;
-//        }
-//        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, locationListener);
-    //    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000, 15, locationListener);
-    }
-
-
-    public static String getLastKnownLocation() {
-//  Location locationNet = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-//            Location locationGPS = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-//            if (latitude == 0.0 && locationGPS != null) {
-//                MyLocationListener.latitude = locationGPS.getLatitude();
-//                MyLocationListener.longitude = locationGPS.getLatitude();
-//            }
-//            if (longitude == 0.0 && locationNet != null) {
-//                MyLocationListener.latitude = locationNet.getLatitude();
-//                MyLocationListener.longitude = locationNet.getLatitude();
-//            }
-        return latitude + "/" + longitude;
     }
 }
