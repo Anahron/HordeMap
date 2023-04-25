@@ -89,6 +89,7 @@ public class DataSender extends Service {
     private static LocationRequest locationRequest;
     private static boolean requestingLocationUpdates = false;
     private static Location location;
+    private static AlarmManager alarmMgr;
 
 
     public DataSender() {
@@ -137,7 +138,8 @@ public class DataSender extends Service {
         super.onStartCommand(intent, flags, startId);
         Log.d("Horde map", "onStartCommand вызвана " + this);
         startAlarmManager();
-        return START_STICKY;
+        return START_REDELIVER_INTENT; //пробуем
+      //  return START_STICKY;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -172,10 +174,9 @@ public class DataSender extends Service {
     }
 
     public void myonDestroy() {
-        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
-        if (pendingIntent != null) {
-            Log.d("Horde map", "Аларм менеджер Остановлен в методе onDestroy");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             alarmMgr.cancel(pendingIntent);
+         //   stopForeground(Service.STOP_FOREGROUND_REMOVE);
         }
         stopSelf();
     }
@@ -184,7 +185,7 @@ public class DataSender extends Service {
     @RequiresApi(api = Build.VERSION_CODES.N)
     protected static void startAlarmManager() {
         Log.d("Horde map", "Запустился Аларм Менеджер " + getInstance());
-        AlarmManager alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, MyWakefulReceiver.class);
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
         pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
