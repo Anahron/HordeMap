@@ -90,6 +90,7 @@ public class DataSender extends Service {
     private static boolean requestingLocationUpdates = false;
     private static Location location;
     private static AlarmManager alarmMgr;
+    private static boolean isConnectionLost;
 
 
     public DataSender() {
@@ -139,7 +140,7 @@ public class DataSender extends Service {
         Log.d("Horde map", "onStartCommand вызвана " + this);
         startAlarmManager();
         return START_REDELIVER_INTENT; //пробуем
-      //  return START_STICKY;
+        //  return START_STICKY;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -176,7 +177,7 @@ public class DataSender extends Service {
     public void myonDestroy() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             alarmMgr.cancel(pendingIntent);
-         //   stopForeground(Service.STOP_FOREGROUND_REMOVE);
+            //   stopForeground(Service.STOP_FOREGROUND_REMOVE);
         }
         stopSelf();
     }
@@ -267,6 +268,8 @@ public class DataSender extends Service {
         try {
             Log.d("Horde map", "Вызван метод sendGPS, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
+            if (latitude == 0.0)
+                ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Ваши координаты 0.0 : 0.0 проверьте включен ли GPS", Toast.LENGTH_LONG).show());
             String post = MapsActivity.id + "/" + MapsActivity.name + "/" + latitude + "/" + longitude;
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
@@ -305,10 +308,15 @@ public class DataSender extends Service {
             }
             // Закрываем соединение с клиентом
             clientSocket.close();
+            if (isConnectionLost) {
+                ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение установлено", Toast.LENGTH_SHORT).show());
+                isConnectionLost = false;
+            }
 
         } catch (
                 Exception ex) {
             ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
+            isConnectionLost = true;
             ex.printStackTrace();
             Log.d("Horde map", "Соединение с сервером не установлено");
         }
@@ -385,7 +393,7 @@ public class DataSender extends Service {
                             if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 8) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
                                 Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
                                 locationHistory.add(0, new LatLng(latitude, longitude));
-                                if (locationHistory.size() > 3) {
+                                if (locationHistory.size() > 2) {
                                     LatLng firstLatLng = locationHistory.get(0);
                                     LatLng secondLatLng = locationHistory.get(1);
                                     LatLng thirdLatLng = locationHistory.get(2);
@@ -394,39 +402,31 @@ public class DataSender extends Service {
                                     Log.d("Horde map", "Дистанция до прошлой: " + distance1);
                                     double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14
                                     Log.d("Horde map", "Дистанция до позапрошлой: " + distance2);
-                                    double distance3 = SphericalUtil.computeDistanceBetween(firstLatLng, fourthLatLng);   // до 4  = 13
-                                    Log.d("Horde map", "Дистанция до предпоследней: " + distance3);
-                                    if (distance3 < distance2 && distance3 < distance1) {
-                                        // Удаляем среднюю точку из списка
-                                        Log.d("Horde map", "координата 2 удалена");
-                                        locationHistory.remove(2);
-                                        locationHistory.remove(1);
-                                    } else if (distance3 < distance2) {
-                                        // Удаляем вторую точку из списка
-                                        Log.d("Horde map", "координата 1 удалена");
-                                        locationHistory.remove(2);
-                                    } else if (distance2 < distance1) {
-                                        // Удаляем вторую точку из списка
+                                    if (distance2 < distance2) {
                                         Log.d("Horde map", "координата 1 удалена");
                                         locationHistory.remove(1);
+
                                     }
+                                    lastLocation[0] = location;
+                                    Log.d("Horde map", "В coordinates добавлено " + latitude + " " + longitude);
+                                } else {
+                                    Log.d("Horde map", "Растояние < 8 метров, пропускаем");
                                 }
-                                lastLocation[0] = location;
-                                Log.d("Horde map", "В coordinates добавлено " + latitude + " " + longitude);
-                            } else {
-                                Log.d("Horde map", "Растояние < 8 метров, пропускаем");
                             }
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
-            };
+            }
+
+            ;
             if (!requestingLocationUpdates) {
                 requestingLocationUpdates = true;
                 Log.d("Horde map", " Запустили locationCallback");
                 fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
             }
+
             Thread thread = new Thread(() -> sender.sendGPS());
             thread.start();
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
