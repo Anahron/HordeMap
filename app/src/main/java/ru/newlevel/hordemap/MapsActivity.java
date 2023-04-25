@@ -3,12 +3,13 @@ package ru.newlevel.hordemap;
 import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.markerSize;
 import static ru.newlevel.hordemap.DataSender.sender;
-import static ru.newlevel.hordemap.MyLocationListener.locationHistory;
+import static ru.newlevel.hordemap.DataSender.locationHistory;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -21,8 +22,11 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -50,6 +54,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -109,11 +114,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        context = this;
         ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
-        context = this;
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
@@ -126,6 +131,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ContextCompat.checkSelfPermission(this, Manifest.permission_group.SENSORS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission_group.SENSORS}, MY_PERMISSIONS_REQUEST_SENSOR);
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Intent intent = new Intent();
+            String packageName = getPackageName();
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + packageName));
+                startActivity(intent);
+            }
+        }
+
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag");
+        wakeLock.acquire();
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -140,8 +160,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Инициализация SensorManager и Rotation Vector Sensor
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-
-        MyLocationListener.startLocationListener();
 
         //Запрос логина
         if (name == null || name.equals("name"))
@@ -297,7 +315,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             .width(10); // Задаем ширину линии
                     // Добавляем Polyline на карту
                     polyline = mMap.addPolyline(polylineOptions);
-                    polyline.setVisible(true);
                     popupWindow.dismiss();
                 }
             });
@@ -356,8 +373,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
                             } else {
                                 PolylineOptions polylineOptions2 = new PolylineOptions()   // тест 1
-                                  //      .addAll(polylines)
-                                 //       .addAll(PolyUtil.simplify(polylines, 1))
                                         .addAll(polylines)
                                         .jointType(JointType.ROUND)
                                         .startCap(new RoundCap())
@@ -366,15 +381,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                         .color(Color.BLACK)
                                         .width(10);
                                 polyline = mMap.addPolyline(polylineOptions2);
-//                                PolylineOptions polylineOptions3 = new PolylineOptions()   // тест 1
-//                                        .addAll(PolyUtil.simplify(PolyUtil.simplify(polylines, 1), 1))
-//                                        .jointType(JointType.ROUND)
-//                                        .startCap(new RoundCap())
-//                                        .endCap(new SquareCap())
-//                                        .geodesic(true)
-//                                        .color(Color.GREEN)
-//                                        .width(10);
-//                                polyline = mMap.addPolyline(polylineOptions3);
                             }
                         }
                     });
@@ -448,7 +454,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onPause() {
         super.onPause();
         // Отмена регистрации слушателя для Rotation Vector Sensor
-     //   sensorManager.unregisterListener(this);
+        sensorManager.unregisterListener(this);
     }
 
 
@@ -466,7 +472,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Камера на Красноярск
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
-        sensorManager.registerListener(this, rotationVectorSensor, SensorManager.SENSOR_DELAY_NORMAL);
+       sensorManager.registerListener(this, rotationVectorSensor, SensorManager.SENSOR_DELAY_NORMAL);
+
+        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
+            @Override
+            public void onCameraMove() {
+                CameraPosition cameraPosition = mMap.getCameraPosition();
+                float bearing = cameraPosition.bearing;
+           //     textView1.setText(bearing + " deg.");
+            }
+        });
+
         try {
             mMap.setMyLocationEnabled(true);
             mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {

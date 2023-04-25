@@ -163,7 +163,8 @@ public class LoginRequest extends Service {
     public static void startGPSsender() {
         System.out.println("Запущено выполнение фонового сбора и отправки данных");
         DataSender.isMarkersON = true;
-        DataSender sender = DataSender.getInstance(); // getInstance чтобы не плодить экземпляры класса
+        DataSender sender = new DataSender();
+        // getInstance чтобы не плодить экземпляры класса
         new Thread(() -> {
             Intent intent = new Intent(context, DataSender.class);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
