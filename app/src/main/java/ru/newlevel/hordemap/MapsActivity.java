@@ -72,7 +72,7 @@ import java.util.Map;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SensorEventListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     public static GoogleMap mMap;
     public static Long id = 0L;
@@ -81,18 +81,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polyline polyline;
     private Sensor rotationVectorSensor;
     private float currentDegree = 0f;
-    private TextView textView1;
+    public static TextView textView1;
     private boolean IsNeedToSave = true;
     public static List<String> savedLogsOfGPSpath = new ArrayList<>();
-    private SensorManager sensorManager;
-    private Sensor accelerometerSensor;
-    private Sensor magneticSensor;
-
-    private float[] accelerometerReading = new float[3];
-    private float[] magneticReading = new float[3];
-
-    private float[] rotationMatrix = new float[9];
-    private float[] orientationAngles = new float[3];
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -101,15 +92,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onDestroy() {
         System.out.println("Вызван в мэйне");
         if (IsNeedToSave == true && locationHistory.size() > 0)
-            PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
+            PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 1))));
         super.onDestroy();
+        finish();
     }
-
     private int convertDpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round((float) dp * density);
     }
-
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -147,19 +137,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag");
         wakeLock.acquire();
 
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
-
-        //Запуск слушателя месторасположений
-        // Инициализация SensorManager и Rotation Vector Sensor
-        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        rotationVectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
 
         //Запрос логина
         if (name == null || name.equals("name"))
@@ -182,11 +163,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Button menubutton = new Button(this);
         Drawable myDrawable = getResources().getDrawable(R.drawable.menu);
         menubutton.setBackgroundResource(R.drawable.menu);
-        LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(heightPx * 100/60, heightPx * 9 / 10);
+        LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10);
         layoutParams2.setMarginEnd(convertDpToPx(7));
         menubutton.setLayoutParams(layoutParams2);
         menubutton.setText("MENU");
-        menubutton.setShadowLayer(5,1,1,Color.parseColor("#a89c6a"));
+        menubutton.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
         menubutton.setTextColor(Color.parseColor("#d4bd61"));
         menubutton.setTextSize(15);
         toolbar.addView(menubutton);
@@ -231,7 +212,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 popupWindow.dismiss();
             });
 
-            Button menuItem3= view.findViewById(R.id.menu_item3);   // Показать дистанцию
+            Button menuItem3 = view.findViewById(R.id.menu_item3);   // Показать дистанцию
             menuItem3.setBackgroundResource(R.drawable.menubutton);
             menuItem3.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem3.setOnClickListener(s -> {
@@ -270,9 +251,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Button menubutton2 = new Button(this);
         Drawable myDrawable2 = getResources().getDrawable(R.drawable.menu);
         menubutton2.setBackgroundResource(R.drawable.menu);
-        menubutton2.setLayoutParams(new ViewGroup.LayoutParams(heightPx * 100/60, heightPx * 9 / 10));
+        menubutton2.setLayoutParams(new ViewGroup.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10));
         menubutton2.setText("PATHS");
-        menubutton2.setShadowLayer(5,1,1,Color.parseColor("#a89c6a"));
+        menubutton2.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
         menubutton2.setTextColor(Color.parseColor("#d4bd61"));
         menubutton2.setTextSize(15);
         toolbar.addView(menubutton2);
@@ -305,7 +286,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     mMap.clear();
                     DataSender.apDateMarkers();
                     PolylineOptions polylineOptions = new PolylineOptions()
-                         //   .addAll(PolyUtil.simplify(locationHistory, 1))
+                            //   .addAll(PolyUtil.simplify(locationHistory, 1))
                             .addAll(locationHistory)
                             .jointType(JointType.ROUND)
                             .startCap(new SquareCap())
@@ -315,8 +296,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             .width(10); // Задаем ширину линии
                     // Добавляем Polyline на карту
                     polyline = mMap.addPolyline(polylineOptions);
-                    popupWindow.dismiss();
+
                 }
+                popupWindow.dismiss();
             });
 
             Button menuItem3hidePath = view.findViewById(R.id.menu2_item3);  // Скрыть (на карте)
@@ -430,34 +412,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 DataSender.offMarkers();
             }
         });
-
         //Добавляем тект направления
         textView1 = new TextView(this);
         textView1.setText(String.valueOf(currentDegree));
         textView1.setTextColor(Color.parseColor("#FFe6ce6b"));
-        textView1.setTextSize(22F);
+        textView1.setTextSize(12F);
         Toolbar.LayoutParams layoutParams1 = new Toolbar.LayoutParams(Toolbar.LayoutParams.WRAP_CONTENT, Toolbar.LayoutParams.WRAP_CONTENT);
         layoutParams1.gravity = Gravity.CENTER_HORIZONTAL;
         toolbar.addView(textView1, layoutParams1);
-
+        CompassView compassView = findViewById(R.id.compass_view);
+        compassView.setVisibility(View.INVISIBLE);
+        compassView.onDetachedFromWindow();
+        textView1.setText("NO COMPAS");
+        textView1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (compassView.getVisibility() == View.VISIBLE) {
+                    compassView.setVisibility(View.INVISIBLE);
+                    compassView.onDetachedFromWindow();
+                } else {
+                    compassView.setVisibility(View.VISIBLE);
+                    compassView.onAttachedToWindow();
+                }
+            }
+        });
     }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Регистрация слушателя для Rotation Vector Sensor
-        sensorManager.registerListener(this, accelerometerSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorManager.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_NORMAL);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // Отмена регистрации слушателя для Rotation Vector Sensor
-        sensorManager.unregisterListener(this);
-    }
-
-
     @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
@@ -472,29 +451,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Камера на Красноярск
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
-       sensorManager.registerListener(this, rotationVectorSensor, SensorManager.SENSOR_DELAY_NORMAL);
 
         mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
             @Override
             public void onCameraMove() {
                 CameraPosition cameraPosition = mMap.getCameraPosition();
                 float bearing = cameraPosition.bearing;
-           //     textView1.setText(bearing + " deg.");
+                //     textView1.setText(bearing + " deg.");
             }
         });
 
         try {
             mMap.setMyLocationEnabled(true);
-            mMap.setOnMyLocationClickListener(new GoogleMap.OnMyLocationClickListener() {
+            mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                 @Override
-                public void onMyLocationClick(@NonNull Location location) {
-                    double latitude = location.getLatitude();
-                    double longitude = location.getLongitude();
-                    Toast.makeText(MapsActivity.this, "Lat: " + latitude + "\nLong: " + longitude, Toast.LENGTH_LONG).show();
+                public void onMapClick(LatLng latLng) {
+                    double[] distance = new double[1];
+                    distance[0] = 25;
+                    if (polyline != null) {
+                        boolean closestPoint = PolyUtil.isLocationOnPath(latLng, polyline.getPoints(), true, distance[0]);
+                        if (closestPoint) {
+                            // Если было кликнуто на полилинию, выводим длину в метрах
+                            Toast.makeText(getApplicationContext(), "Дистанция: " + (int) SphericalUtil.computeLength(polyline.getPoints()) + " метров", Toast.LENGTH_SHORT).show();
+                        }
+                    }
                 }
             });
             mMap.getUiSettings().setMapToolbarEnabled(false);
-
             // ТЕСТ со слушателем координат гугл
             List<LatLng> mMapCoordinates = new ArrayList<>();
             Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hordecircle);
@@ -504,13 +487,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.getUiSettings().setCompassEnabled(true);
             mMap.getUiSettings().setZoomControlsEnabled(true);
             System.out.println("включилась");
-        } catch (SecurityException e) {
+        } catch (
+                SecurityException e) {
             Log.e("MapsActivity", "Error: " + e.getMessage());
             System.out.println("не включилась");
         }
 
         // Показываем только текст маркера, без перемещения к нему камеры
-        mMap.setOnMarkerClickListener(marker -> {
+        mMap.setOnMarkerClickListener(marker ->
+
+        {
             if (marker.isInfoWindowShown()) {
                 marker.hideInfoWindow();
             } else {
@@ -518,29 +504,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             return true;
         });
-
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-            System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.length);
-        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
-            System.arraycopy(event.values, 0, magneticReading, 0, magneticReading.length);
-        }
-
-        boolean success = SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magneticReading);
-
-        if (success) {
-            SensorManager.getOrientation(rotationMatrix, orientationAngles);
-            float azimuthInRadians = orientationAngles[0];
-            float azimuthInDegrees = (float) Math.toDegrees(azimuthInRadians);
-            textView1.setText(azimuthInDegrees + " deg.");
-        }
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
 }

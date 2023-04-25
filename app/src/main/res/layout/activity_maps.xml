@@ -9,7 +9,6 @@
     android:layout_height="match_parent"
     tools:context=".MapsActivity">
 
-
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
@@ -20,6 +19,17 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@android:color/transparent" />
+    <ru.newlevel.hordemap.CompassView
+        android:clickable="true"
+        android:id="@+id/compass_view"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:scaleType="fitCenter"
+        android:adjustViewBounds="true"
+        android:padding="50dp"
+        android:layout_gravity="bottom"
+        android:focusable="true" />
+
 
 </fragment>
 

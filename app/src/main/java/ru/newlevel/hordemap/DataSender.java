@@ -68,7 +68,7 @@ import java.util.Objects;
 
 public class DataSender extends Service {
     public static String ipAdress = "horde.krasteplovizor.ru";  // "horde.krasteplovizor.ru" - сервер" 192.168.1.21 - локал
-    public static int port = 49283; //49383 -сервер
+    public static int port = 49283; //49283 -сервер 443
     private static final ArrayList<Marker> markers = new ArrayList<>();
     @SuppressLint("StaticFieldLeak")
     public static Context context;
@@ -157,8 +157,9 @@ public class DataSender extends Service {
                 .setContentText("Приложение работает в фоновом режиме")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
-                .setAutoCancel(true);
-        ;
+                .setAutoCancel(true)
+                .setTimeoutAfter(500);
+
         return builder.build();
     }
 
@@ -166,20 +167,17 @@ public class DataSender extends Service {
     public void onDestroy() {
         Log.d("Horde map", "Вызван ондестрой в дата сендере");
         super.onDestroy();
-//        AlarmManager alarmMgr = (AlarmManager) getSystemService(ALARM_SERVICE);
-//        if (pendingIntent != null) {
-//             Log.d("Horde map" , "Аларм менеджер Остановлен в методе onDestroy");
-//            alarmMgr.cancel(pendingIntent);
-//        }
-//       stopSelf();
     }
 
     public void myonDestroy() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            alarmMgr.cancel(pendingIntent);
-            //   stopForeground(Service.STOP_FOREGROUND_REMOVE);
+            if (pendingIntent != null) {
+                Log.d("Horde map", "Аларм менеджер Остановлен в методе onDestroy");
+                alarmMgr.cancel(pendingIntent);
+            }
+            stopSelf();
+            onDestroy();
         }
-        stopSelf();
     }
 
     @SuppressLint("MissingPermission")
@@ -268,8 +266,6 @@ public class DataSender extends Service {
         try {
             Log.d("Horde map", "Вызван метод sendGPS, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
-            if (latitude == 0.0)
-                ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Ваши координаты 0.0 : 0.0 проверьте включен ли GPS", Toast.LENGTH_LONG).show());
             String post = MapsActivity.id + "/" + MapsActivity.name + "/" + latitude + "/" + longitude;
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
@@ -372,7 +368,7 @@ public class DataSender extends Service {
             locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
             locationRequest.setInterval(5000);
             locationRequest.setFastestInterval(3000);
-            locationRequest.setSmallestDisplacement(1);
+            locationRequest.setSmallestDisplacement(3);
 
             locationCallback = new LocationCallback() {
                 @SuppressLint("SuspiciousIndentation")
@@ -381,31 +377,30 @@ public class DataSender extends Service {
                     super.onLocationResult(locationResult);
                     location = locationResult.getLastLocation();
                     try {
-                        if (location != null)
+                        if (location != null) {
                             Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты");
-                        if (location.getAccuracy() < 25) {
-                            Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
-                            latitude = location.getLatitude();
-                            longitude = location.getLongitude();
-                            if (lastLocation[0] == null) {
-                                lastLocation[0] = location;
-                            }
-                            if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 8) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
-                                Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
-                                locationHistory.add(0, new LatLng(latitude, longitude));
-                                if (locationHistory.size() > 2) {
-                                    LatLng firstLatLng = locationHistory.get(0);
-                                    LatLng secondLatLng = locationHistory.get(1);
-                                    LatLng thirdLatLng = locationHistory.get(2);
-                                    LatLng fourthLatLng = locationHistory.get(3);
-                                    double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);   // до 2 = 11
-                                    Log.d("Horde map", "Дистанция до прошлой: " + distance1);
-                                    double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14
-                                    Log.d("Horde map", "Дистанция до позапрошлой: " + distance2);
-                                    if (distance2 < distance2) {
-                                        Log.d("Horde map", "координата 1 удалена");
-                                        locationHistory.remove(1);
-
+                            if (location.getAccuracy() < 25) {
+                                Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
+                                latitude = location.getLatitude();
+                                longitude = location.getLongitude();
+                                if (lastLocation[0] == null) {
+                                    lastLocation[0] = location;
+                                }
+                                if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 10) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
+                                    Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
+                                    locationHistory.add(0, new LatLng(latitude, longitude));
+                                    if (locationHistory.size() > 2) {
+                                        LatLng firstLatLng = locationHistory.get(0);
+                                        LatLng secondLatLng = locationHistory.get(1);
+                                        LatLng thirdLatLng = locationHistory.get(2);
+                                        double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);   // до 2 = 11
+                                        Log.d("Horde map", "Дистанция до прошлой: " + distance1);
+                                        double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14
+                                        Log.d("Horde map", "Дистанция до позапрошлой: " + distance2);
+                                        if (distance2 < distance1) {
+                                            Log.d("Horde map", "координата 1 удалена");
+                                            locationHistory.remove(1);
+                                        }
                                     }
                                     lastLocation[0] = location;
                                     Log.d("Horde map", "В coordinates добавлено " + latitude + " " + longitude);
@@ -414,12 +409,12 @@ public class DataSender extends Service {
                                 }
                             }
                         }
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
             }
-
             ;
             if (!requestingLocationUpdates) {
                 requestingLocationUpdates = true;
