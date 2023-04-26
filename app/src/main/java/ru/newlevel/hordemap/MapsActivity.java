@@ -433,6 +433,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (compassView.getVisibility() == View.VISIBLE) {
                     compassView.setVisibility(View.INVISIBLE);
                     compassView.compasOFF();
+                    textView1.setTextSize(12F);
                     textView1.setText("COMPAS");
                 } else {
                     compassView.setVisibility(View.VISIBLE);
@@ -440,6 +441,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
+        textView1.setTextSize(12F);
         textView1.setText("COMPAS");
     }
 

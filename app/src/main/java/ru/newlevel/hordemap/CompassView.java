@@ -91,8 +91,8 @@ public class CompassView extends View implements SensorEventListener {
     }
     protected void compassON() {
         sensorManager.registerListener(this,
-                sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
-                100000 );
+                sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR), SensorManager.SENSOR_STATUS_ACCURACY_HIGH |
+                50000 );
     }
 
 
