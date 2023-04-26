@@ -429,10 +429,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onClick(View v) {
                 if (compassView.getVisibility() == View.VISIBLE) {
                     compassView.setVisibility(View.INVISIBLE);
-                    compassView.onDetachedFromWindow();
+                //    compassView.onDetachedFromWindow();
                 } else {
                     compassView.setVisibility(View.VISIBLE);
-                    compassView.onAttachedToWindow();
+                //    compassView.onAttachedToWindow();
                 }
             }
         });
