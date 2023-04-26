@@ -1,6 +1,9 @@
 package ru.newlevel.hordemap;
 
+import static ru.newlevel.hordemap.DataSender.context;
+
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -27,33 +30,11 @@ public class CompassView extends View implements SensorEventListener {
     private static final int NUM_SAMPLES = 3;
     private float[] azimuthSamples = new float[NUM_SAMPLES];
     private int currentSampleIndex = 0;
-    private int lastX;
-    private int lastY;
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        int action = event.getAction();
-        int x = (int) event.getX();
-        int y = (int) event.getY();
-
-        switch (action) {
-            case MotionEvent.ACTION_DOWN:
-                lastX = x;
-                lastY = y;
-                return true;
-
-            case MotionEvent.ACTION_MOVE:
-                int deltaX = x - lastX;
-                int deltaY = y - lastY;
-                setTranslationX(getTranslationX() + deltaX);
-                setTranslationY(getTranslationY() + deltaY);
-                lastX = x;
-                lastY = y;
-                invalidate();
-                return true;
-            default:
                 return super.onTouchEvent(event);
-        }
+
     }
 
     public CompassView(Context context) {
@@ -76,16 +57,14 @@ public class CompassView extends View implements SensorEventListener {
         sensorManager = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
     }
 
-    @Override
-    protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
+
+    protected void compasOn() {
         sensorManager.registerListener(this,
                 sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR),
-                SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM | SensorManager.SENSOR_DELAY_GAME);
+                100000 );
     }
-    @Override
-    protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
+
+    protected void ocompasOFF() {
         sensorManager.unregisterListener(this);
     }
 
@@ -124,15 +103,23 @@ public class CompassView extends View implements SensorEventListener {
             currentSampleIndex = (currentSampleIndex + 1) % NUM_SAMPLES;
 
             // Вычисляем среднее значение из нескольких последних сэмплов
-            float averageAzimuthDegrees = 0;
-            for (int i = 0; i < NUM_SAMPLES; i++) {
-                averageAzimuthDegrees += azimuthSamples[i];
-            }
-            averageAzimuthDegrees /= NUM_SAMPLES;
-            MapsActivity.textView1.setTextSize(22F);
-            MapsActivity.textView1.setText(((int) averageAzimuthDegrees > 0 ? (int) averageAzimuthDegrees : (int) averageAzimuthDegrees + 360) + "\u00B0");
-            CompassView.azimuthDegrees = averageAzimuthDegrees > 0.0F ? averageAzimuthDegrees : averageAzimuthDegrees + 360.0F;
-            invalidate();
+            ((Activity) context).runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    MapsActivity.textView1.setTextSize(22F);
+                    float averageAzimuthDegrees = 0;
+                    for (int i = 0; i < NUM_SAMPLES; i++) {
+                        averageAzimuthDegrees += azimuthSamples[i];
+                    }
+                    averageAzimuthDegrees /= NUM_SAMPLES;
+                    MapsActivity.textView1.setText(((int) averageAzimuthDegrees > 0 ? (int) averageAzimuthDegrees : (int) averageAzimuthDegrees + 360) + "\u00B0");
+                    CompassView.azimuthDegrees = averageAzimuthDegrees;
+                    invalidate();
+                }
+            });
+
+
+
         }
     }
 

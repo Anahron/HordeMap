@@ -2,46 +2,29 @@ package ru.newlevel.hordemap;
 
 
 import static ru.newlevel.hordemap.MapsActivity.mMap;
-
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.AlarmManager;
-import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.icu.util.Calendar;
 import android.location.Location;
 import android.os.Build;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.core.app.ActivityCompat;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-import androidx.legacy.content.WakefulBroadcastReceiver;
-
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -51,7 +34,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.google.maps.android.SphericalUtil;
-
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -61,7 +43,6 @@ import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -80,18 +61,19 @@ public class DataSender extends Service {
     private static DataSender instance = null;
     public static int markerSize = 60;
     private static HashMap<Long, String> savedmarkers = new HashMap<>();
-    private static PendingIntent pendingIntent;
     public static double latitude;
     public static double longitude;
     public static List<LatLng> locationHistory = new ArrayList<>();
-    private static FusedLocationProviderClient fusedLocationClient;
-    private static LocationCallback locationCallback;
-    private static LocationRequest locationRequest;
     private static boolean requestingLocationUpdates = false;
-    private static Location location;
-    private static AlarmManager alarmMgr;
     private static boolean isConnectionLost;
-
+    private final static int UPDATE_INTERVAL = 5000;
+    private final static int FASTEST_INTERVAL = 3000;
+    private final static int DISPLACEMENT = 3;
+    private LocationRequest locationRequest;
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationCallback locatonCallback;
+    private static Location location;
+    private static final Location[] lastLocation = {null};
 
     public DataSender() {
     }
@@ -108,22 +90,8 @@ public class DataSender extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        StatusBarNotification[] activeNotifications = notificationManager.getActiveNotifications();
-        boolean notificationNotDisplayed = true;
-        for (StatusBarNotification statusBarNotification : activeNotifications) {
-            if (statusBarNotification.getId() == NOTIFICATION_ID) {
-                notificationNotDisplayed = false;
-                break;
-            }
-        }
-        if (notificationNotDisplayed) {
-            Log.d("Horde map", "Запустили сервис startForeground");
-            startForeground(NOTIFICATION_ID, createNotification());
-        } else {
-            Log.d("Horde map", "Сервис startForeground уже запущен");
-        }
-        startAlarmManager();
+        checkAndStartForeground();
+        MyServiceUtils.startAlarmManager(context);
     }
 
     @Nullable
@@ -137,31 +105,92 @@ public class DataSender extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
+        locationRequest = LocationRequest.create();
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(UPDATE_INTERVAL);
+        locationRequest.setFastestInterval(FASTEST_INTERVAL);
+        locationRequest.setSmallestDisplacement(DISPLACEMENT);
+        locatonCallback = new LocationCallback() {
+            @SuppressLint("SuspiciousIndentation")
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+                location = locationResult.getLastLocation();
+                try {
+                    if (location != null) {
+                        Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты");
+                        if (location.getAccuracy() < 25) {
+                            Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
+                            latitude = location.getLatitude();
+                            longitude = location.getLongitude();
+                            if (lastLocation[0] == null) {
+                                lastLocation[0] = location;
+                            }
+                            if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 8) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
+                                Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
+                                locationHistory.add(0, new LatLng(latitude, longitude));
+                                if (locationHistory.size() > 2) {
+                                    LatLng firstLatLng = locationHistory.get(0);
+                                    LatLng secondLatLng = locationHistory.get(1);
+                                    LatLng thirdLatLng = locationHistory.get(2);
+                                    LatLng fourthLatLng = locationHistory.get(3);
+                                    double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);   // до 2 = 11
+                                    Log.d("Horde map", "Дистанция до прошлой: " + distance1);
+                                    double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14
+                                    Log.d("Horde map", "Дистанция до позапрошлой: " + distance2);
+                                    if (distance2 < distance1) {
+                                        Log.d("Horde map", "координата 1 удалена");
+                                        locationHistory.remove(1);
+                                    }
+                                    lastLocation[0] = location;
+                                    Log.d("Horde map", "В coordinates добавлено " + latitude + " " + longitude);
+                                } else {
+                                    Log.d("Horde map", "Растояние < 8 метров, пропускаем");
+                                }
+                            } else if (lastLocation[0].getAccuracy() > location.getAccuracy()) {
+                                lastLocation[0] = location;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        if (!requestingLocationUpdates) {
+            requestingLocationUpdates = true;
+            Log.d("Horde map", " Запустили locationCallback");
+            fusedLocationClient.requestLocationUpdates(locationRequest, locatonCallback, Looper.myLooper());
+        }
         Log.d("Horde map", "onStartCommand вызвана " + this);
-        startAlarmManager();
-        return START_REDELIVER_INTENT; //пробуем
-        //  return START_STICKY;
+        MyServiceUtils.startAlarmManager(context);
+
+        return START_STICKY_COMPATIBILITY;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
-    private Notification createNotification() {
-        Intent intent = new Intent(context, MapsActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        NotificationChannel channel = new NotificationChannel("CHANNEL_1", "GPS", NotificationManager.IMPORTANCE_HIGH);
+    private void checkAndStartForeground() {
         NotificationManager notificationManager = getSystemService(NotificationManager.class);
-        notificationManager.createNotificationChannel(channel);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_1")
-                .setSmallIcon(R.mipmap.hordecircle_round)
-                .setContentTitle("Horde Map")
-                .setContentText("Приложение работает в фоновом режиме")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true)
-                .setTimeoutAfter(500);
+        StatusBarNotification[] activeNotifications = notificationManager.getActiveNotifications();
 
-        return builder.build();
+        boolean notificationDisplayed = false;
+        for (StatusBarNotification statusBarNotification : activeNotifications) {
+            if (statusBarNotification.getId() == NOTIFICATION_ID) {
+                notificationDisplayed = true;
+                break;
+            }
+        }
+
+        if (!notificationDisplayed) {
+            Log.d("Horde map", "Запустили сервис startForeground");
+            startForeground(NOTIFICATION_ID, MyServiceUtils.createNotification(context));
+        } else {
+            Log.d("Horde map", "Сервис startForeground уже запущен");
+        }
     }
+
 
     @Override
     public void onDestroy() {
@@ -170,28 +199,9 @@ public class DataSender extends Service {
     }
 
     public void myonDestroy() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            if (pendingIntent != null) {
-                Log.d("Horde map", "Аларм менеджер Остановлен в методе onDestroy");
-                alarmMgr.cancel(pendingIntent);
-            }
-            stopSelf();
-            onDestroy();
-        }
+        stopSelf();
+        onDestroy();
     }
-
-    @SuppressLint("MissingPermission")
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    protected static void startAlarmManager() {
-        Log.d("Horde map", "Запустился Аларм Менеджер " + getInstance());
-        alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(context, MyWakefulReceiver.class);
-        intent.setAction("com.newlevel.ACTION_SEND_DATA");
-        pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 20000, pendingIntent);
-        Log.d("Horde map", "Аларм менеджер отработал " + getInstance());
-    }
-
 
     public static void offMarkers() {
         for (Marker marker : markers) {
@@ -309,8 +319,7 @@ public class DataSender extends Service {
                 isConnectionLost = false;
             }
 
-        } catch (
-                Exception ex) {
+        } catch (Exception ex) {
             ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
             isConnectionLost = true;
             ex.printStackTrace();
@@ -346,89 +355,5 @@ public class DataSender extends Service {
             e.printStackTrace();
         }
         return answer[0];
-    }
-
-    public static class MyWakefulReceiver extends WakefulBroadcastReceiver {
-
-        public MyWakefulReceiver() {
-        }
-
-        @SuppressLint("MissingPermission")
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d("Horde map", "Запустился метод MyWakefulReceiver " + this + " -  получает координаты и вызывает sendData в новом потоке");
-            Intent service = new Intent(context, DataSender.class);
-            service.setAction("com.newlevel.ACTION_SEND_DATA");
-            startWakefulService(context, service);
-            setResultCode(Activity.RESULT_OK);
-            // Настраиваем  fusedLocationClient и  locationRequest
-            final Location[] lastLocation = {null};
-            fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
-            locationRequest = LocationRequest.create();
-            locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-            locationRequest.setInterval(5000);
-            locationRequest.setFastestInterval(3000);
-            locationRequest.setSmallestDisplacement(3);
-
-            locationCallback = new LocationCallback() {
-                @SuppressLint("SuspiciousIndentation")
-                @Override
-                public void onLocationResult(@NonNull LocationResult locationResult) {
-                    super.onLocationResult(locationResult);
-                    location = locationResult.getLastLocation();
-                    try {
-                        if (location != null) {
-                            Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты");
-                            if (location.getAccuracy() < 25) {
-                                Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
-                                latitude = location.getLatitude();
-                                longitude = location.getLongitude();
-                                if (lastLocation[0] == null) {
-                                    lastLocation[0] = location;
-                                }
-                                if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 10) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
-                                    Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
-                                    locationHistory.add(0, new LatLng(latitude, longitude));
-                                    if (locationHistory.size() > 2) {
-                                        LatLng firstLatLng = locationHistory.get(0);
-                                        LatLng secondLatLng = locationHistory.get(1);
-                                        LatLng thirdLatLng = locationHistory.get(2);
-                                        double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);   // до 2 = 11
-                                        Log.d("Horde map", "Дистанция до прошлой: " + distance1);
-                                        double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14
-                                        Log.d("Horde map", "Дистанция до позапрошлой: " + distance2);
-                                        if (distance2 < distance1) {
-                                            Log.d("Horde map", "координата 1 удалена");
-                                            locationHistory.remove(1);
-                                        }
-                                    }
-                                    lastLocation[0] = location;
-                                    Log.d("Horde map", "В coordinates добавлено " + latitude + " " + longitude);
-                                } else {
-                                    Log.d("Horde map", "Растояние < 8 метров, пропускаем");
-                                }
-                            }
-                        }
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-            ;
-            if (!requestingLocationUpdates) {
-                requestingLocationUpdates = true;
-                Log.d("Horde map", " Запустили locationCallback");
-                fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
-            }
-
-            Thread thread = new Thread(() -> sender.sendGPS());
-            thread.start();
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                new Thread(DataSender::startAlarmManager);
-                completeWakefulIntent(intent);
-                this.abortBroadcast();
-            }
-        }
     }
 }

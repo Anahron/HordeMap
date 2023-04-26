@@ -33,7 +33,7 @@
 
         <!-- Register WakefulBroadcastReceiver -->
         <receiver
-            android:name=".DataSender$MyWakefulReceiver"
+            android:name=".MyWakefulReceiver"
             android:enabled="true"
             android:exported="false"
             android:permission="android.permission.WAKE_LOCK">

@@ -7,6 +7,7 @@ import static ru.newlevel.hordemap.DataSender.locationHistory;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -17,11 +18,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.location.Location;
-import android.location.LocationListener;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -96,10 +92,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onDestroy();
         finish();
     }
+
     private int convertDpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round((float) dp * density);
     }
+
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -146,108 +144,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (name == null || name.equals("name"))
             LoginRequest.logIn(context);
         // Создаем меню
-        createButtons();
+        createTollbar();
     }
 
-    private void createButtons() {
-        // Добавляем тулбар
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        Drawable logo = getResources().getDrawable(R.drawable.toolbar);
-        TypedValue tv = new TypedValue();
-        toolbar.setPadding(convertDpToPx(0), 0, convertDpToPx(0), convertDpToPx(5));
-        getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
-        int heightPx = getResources().getDimensionPixelSize(tv.resourceId);
-        toolbar.setBackground(logo);
-
-        // Добавляем первое меню
-        Button menubutton = new Button(this);
-        Drawable myDrawable = getResources().getDrawable(R.drawable.menu);
-        menubutton.setBackgroundResource(R.drawable.menu);
-        LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10);
-        layoutParams2.setMarginEnd(convertDpToPx(7));
-        menubutton.setLayoutParams(layoutParams2);
-        menubutton.setText("MENU");
-        menubutton.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
-        menubutton.setTextColor(Color.parseColor("#d4bd61"));
-        menubutton.setTextSize(15);
-        toolbar.addView(menubutton);
-        menubutton.setOnClickListener(v -> {
-            PopupWindow popupWindow = new PopupWindow(context);
-            View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu, null, false);
-            popupWindow.setContentView(view);
-            popupWindow.setWidth(convertDpToPx(256));
-            popupWindow.setHeight(convertDpToPx(277));
-            popupWindow.setFocusable(true);
-            popupWindow.showAsDropDown(menubutton);
-
-            Button menuItem1 = view.findViewById(R.id.menu_item1);  // Загрузка карты полигона
-            menuItem1.setBackgroundResource(R.drawable.menubutton);
-            menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem1.setOnClickListener(s -> {
-                new KmlLayerLoaderTask(this, mMap).execute();
-                popupWindow.dismiss();
-            });
-
-            Button menuItem2 = view.findViewById(R.id.menu_item2);  // Изменение размера маркеров
-            menuItem2.setBackgroundResource(R.drawable.menubutton);
-            menuItem2.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem2.setOnClickListener(s -> {
-                AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                builder.setTitle("Размер маркеров");
-                SeekBar seekBar = new SeekBar(context);
-                builder.setView(seekBar);
-                // Установка диапазона значений
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    seekBar.setMin(10);
-                }
-                seekBar.setMax(120);
-                seekBar.setProgress(60);
-                builder.setPositiveButton("OK", (dialog, which) -> {
-                    int value = seekBar.getProgress();
-                    DataSender.markerSize = value + 1;
-                    DataSender.apDateMarkers();
-                });
-                AlertDialog dialog = builder.create();
-                dialog.show();
-                popupWindow.dismiss();
-            });
-
-            Button menuItem3 = view.findViewById(R.id.menu_item3);   // Показать дистанцию
-            menuItem3.setBackgroundResource(R.drawable.menubutton);
-            menuItem3.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem3.setOnClickListener(s -> {
-                if (locationHistory.isEmpty())
-                    Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
-                else
-                    Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22)))) + " метров.", Toast.LENGTH_LONG).show();
-                popupWindow.dismiss();
-            });
-
-            Button menuItem4 = view.findViewById(R.id.menu_item4);  // Логаут
-            menuItem4.setBackgroundResource(R.drawable.menubutton);
-            menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem4.setOnClickListener(s -> {
-                LoginRequest.logOut(context);
-                LoginRequest.logIn(context);
-                popupWindow.dismiss();
-            });
-            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
-
-            Button menuItem5 = view.findViewById(R.id.menu_item5);  // Закрыть
-            menuItem5.setBackgroundResource(R.drawable.menubutton);
-            menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem5.setOnClickListener(s -> {
-                if (IsNeedToSave == true && locationHistory.size() > 0)
-                    PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
-                DataSender.getInstance().myonDestroy();
-                onDestroy();
-                popupWindow.dismiss();
-            });
-            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
-
-        });
-
-        // Добавляем второе меню
+    private Button createMenuButtons2(int heightPx) {
         Button menubutton2 = new Button(this);
         Drawable myDrawable2 = getResources().getDrawable(R.drawable.menu);
         menubutton2.setBackgroundResource(R.drawable.menu);
@@ -256,7 +156,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menubutton2.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
         menubutton2.setTextColor(Color.parseColor("#d4bd61"));
         menubutton2.setTextSize(15);
-        toolbar.addView(menubutton2);
         menubutton2.setOnClickListener(v -> {
             PopupWindow popupWindow = new PopupWindow(context);
             View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu2, null, false);
@@ -264,7 +163,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
-            popupWindow.showAsDropDown(menubutton);
+            if (popupWindow.isShowing())
+                popupWindow.dismiss();
+            else
+                popupWindow.showAsDropDown(menubutton2);
 
             Button menuItem1clear = view.findViewById(R.id.menu2_item1);  // Очистка пути
             menuItem1clear.setBackgroundResource(R.drawable.menubutton);
@@ -381,8 +283,102 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 popupWindow.dismiss();
             });
         });
+        return menubutton2;
+    }
 
-        // Добавляем свитч маркеров
+    private Button createMenuButtons(int heightPx) {
+        Button menubutton = new Button(this);
+        Drawable myDrawable = getResources().getDrawable(R.drawable.menu);
+        menubutton.setBackgroundResource(R.drawable.menu);
+        LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10);
+        layoutParams2.setMarginEnd(convertDpToPx(7));
+        menubutton.setLayoutParams(layoutParams2);
+        menubutton.setText("MENU");
+        menubutton.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
+        menubutton.setTextColor(Color.parseColor("#d4bd61"));
+        menubutton.setTextSize(15);
+        menubutton.setOnClickListener(v -> {
+            PopupWindow popupWindow = new PopupWindow(context);
+            View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu, null, false);
+            popupWindow.setContentView(view);
+            popupWindow.setWidth(convertDpToPx(256));
+            popupWindow.setHeight(convertDpToPx(277));
+            popupWindow.setFocusable(true);
+            if (popupWindow.isShowing())
+                popupWindow.dismiss();
+            else
+                popupWindow.showAsDropDown(menubutton);
+            Button menuItem1 = view.findViewById(R.id.menu_item1);  // Загрузка карты полигона
+            menuItem1.setBackgroundResource(R.drawable.menubutton);
+            menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem1.setOnClickListener(s -> {
+                new KmlLayerLoaderTask(this, mMap).execute();
+                popupWindow.dismiss();
+            });
+
+            Button menuItem2 = view.findViewById(R.id.menu_item2);  // Изменение размера маркеров
+            menuItem2.setBackgroundResource(R.drawable.menubutton);
+            menuItem2.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem2.setOnClickListener(s -> {
+                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                builder.setTitle("Размер маркеров");
+                SeekBar seekBar = new SeekBar(context);
+                builder.setView(seekBar);
+                // Установка диапазона значений
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    seekBar.setMin(10);
+                }
+                seekBar.setMax(120);
+                seekBar.setProgress(60);
+                builder.setPositiveButton("OK", (dialog, which) -> {
+                    int value = seekBar.getProgress();
+                    DataSender.markerSize = value + 1;
+                    DataSender.apDateMarkers();
+                });
+                AlertDialog dialog = builder.create();
+                dialog.show();
+                popupWindow.dismiss();
+            });
+
+            Button menuItem3 = view.findViewById(R.id.menu_item3);   // Показать дистанцию
+            menuItem3.setBackgroundResource(R.drawable.menubutton);
+            menuItem3.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem3.setOnClickListener(s -> {
+                if (locationHistory.isEmpty())
+                    Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
+                else
+                    Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22)))) + " метров.", Toast.LENGTH_LONG).show();
+                popupWindow.dismiss();
+            });
+
+            Button menuItem4 = view.findViewById(R.id.menu_item4);  // Логаут
+            menuItem4.setBackgroundResource(R.drawable.menubutton);
+            menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem4.setOnClickListener(s -> {
+                LoginRequest.logOut(context);
+                LoginRequest.logIn(context);
+                popupWindow.dismiss();
+            });
+            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
+
+            Button menuItem5 = view.findViewById(R.id.menu_item5);  // Закрыть
+            menuItem5.setBackgroundResource(R.drawable.menubutton);
+            menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem5.setOnClickListener(s -> {
+                if (IsNeedToSave == true && locationHistory.size() > 0)
+                    PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
+                MyServiceUtils.destroyAlarmManager();
+                DataSender.getInstance().myonDestroy();
+                onDestroy();
+                popupWindow.dismiss();
+            });
+            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
+
+        });
+        return menubutton;
+    }
+
+    private Button createMarkerSwitch(int heightPx) {
         @SuppressLint("UseSwitchCompatOrMaterialCode")
         Switch markerswitch = new Switch(this);
         markerswitch.setBackgroundResource(R.xml.custom_switch);
@@ -395,9 +391,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         markerswitch.setText(null);
         markerswitch.setTextOff(null);
         markerswitch.setTextOn(null);
-        toolbar.addView(markerswitch);
         markerswitch.setOnCheckedChangeListener((buttonView, isChecked) ->
-
         {
             // Обработка изменения состояния переключателя
             if (isChecked && permission) {
@@ -412,6 +406,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 DataSender.offMarkers();
             }
         });
+        return markerswitch;
+    }
+
+    private void createTollbar() {
+        // Добавляем тулбар
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setPadding(convertDpToPx(0), 0, convertDpToPx(0), convertDpToPx(5));
+
+        // Получаем размер тулбара для выставления размера кнопок
+        TypedValue tv = new TypedValue();
+        Drawable logo = getResources().getDrawable(R.drawable.toolbar);
+        getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
+        int heightPx = getResources().getDimensionPixelSize(tv.resourceId);
+        toolbar.setBackground(logo);
+
+        // Добавляем менюшки, свитч маркеров, передаем высоту тулбара
+        toolbar.addView(createMenuButtons(heightPx));
+        toolbar.addView(createMenuButtons2(heightPx));
+        toolbar.addView(createMarkerSwitch(heightPx));
+
         //Добавляем тект направления
         textView1 = new TextView(this);
         textView1.setText(String.valueOf(currentDegree));
@@ -420,38 +434,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Toolbar.LayoutParams layoutParams1 = new Toolbar.LayoutParams(Toolbar.LayoutParams.WRAP_CONTENT, Toolbar.LayoutParams.WRAP_CONTENT);
         layoutParams1.gravity = Gravity.CENTER_HORIZONTAL;
         toolbar.addView(textView1, layoutParams1);
+        // Текст и Компас вью
         CompassView compassView = findViewById(R.id.compass_view);
         compassView.setVisibility(View.INVISIBLE);
-        compassView.onDetachedFromWindow();
-        textView1.setText("NO COMPAS");
         textView1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (compassView.getVisibility() == View.VISIBLE) {
                     compassView.setVisibility(View.INVISIBLE);
-                //    compassView.onDetachedFromWindow();
+                    compassView.ocompasOFF();
                 } else {
                     compassView.setVisibility(View.VISIBLE);
-                //    compassView.onAttachedToWindow();
+                    compassView.compasOn();
                 }
             }
         });
+        textView1.setText("NO COMPAS");
     }
+
     @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
-
-        // Сдвиг карты ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         mMap.setPadding(0, actionBarHeight, 0, 0);
-
         // Камера на Красноярск
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
-
         mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
             @Override
             public void onCameraMove() {
@@ -460,8 +471,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 //     textView1.setText(bearing + " deg.");
             }
         });
-
         try {
+            mMap.getUiSettings().setMapToolbarEnabled(false);
             mMap.setMyLocationEnabled(true);
             mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
                 @Override
@@ -471,14 +482,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     if (polyline != null) {
                         boolean closestPoint = PolyUtil.isLocationOnPath(latLng, polyline.getPoints(), true, distance[0]);
                         if (closestPoint) {
-                            // Если было кликнуто на полилинию, выводим длину в метрах
                             Toast.makeText(getApplicationContext(), "Дистанция: " + (int) SphericalUtil.computeLength(polyline.getPoints()) + " метров", Toast.LENGTH_SHORT).show();
                         }
                     }
                 }
             });
-            mMap.getUiSettings().setMapToolbarEnabled(false);
-            // ТЕСТ со слушателем координат гугл
             List<LatLng> mMapCoordinates = new ArrayList<>();
             Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hordecircle);
             BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, markerSize, markerSize, false));
