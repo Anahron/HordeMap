@@ -4,10 +4,8 @@ import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.markerSize;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.DataSender.locationHistory;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -17,7 +15,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.hardware.Sensor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -36,7 +33,6 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
@@ -75,8 +71,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static String name;
     public static Boolean permission = false;
     private Polyline polyline;
-    private Sensor rotationVectorSensor;
-    private float currentDegree = 0f;
+    @SuppressLint("StaticFieldLeak")
     public static TextView textView1;
     private boolean IsNeedToSave = true;
     public static List<String> savedLogsOfGPSpath = new ArrayList<>();
@@ -87,7 +82,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     protected void onDestroy() {
         System.out.println("Вызван в мэйне");
-        if (IsNeedToSave == true && locationHistory.size() > 0)
+        if (IsNeedToSave && locationHistory.size() > 0)
             PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 1))));
         super.onDestroy();
         finish();
@@ -98,7 +93,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return Math.round((float) dp * density);
     }
 
-    @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId"})
+    @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId", "BatteryLife"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -120,20 +115,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission_group.SENSORS}, MY_PERMISSIONS_REQUEST_SENSOR);
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Intent intent = new Intent();
-            String packageName = getPackageName();
-            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-                intent.setData(Uri.parse("package:" + packageName));
-                startActivity(intent);
-            }
+        Intent intent = new Intent();
+        String packageName = getPackageName();
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + packageName));
+            startActivity(intent);
         }
-
-        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag");
-        wakeLock.acquire();
 
         // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -158,7 +147,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menubutton2.setTextSize(15);
         menubutton2.setOnClickListener(v -> {
             PopupWindow popupWindow = new PopupWindow(context);
-            View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu2, null, false);
+            View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu2, null, false);
             popupWindow.setContentView(view);
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
@@ -299,7 +288,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menubutton.setTextSize(15);
         menubutton.setOnClickListener(v -> {
             PopupWindow popupWindow = new PopupWindow(context);
-            View view = LayoutInflater.from(context).inflate(R.xml.pupup_menu, null, false);
+            View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu, null, false);
             popupWindow.setContentView(view);
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(277));
@@ -381,7 +370,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Button createMarkerSwitch(int heightPx) {
         @SuppressLint("UseSwitchCompatOrMaterialCode")
         Switch markerswitch = new Switch(this);
-        markerswitch.setBackgroundResource(R.xml.custom_switch);
+        markerswitch.setBackgroundResource(R.drawable.custom_switch);
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams((heightPx * 6) / 10, (heightPx * 6) / 10);
         layoutParams.setMarginStart(convertDpToPx(28));
         layoutParams.setMarginEnd(convertDpToPx(20));
@@ -416,7 +405,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Получаем размер тулбара для выставления размера кнопок
         TypedValue tv = new TypedValue();
-        Drawable logo = getResources().getDrawable(R.drawable.toolbar);
+        @SuppressLint("UseCompatLoadingForDrawables") Drawable logo = getResources().getDrawable(R.drawable.toolbar);
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int heightPx = getResources().getDimensionPixelSize(tv.resourceId);
         toolbar.setBackground(logo);
@@ -428,28 +417,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         //Добавляем тект направления
         textView1 = new TextView(this);
-        textView1.setText(String.valueOf(currentDegree));
         textView1.setTextColor(Color.parseColor("#FFe6ce6b"));
         textView1.setTextSize(12F);
         Toolbar.LayoutParams layoutParams1 = new Toolbar.LayoutParams(Toolbar.LayoutParams.WRAP_CONTENT, Toolbar.LayoutParams.WRAP_CONTENT);
         layoutParams1.gravity = Gravity.CENTER_HORIZONTAL;
         toolbar.addView(textView1, layoutParams1);
-        // Текст и Компас вью
+
+        //Компас вью
         CompassView compassView = findViewById(R.id.compass_view);
         compassView.setVisibility(View.INVISIBLE);
+        compassView.compasOFF();
         textView1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (compassView.getVisibility() == View.VISIBLE) {
                     compassView.setVisibility(View.INVISIBLE);
-                    compassView.ocompasOFF();
+                    compassView.compasOFF();
+                    textView1.setText("COMPAS");
                 } else {
                     compassView.setVisibility(View.VISIBLE);
-                    compassView.compasOn();
+                    compassView.compassON();
                 }
             }
         });
-        textView1.setText("NO COMPAS");
+        textView1.setText("COMPAS");
     }
 
     @SuppressLint("PotentialBehaviorOverride")
