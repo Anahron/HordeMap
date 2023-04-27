@@ -101,34 +101,7 @@ public class LoginRequest extends Service {
             startGPSsender();
             MapsActivity.permission = true;
             Toast.makeText(context, "Авторизация пройдена, привет " + MapsActivity.name, Toast.LENGTH_LONG).show();
-//            id = String.valueOf(mySavedID);
-//            Thread thread = new Thread(new Runnable() {
-//                public void run() {
-//                    getLoginAccessFromServer(id);
-//                }
-//            });
-//            thread.start();
-//            try {
-//                thread.join();
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//            if (answer.matches("^[a-zA-Zа-яА-Я]+$")) {
-//                MapsActivity.name = answer;
-//                MapsActivity.id = Long.parseLong(id);
-//                Toast.makeText(context, "Авторизация пройдена, привет " + MapsActivity.name, Toast.LENGTH_LONG).show();
-//                SharedPreferences.Editor editor = prefs.edit();
-//                editor.putString("name", name);
-//                editor.putLong("id", MapsActivity.id);
-//                editor.apply();
-//                MapsActivity.permission = true;
-//                startGPSsender();
-//            } else {
-//                Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
-//                MapsActivity.permission = false;
-//                DataSender.offMarkers();
-//                Intent intent = new Intent(context, DataSender.class);
-//                context.stopService(intent);
+
 //            }
         }
     }

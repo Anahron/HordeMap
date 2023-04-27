@@ -1,18 +1,14 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataSender.context;
-import static ru.newlevel.hordemap.DataSender.markerSize;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.DataSender.locationHistory;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -39,29 +35,21 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
-
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptor;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.gms.maps.model.SquareCap;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
-
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
-
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -138,7 +126,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private Button createMenuButtons2(int heightPx) {
         Button menubutton2 = new Button(this);
-        Drawable myDrawable2 = getResources().getDrawable(R.drawable.menu);
         menubutton2.setBackgroundResource(R.drawable.menu);
         menubutton2.setLayoutParams(new ViewGroup.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10));
         menubutton2.setText("PATHS");
@@ -227,34 +214,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 } else {
                     AlertDialog.Builder builder = new AlertDialog.Builder(context);
                     builder.setTitle("Выберите сохраненный файл");
-                    builder.setItems(hashtable.keySet().toArray(new String[0]), new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            String selectedItem = hashtable.keySet().toArray(new String[0])[which];
-                            Toast.makeText(context, "Выбран элемент: " + selectedItem, Toast.LENGTH_SHORT).show();
-                            System.out.println(selectedItem);
-                            List<LatLng> value;
-                            for (Map.Entry<String, List<LatLng>> entry : hashtable.entrySet()) {
-                                if (entry.getKey().equals(selectedItem)) {
-                                    value = entry.getValue();
-                                    System.out.println(entry.getKey());
-                                    System.out.println(selectedItem);
-                                }
-                            }
-                            List<LatLng> polylines = hashtable.get(selectedItem);
-                            System.out.println("длина пути в ячейках " + polylines.size());
-                            if (polylines.isEmpty()) {
-                                Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
-                            } else {
-                                PolylineOptions polylineOptions2 = new PolylineOptions()   // тест 1
-                                        .addAll(polylines)
-                                        .jointType(JointType.ROUND)
-                                        .startCap(new RoundCap())
-                                        .endCap(new SquareCap())
-                                        .geodesic(true)
-                                        .color(Color.BLACK)
-                                        .width(10);
-                                polyline = mMap.addPolyline(polylineOptions2);
-                            }
+                    builder.setItems(hashtable.keySet().toArray(new String[0]), (dialog, which) -> {
+                        String selectedItem = hashtable.keySet().toArray(new String[0])[which];
+                        Toast.makeText(context, "Выбран элемент: " + selectedItem, Toast.LENGTH_SHORT).show();
+                        List<LatLng> polylines = hashtable.get(selectedItem);
+                        if (polylines.isEmpty()) {
+                            Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
+                        } else {
+                            PolylineOptions polylineOptions2 = new PolylineOptions()   // тест 1
+                                    .addAll(polylines)
+                                    .jointType(JointType.ROUND)
+                                    .startCap(new RoundCap())
+                                    .endCap(new SquareCap())
+                                    .geodesic(true)
+                                    .color(Color.BLACK)
+                                    .width(10);
+                            polyline = mMap.addPolyline(polylineOptions2);
                         }
                     });
                     AlertDialog dialog = builder.create();
@@ -277,7 +252,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private Button createMenuButtons(int heightPx) {
         Button menubutton = new Button(this);
-        Drawable myDrawable = getResources().getDrawable(R.drawable.menu);
         menubutton.setBackgroundResource(R.drawable.menu);
         LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10);
         layoutParams2.setMarginEnd(convertDpToPx(7));
@@ -348,20 +322,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 LoginRequest.logIn(context);
                 popupWindow.dismiss();
             });
-            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
+            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.START, 0, 0);
 
             Button menuItem5 = view.findViewById(R.id.menu_item5);  // Закрыть
             menuItem5.setBackgroundResource(R.drawable.menubutton);
             menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem5.setOnClickListener(s -> {
-                if (IsNeedToSave == true && locationHistory.size() > 0)
+                if (IsNeedToSave && locationHistory.size() > 0)
                     PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
                 MyServiceUtils.destroyAlarmManager();
                 DataSender.getInstance().myonDestroy();
                 onDestroy();
                 popupWindow.dismiss();
             });
-            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.LEFT, 0, 0);
+            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.START, 0, 0);
 
         });
         return menubutton;
@@ -427,18 +401,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         CompassView compassView = findViewById(R.id.compass_view);
         compassView.setVisibility(View.INVISIBLE);
         compassView.compasOFF();
-        textView1.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (compassView.getVisibility() == View.VISIBLE) {
-                    compassView.setVisibility(View.INVISIBLE);
-                    compassView.compasOFF();
-                    textView1.setTextSize(12F);
-                    textView1.setText("COMPAS");
-                } else {
-                    compassView.setVisibility(View.VISIBLE);
-                    compassView.compassON();
-                }
+        textView1.setOnClickListener(v -> {
+            if (compassView.getVisibility() == View.VISIBLE) {
+                compassView.setVisibility(View.INVISIBLE);
+                compassView.compasOFF();
+                textView1.setTextSize(12F);
+                textView1.setText("COMPAS");
+            } else {
+                compassView.setVisibility(View.VISIBLE);
+                compassView.compassON();
             }
         });
         textView1.setTextSize(12F);
@@ -456,34 +427,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Камера на Красноярск
         LatLng location = new LatLng(56.0901, 93.2329);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
-        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
-            @Override
-            public void onCameraMove() {
-                CameraPosition cameraPosition = mMap.getCameraPosition();
-                float bearing = cameraPosition.bearing;
-                //     textView1.setText(bearing + " deg.");
-            }
-        });
         try {
             mMap.getUiSettings().setMapToolbarEnabled(false);
             mMap.setMyLocationEnabled(true);
-            mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-                @Override
-                public void onMapClick(LatLng latLng) {
-                    double[] distance = new double[1];
-                    distance[0] = 25;
-                    if (polyline != null) {
-                        boolean closestPoint = PolyUtil.isLocationOnPath(latLng, polyline.getPoints(), true, distance[0]);
-                        if (closestPoint) {
-                            Toast.makeText(getApplicationContext(), "Дистанция: " + (int) SphericalUtil.computeLength(polyline.getPoints()) + " метров", Toast.LENGTH_SHORT).show();
-                        }
+            mMap.setOnMapClickListener(latLng -> {
+                double[] distance = new double[1];
+                distance[0] = 25;
+                if (polyline != null) {
+                    boolean closestPoint = PolyUtil.isLocationOnPath(latLng, polyline.getPoints(), true, distance[0]);
+                    if (closestPoint) {
+                        Toast.makeText(getApplicationContext(), "Дистанция: " + (int) SphericalUtil.computeLength(polyline.getPoints()) + " метров", Toast.LENGTH_SHORT).show();
                     }
                 }
             });
-            List<LatLng> mMapCoordinates = new ArrayList<>();
-            Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.hordecircle);
-            BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, markerSize, markerSize, false));
-            final Marker[] marker = new Marker[1];
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
             mMap.getUiSettings().setCompassEnabled(true);
             mMap.getUiSettings().setZoomControlsEnabled(true);
