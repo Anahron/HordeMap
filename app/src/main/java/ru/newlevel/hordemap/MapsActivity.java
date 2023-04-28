@@ -3,6 +3,8 @@ package ru.newlevel.hordemap;
 import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.DataSender.locationHistory;
+import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -29,12 +31,14 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -47,9 +51,16 @@ import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.gms.maps.model.SquareCap;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
-import java.util.ArrayList;
+import com.google.maps.android.data.kml.KmlLayer;
+
+import org.xmlpull.v1.XmlPullParserException;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Hashtable;
 import java.util.List;
+
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -62,8 +73,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @SuppressLint("StaticFieldLeak")
     public static TextView textView1;
     private boolean IsNeedToSave = true;
-    public static List<String> savedLogsOfGPSpath = new ArrayList<>();
-
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
     private static final int MY_PERMISSIONS_REQUEST_SENSOR = 1003;
@@ -84,10 +93,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId", "BatteryLife"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        System.out.println("Вызван ONSTART");
         super.onCreate(savedInstanceState);
         context = this;
         ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        // Получаем фрагмент карты
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        assert mapFragment != null;
+        mapFragment.getMapAsync(this);
+
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
 
@@ -111,11 +127,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             intent.setData(Uri.parse("package:" + packageName));
             startActivity(intent);
         }
-
-        // Получаем фрагмент карты
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        assert mapFragment != null;
-        mapFragment.getMapAsync(this);
 
         //Запрос логина
         if (name == null || name.equals("name"))
@@ -416,6 +427,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         textView1.setText("COMPAS");
     }
 
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+    }
+
     @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
@@ -449,7 +466,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.e("MapsActivity", "Error: " + e.getMessage());
             System.out.println("не включилась");
         }
-
         // Показываем только текст маркера, без перемещения к нему камеры
         mMap.setOnMarkerClickListener(marker ->
 
@@ -461,6 +477,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             return true;
         });
-
+        try {
+            if (kmlSavedFile != null) {
+                System.out.println("ПРоверили что kmlSavedFile != null");
+                assert kmlSavedFile != null;
+                if (kmlSavedFile.exists()) {
+                    System.out.println("Проверили что kmlSavedFile.exists() и добавляем слой из кеша");
+                    InputStream in = new FileInputStream(kmlSavedFile);
+                    KmlLayer kmlLayer = new KmlLayer(mMap, in, context);
+                    in.close();
+                    kmlLayer.addLayerToMap();
+                }
+            }
+        } catch (XmlPullParserException | IOException e) {
+            e.printStackTrace();
+        }
     }
 }

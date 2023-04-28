@@ -22,7 +22,6 @@ public class MyServiceUtils {
 
     public static void startAlarmManager(Context context) {
         Log.d("Horde map", "Запустился Аларм Менеджер " + getInstance());
-
         if (alarmMgr == null) {
             alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         }
@@ -30,14 +29,13 @@ public class MyServiceUtils {
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
         pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 20000, pendingIntent);
-
         Log.d("Horde map", "Аларм менеджер отработал " + getInstance());
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     public static Notification createNotification(Context context) {
         Intent intent = new Intent(context, MapsActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
         NotificationChannel channel = new NotificationChannel("CHANNEL_1", "GPS", NotificationManager.IMPORTANCE_HIGH);
@@ -51,7 +49,7 @@ public class MyServiceUtils {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setTimeoutAfter(500);
+                .setTimeoutAfter(200);
         return builder.build();
     }
     public static void destroyAlarmManager(){

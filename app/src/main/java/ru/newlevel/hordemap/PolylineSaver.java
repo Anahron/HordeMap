@@ -82,7 +82,6 @@ public class PolylineSaver {
     public static Hashtable<String, List<LatLng>> getKeys() {
         System.out.println("Зашли в гетКейс");
         Hashtable<String, List<LatLng>> hash = new Hashtable<>();
-        MapsActivity.savedLogsOfGPSpath.clear();
         try {
             System.out.println("Зашли в тру");
             FileInputStream inputStream = context.openFileInput("gps.txt");
