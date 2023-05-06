@@ -1,7 +1,10 @@
 package ru.newlevel.hordemap;
 
 
+import static ru.newlevel.hordemap.MapsActivity.id;
 import static ru.newlevel.hordemap.MapsActivity.mMap;
+import static ru.newlevel.hordemap.MapsActivity.name;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.NotificationManager;
@@ -17,9 +20,12 @@ import android.os.Looper;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.core.content.ContextCompat;
+
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -34,6 +40,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.google.maps.android.SphericalUtil;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -90,8 +97,6 @@ public class DataSender extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        checkAndStartForeground();
-        MyServiceUtils.startAlarmManager(context);
     }
 
     @Nullable
@@ -105,6 +110,7 @@ public class DataSender extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
+        checkAndStartForeground();
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -119,7 +125,7 @@ public class DataSender extends Service {
                 location = locationResult.getLastLocation();
                 try {
                     if (location != null) {
-                        Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты");
+                        Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты" + this);
                         if (location.getAccuracy() < 25) {
                             Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
                             latitude = location.getLatitude();
@@ -158,6 +164,11 @@ public class DataSender extends Service {
                 }
             }
         };
+        if (latitude == 0.0) {
+            Log.d("Horde map", " Координаты 0.0 выключаем слушатель");
+            requestingLocationUpdates = false;
+            fusedLocationClient.removeLocationUpdates(locatonCallback);
+        }
 
         if (!requestingLocationUpdates) {
             requestingLocationUpdates = true;
@@ -166,8 +177,7 @@ public class DataSender extends Service {
         }
         Log.d("Horde map", "onStartCommand вызвана " + this);
         MyServiceUtils.startAlarmManager(context);
-
-        return START_STICKY_COMPATIBILITY;
+        return START_STICKY;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -182,7 +192,6 @@ public class DataSender extends Service {
                 break;
             }
         }
-
         if (!notificationDisplayed) {
             Log.d("Horde map", "Запустили сервис startForeground");
             startForeground(NOTIFICATION_ID, MyServiceUtils.createNotification(context));
@@ -190,7 +199,6 @@ public class DataSender extends Service {
             Log.d("Horde map", "Сервис startForeground уже запущен");
         }
     }
-
 
     @Override
     public void onDestroy() {
@@ -276,7 +284,9 @@ public class DataSender extends Service {
         try {
             Log.d("Horde map", "Вызван метод sendGPS, отсылаем данные и получаем ответ");
             // Формируем запрос. Макет запроса id:name:latitude:longitude
-            String post = MapsActivity.id + "/" + MapsActivity.name + "/" + latitude + "/" + longitude;
+            if (name == null || name.equals("name") || name.equals(""))
+                LoginRequest.logIn(context);
+            String post = id + "/" + name + "/" + latitude + "/" + longitude;
             // Создаем сокет на порту 8080
             Socket clientSocket = new Socket();
             clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
@@ -289,11 +299,9 @@ public class DataSender extends Service {
             writer.println(post);
             writer.flush();
             Log.d("Horde map", "Запрос отправлен: " + post);
-
             // Читаем данные из входного потока
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             String json = reader.readLine();
-
             // Определяем тип данных, в которые нужно преобразовать JSON-строку
             Type type = new TypeToken<HashMap<Long, String>>() {
             }.getType();

@@ -129,7 +129,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         //Запрос логина
-        if (name == null || name.equals("name"))
+        if (name == null || name.equals("name") || name.equals(""))
             LoginRequest.logIn(context);
         // Создаем меню
         createTollbar();
@@ -173,6 +173,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
                     mMap.clear();
+                    ImportantMarkers.importantMarkersCreate();
                     DataSender.apDateMarkers();
                     PolylineOptions polylineOptions = new PolylineOptions()
                             //   .addAll(PolyUtil.simplify(locationHistory, 1))
@@ -195,6 +196,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem3hidePath.setOnClickListener(s -> {
                 mMap.clear();
+                ImportantMarkers.importantMarkersCreate();
                 DataSender.apDateMarkers();
                 popupWindow.dismiss();
             });
@@ -437,16 +439,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
+
+        // Смещаем карту ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         mMap.setPadding(0, actionBarHeight, 0, 0);
+
         // Камера на Красноярск
-        LatLng location = new LatLng(56.0901, 93.2329);
+       //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
+        LatLng location = new LatLng( 55.6739849,85.1152591);  // координаты полигона
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
+
+        // Настраиваем карту
         try {
             mMap.getUiSettings().setMapToolbarEnabled(false);
             mMap.setMyLocationEnabled(true);
+            mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+        //    mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
             mMap.setOnMapClickListener(latLng -> {
                 double[] distance = new double[1];
                 distance[0] = 25;
@@ -460,15 +470,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
             mMap.getUiSettings().setCompassEnabled(true);
             mMap.getUiSettings().setZoomControlsEnabled(true);
-            System.out.println("включилась");
+
         } catch (
                 SecurityException e) {
             Log.e("MapsActivity", "Error: " + e.getMessage());
-            System.out.println("не включилась");
         }
+        // Загружаем метки полигона
+        ImportantMarkers.importantMarkersCreate();
         // Показываем только текст маркера, без перемещения к нему камеры
         mMap.setOnMarkerClickListener(marker ->
-
         {
             if (marker.isInfoWindowShown()) {
                 marker.hideInfoWindow();
@@ -477,6 +487,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             return true;
         });
+
         try {
             if (kmlSavedFile != null) {
                 System.out.println("ПРоверили что kmlSavedFile != null");

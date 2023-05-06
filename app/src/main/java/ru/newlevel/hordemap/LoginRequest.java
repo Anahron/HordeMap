@@ -51,7 +51,7 @@ public class LoginRequest extends Service {
                 e.printStackTrace();
             }
             Toast.makeText(context, "Получен логин " + answer, Toast.LENGTH_SHORT).show();
-            if (answer.equals("404")) {
+            if (answer.equals("404") || answer.equals("")) {
                 System.out.println("Авторизация не пройдена");
                 Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
                 MapsActivity.permission = false;
@@ -93,7 +93,7 @@ public class LoginRequest extends Service {
         prefs = context.getSharedPreferences("HordePref", MODE_PRIVATE);
         long mySavedID = prefs.getLong("id", 0L);
         String mySavedName = prefs.getString("name", "name");
-        if (mySavedID == 0L || mySavedName.equals("name")) {
+        if (mySavedID == 0L || mySavedName.equals("name") || mySavedName.equals("")) {
             createDialog(context);
         } else {
             MapsActivity.id = mySavedID;
@@ -101,8 +101,6 @@ public class LoginRequest extends Service {
             startGPSsender();
             MapsActivity.permission = true;
             Toast.makeText(context, "Авторизация пройдена, привет " + MapsActivity.name, Toast.LENGTH_LONG).show();
-
-//            }
         }
     }
     private static void getLoginAccessFromServer(String phonenumber) {
