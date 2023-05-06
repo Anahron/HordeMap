@@ -17,6 +17,7 @@ import android.location.Location;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.widget.Toast;
@@ -55,8 +56,11 @@ import java.util.List;
 import java.util.Objects;
 
 public class DataSender extends Service {
-    public static String ipAdress = "horde.krasteplovizor.ru";  // "horde.krasteplovizor.ru" - сервер" 192.168.1.21 - локал
-    public static int port = 49283; //49283 -сервер 443
+
+    public static String ipAdress = "horde.krasteplovizor.ru";  // сервер
+  //  public static String ipAdress = "192.168.1.21";  //  локал
+    public static int port = 49283; //49283 -сервер
+  //  public static int port = 8080; // локал
     private static final ArrayList<Marker> markers = new ArrayList<>();
     @SuppressLint("StaticFieldLeak")
     public static Context context;
@@ -66,7 +70,7 @@ public class DataSender extends Service {
     public static DataSender sender = DataSender.getInstance();
     @SuppressLint("StaticFieldLeak")
     private static DataSender instance = null;
-    public static int markerSize = 60;
+    public static int MARKER_SIZE = 60;
     private static HashMap<Long, String> savedmarkers = new HashMap<>();
     public static double latitude;
     public static double longitude;
@@ -97,6 +101,8 @@ public class DataSender extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        System.out.println("ЗАПУСТИЛСЯ МЕТОД ОНКРЕАТЕ ДАТАСЕНДЕР");
+        MyServiceUtils.startAlarmManager(context);
     }
 
     @Nullable
@@ -111,6 +117,9 @@ public class DataSender extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         checkAndStartForeground();
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyService::MyWakeLock");
+        wakeLock.acquire(30000L /*30sek*/);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -176,7 +185,6 @@ public class DataSender extends Service {
             fusedLocationClient.requestLocationUpdates(locationRequest, locatonCallback, Looper.myLooper());
         }
         Log.d("Horde map", "onStartCommand вызвана " + this);
-        MyServiceUtils.startAlarmManager(context);
         return START_STICKY;
     }
 
@@ -220,8 +228,8 @@ public class DataSender extends Service {
     public static void apDateMarkers() {
         Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
         Bitmap bitmapcom = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwingcomander);
-        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, markerSize, markerSize, false));
-        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, markerSize, markerSize, false));
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
+        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, MARKER_SIZE, MARKER_SIZE, false));
         if (!savedmarkers.isEmpty()) {
             for (Marker marker : markers) {
                 marker.remove();
@@ -252,8 +260,8 @@ public class DataSender extends Service {
         savedmarkers = map;
         Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
         Bitmap bitmapcom = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwingcomander);
-        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, markerSize, markerSize, false));
-        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, markerSize, markerSize, false));
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
+        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, MARKER_SIZE, MARKER_SIZE, false));
         ((Activity) context).runOnUiThread(() -> {
             for (Marker marker : markers) {
                 marker.remove();
@@ -287,9 +295,9 @@ public class DataSender extends Service {
             if (name == null || name.equals("name") || name.equals(""))
                 LoginRequest.logIn(context);
             String post = id + "/" + name + "/" + latitude + "/" + longitude;
-            // Создаем сокет на порту 8080
+
             Socket clientSocket = new Socket();
-            clientSocket.connect(new InetSocketAddress(ipAdress, port), 10000);
+            clientSocket.connect(new InetSocketAddress(ipAdress, port), 4000);
             // Получаем входной и выходной потоки для обмена данными с сервером
             InputStream inputStream = clientSocket.getInputStream();
             OutputStream outputStream = clientSocket.getOutputStream();
@@ -340,7 +348,7 @@ public class DataSender extends Service {
         Thread thread = new Thread(() -> {
             try {
                 Socket clientSocket = new Socket();
-                clientSocket.connect(new InetSocketAddress(ipAdress, port), 5000);
+                clientSocket.connect(new InetSocketAddress(ipAdress, port), 4000);
                 // Получаем входной и выходной потоки для обмена данными с сервером
                 InputStream inputStream = clientSocket.getInputStream();
                 OutputStream outputStream = clientSocket.getOutputStream();

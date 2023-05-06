@@ -7,6 +7,9 @@ import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -33,6 +36,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -41,26 +45,39 @@ import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMapOptions;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.gms.maps.model.SquareCap;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.android.gms.maps.model.TileProvider;
+import com.google.android.gms.maps.model.UrlTileProvider;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
 
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Locale;
 
+import okhttp3.Cache;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -76,6 +93,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
     private static final int MY_PERMISSIONS_REQUEST_SENSOR = 1003;
+    private static final int MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION = 1004;
+    private static final int MY_PERMISSIONS_REQUEST_WAKE_LOCK = 1005;
+    private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
 
     protected void onDestroy() {
         System.out.println("Вызван в мэйне");
@@ -90,6 +110,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return Math.round((float) dp * density);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.S)
     @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId", "BatteryLife"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,27 +131,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
         }
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, MY_PERMISSIONS_REQUEST_INTERNET);
         }
-
         if (ContextCompat.checkSelfPermission(this, Manifest.permission_group.SENSORS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission_group.SENSORS}, MY_PERMISSIONS_REQUEST_SENSOR);
         }
-
-        Intent intent = new Intent();
-        String packageName = getPackageName();
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-            intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-            intent.setData(Uri.parse("package:" + packageName));
-            startActivity(intent);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WAKE_LOCK) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WAKE_LOCK}, MY_PERMISSIONS_REQUEST_WAKE_LOCK);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
         }
 
+        // ТЕСТ
+        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+        String packageName = getPackageName();
+        Uri uri = Uri.parse("package:" + packageName);
+        intent.setData(uri);
+        startActivity(intent);
+
+
         //Запрос логина
-        if (name == null || name.equals("name") || name.equals(""))
-            LoginRequest.logIn(context);
+        if (name == null || name.equals("name") || name.equals("")) LoginRequest.logIn(context);
         // Создаем меню
         createTollbar();
     }
@@ -150,10 +176,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
-            if (popupWindow.isShowing())
-                popupWindow.dismiss();
-            else
-                popupWindow.showAsDropDown(menubutton2);
+            if (popupWindow.isShowing()) popupWindow.dismiss();
+            else popupWindow.showAsDropDown(menubutton2);
 
             Button menuItem1clear = view.findViewById(R.id.menu2_item1);  // Очистка пути
             menuItem1clear.setBackgroundResource(R.drawable.menubutton);
@@ -177,12 +201,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     DataSender.apDateMarkers();
                     PolylineOptions polylineOptions = new PolylineOptions()
                             //   .addAll(PolyUtil.simplify(locationHistory, 1))
-                            .addAll(locationHistory)
-                            .jointType(JointType.ROUND)
-                            .startCap(new SquareCap())
-                            .endCap(new RoundCap())
-                            .geodesic(true)
-                            .color(Color.RED) // Задаем цвет линии
+                            .addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
                     // Добавляем Polyline на карту
                     polyline = mMap.addPolyline(polylineOptions);
@@ -235,13 +254,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
                         } else {
                             PolylineOptions polylineOptions2 = new PolylineOptions()   // тест 1
-                                    .addAll(polylines)
-                                    .jointType(JointType.ROUND)
-                                    .startCap(new RoundCap())
-                                    .endCap(new SquareCap())
-                                    .geodesic(true)
-                                    .color(Color.BLACK)
-                                    .width(10);
+                                    .addAll(polylines).jointType(JointType.ROUND).startCap(new RoundCap()).endCap(new SquareCap()).geodesic(true).color(Color.BLACK).width(10);
                             polyline = mMap.addPolyline(polylineOptions2);
                         }
                     });
@@ -278,12 +291,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu, null, false);
             popupWindow.setContentView(view);
             popupWindow.setWidth(convertDpToPx(256));
-            popupWindow.setHeight(convertDpToPx(277));
+            popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
-            if (popupWindow.isShowing())
+            if (popupWindow.isShowing()) popupWindow.dismiss();
+            else popupWindow.showAsDropDown(menubutton);
+
+            Button menuItem0 = view.findViewById(R.id.menu_item0);  // Смена типа карты
+            menuItem0.setBackgroundResource(R.drawable.menubutton);
+            menuItem0.setGravity(Gravity.CENTER_HORIZONTAL);
+            menuItem0.setOnClickListener(s -> {
+                int mapType = mMap.getMapType();
+                // Переключите режим карты на следующий доступный режим
+                switch (mapType) {
+                    case GoogleMap.MAP_TYPE_NORMAL:
+                        mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+                        break;
+                    case GoogleMap.MAP_TYPE_HYBRID:
+                        mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+                        break;
+                }
                 popupWindow.dismiss();
-            else
-                popupWindow.showAsDropDown(menubutton);
+            });
+
             Button menuItem1 = view.findViewById(R.id.menu_item1);  // Загрузка карты полигона
             menuItem1.setBackgroundResource(R.drawable.menubutton);
             menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -308,7 +337,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 seekBar.setProgress(60);
                 builder.setPositiveButton("OK", (dialog, which) -> {
                     int value = seekBar.getProgress();
-                    DataSender.markerSize = value + 1;
+                    DataSender.MARKER_SIZE = value + 1;
                     DataSender.apDateMarkers();
                 });
                 AlertDialog dialog = builder.create();
@@ -355,8 +384,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private Button createMarkerSwitch(int heightPx) {
-        @SuppressLint("UseSwitchCompatOrMaterialCode")
-        Switch markerswitch = new Switch(this);
+        @SuppressLint("UseSwitchCompatOrMaterialCode") Switch markerswitch = new Switch(this);
         markerswitch.setBackgroundResource(R.drawable.custom_switch);
         LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams((heightPx * 6) / 10, (heightPx * 6) / 10);
         layoutParams.setMarginStart(convertDpToPx(28));
@@ -367,8 +395,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         markerswitch.setText(null);
         markerswitch.setTextOff(null);
         markerswitch.setTextOn(null);
-        markerswitch.setOnCheckedChangeListener((buttonView, isChecked) ->
-        {
+        markerswitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             // Обработка изменения состояния переключателя
             if (isChecked && permission) {
                 System.out.println("Включение маркеров");
@@ -447,16 +474,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.setPadding(0, actionBarHeight, 0, 0);
 
         // Камера на Красноярск
-       //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
-        LatLng location = new LatLng( 55.6739849,85.1152591);  // координаты полигона
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
+        //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
+        LatLng location = new LatLng(55.6739849, 85.1152591);  // координаты полигона
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 10));
 
         // Настраиваем карту
         try {
-            mMap.getUiSettings().setMapToolbarEnabled(false);
             mMap.setMyLocationEnabled(true);
             mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-        //    mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+            //    mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
             mMap.setOnMapClickListener(latLng -> {
                 double[] distance = new double[1];
                 distance[0] = 25;
@@ -470,16 +496,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
             mMap.getUiSettings().setCompassEnabled(true);
             mMap.getUiSettings().setZoomControlsEnabled(true);
-
-        } catch (
-                SecurityException e) {
+        } catch (SecurityException e) {
             Log.e("MapsActivity", "Error: " + e.getMessage());
         }
         // Загружаем метки полигона
         ImportantMarkers.importantMarkersCreate();
         // Показываем только текст маркера, без перемещения к нему камеры
-        mMap.setOnMarkerClickListener(marker ->
-        {
+        mMap.setOnMarkerClickListener(marker -> {
             if (marker.isInfoWindowShown()) {
                 marker.hideInfoWindow();
             } else {
@@ -490,7 +513,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         try {
             if (kmlSavedFile != null) {
-                System.out.println("ПРоверили что kmlSavedFile != null");
+                System.out.println("Проверили что kmlSavedFile != null");
                 assert kmlSavedFile != null;
                 if (kmlSavedFile.exists()) {
                     System.out.println("Проверили что kmlSavedFile.exists() и добавляем слой из кеша");

@@ -13,7 +13,7 @@ import android.util.Log;
 import androidx.core.content.ContextCompat;
 import androidx.legacy.content.WakefulBroadcastReceiver;
 
-public class MyWakefulReceiver extends BroadcastReceiver {
+public class MyWakefulReceiver extends WakefulBroadcastReceiver {
     public MyWakefulReceiver() {
     }
 
@@ -23,11 +23,12 @@ public class MyWakefulReceiver extends BroadcastReceiver {
         Log.d("Horde map", "Запустился метод MyWakefulReceiver " + this + " -  получает координаты и вызывает sendData в новом потоке");
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyService::MyWakeLock");
-        wakeLock.acquire(10000L /*1 minutes*/);
+        wakeLock.acquire(30000L /*1 minutes*/);
         Intent service = new Intent(context, DataSender.class);
         service.setAction("com.newlevel.ACTION_SEND_DATA");
         ContextCompat.startForegroundService(context, service);
         setResultCode(Activity.RESULT_OK);
+        MyServiceUtils.startAlarmManager(context);
         Thread thread = new Thread(() -> sender.sendGPS());
         thread.start();
         try {

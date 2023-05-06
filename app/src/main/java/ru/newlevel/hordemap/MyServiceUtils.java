@@ -2,6 +2,7 @@ package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataSender.getInstance;
 
+import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -10,6 +11,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.SystemClock;
 import android.util.Log;
 
 import androidx.annotation.RequiresApi;
@@ -20,6 +22,7 @@ public class MyServiceUtils {
     public static AlarmManager alarmMgr;
     public static PendingIntent pendingIntent;
 
+    @SuppressLint("ShortAlarm")
     public static void startAlarmManager(Context context) {
         Log.d("Horde map", "Запустился Аларм Менеджер " + getInstance());
         if (alarmMgr == null) {
@@ -28,7 +31,8 @@ public class MyServiceUtils {
         Intent intent = new Intent(context, MyWakefulReceiver.class);
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
         pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 20000, pendingIntent);
+        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 25000, pendingIntent);
+    //    alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 25000, pendingIntent);
         Log.d("Horde map", "Аларм менеджер отработал " + getInstance());
     }
 
