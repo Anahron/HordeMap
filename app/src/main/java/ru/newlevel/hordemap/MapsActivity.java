@@ -1,5 +1,7 @@
 package ru.newlevel.hordemap;
 
+import static android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS;
+import static android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS;
 import static ru.newlevel.hordemap.DataSender.context;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.DataSender.locationHistory;
@@ -110,24 +112,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return Math.round((float) dp * density);
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.S)
-    @SuppressLint({"MissingPermission", "PotentialBehaviorOverride", "ResourceType", "SetTextI18n", "NonConstantResourceId", "BatteryLife"})
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        System.out.println("Вызван ONSTART");
-        super.onCreate(savedInstanceState);
-        context = this;
-        ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        // Получаем фрагмент карты
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        assert mapFragment != null;
-        mapFragment.getMapAsync(this);
-
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-        // setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) // запрет поворота экрана
-
+    @SuppressLint("BatteryLife")
+    protected void setPermission(){
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
         }
@@ -138,27 +124,48 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission_group.SENSORS}, MY_PERMISSIONS_REQUEST_SENSOR);
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION);
+            }
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WAKE_LOCK) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WAKE_LOCK}, MY_PERMISSIONS_REQUEST_WAKE_LOCK);
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
+            }
         }
-
-        // ТЕСТ
-        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-        String packageName = getPackageName();
-        Uri uri = Uri.parse("package:" + packageName);
-        intent.setData(uri);
+        Intent intent = new Intent();
+        intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+        intent.setData(Uri.parse("package:" + getPackageName()));
         startActivity(intent);
+    }
 
+    @SuppressLint("BatteryLife")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        context = this;
+        ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+
+        // Запрет перезагрузки при повороте
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+
+        // Получаем фрагмент карты
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
+        assert mapFragment != null;
+        mapFragment.getMapAsync(this);
 
         //Запрос логина
         if (name == null || name.equals("name") || name.equals("")) LoginRequest.logIn(context);
+
         // Создаем меню
         createTollbar();
+
+        // Запрос разрешений
+        setPermission();
     }
 
     private Button createMenuButtons2(int heightPx) {
@@ -456,12 +463,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         textView1.setText("COMPAS");
     }
 
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-
-    }
-
     @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
@@ -482,7 +483,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         try {
             mMap.setMyLocationEnabled(true);
             mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-            //    mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
             mMap.setOnMapClickListener(latLng -> {
                 double[] distance = new double[1];
                 distance[0] = 25;
