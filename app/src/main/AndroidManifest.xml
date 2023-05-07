@@ -49,6 +49,9 @@
         <service
             android:name=".DataSender"
             android:enabled="true" />
+        <service
+            android:name=".MyWakefulReceiver"
+            android:enabled="true"/>
         <!--
              TODO: Before you run your application, you need a Google Maps API key.
 

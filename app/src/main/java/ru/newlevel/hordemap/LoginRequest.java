@@ -129,8 +129,6 @@ public class LoginRequest extends Service {
             ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
         }
     }
-
-
     public static void startGPSsender() {
         System.out.println("Запущено выполнение фонового сбора и отправки данных");
         DataSender.isMarkersON = true;

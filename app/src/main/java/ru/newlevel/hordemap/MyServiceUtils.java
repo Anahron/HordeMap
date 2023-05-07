@@ -32,7 +32,6 @@ public class MyServiceUtils {
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
         pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         alarmMgr.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 25000, pendingIntent);
-    //    alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 25000, pendingIntent);
         Log.d("Horde map", "Аларм менеджер отработал " + getInstance());
     }
 

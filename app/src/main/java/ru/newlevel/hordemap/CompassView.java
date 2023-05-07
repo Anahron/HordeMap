@@ -20,16 +20,17 @@ public class CompassView extends View implements SensorEventListener {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Bitmap bitmap;
     private SensorManager sensorManager;
-    private float[] orientationAngles = new float[3];
+    private final float[] orientationAngles = new float[3];
     public static float azimuthDegrees = 0;
-    private float[] rotationVectorReading = new float[3];
-    private float[] rotationMatrix = new float[9];
+    private final float[] rotationVectorReading = new float[3];
+    private final float[] rotationMatrix = new float[9];
     private static final int NUM_SAMPLES = 3;
-    private float[] azimuthSamples = new float[NUM_SAMPLES];
+    private final float[] azimuthSamples = new float[NUM_SAMPLES];
     private int currentSampleIndex = 0;
     private int lastX;
     private int lastY;
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
@@ -106,9 +107,9 @@ public class CompassView extends View implements SensorEventListener {
         int bitmapWidth = bitmap.getWidth();
         int bitmapHeight = bitmap.getHeight();
 
-        Matrix matrix = new Matrix();
-        matrix.postRotate(-azimuthDegrees, bitmapWidth / 2, bitmapHeight / 2);
-        matrix.postTranslate(centerX - bitmapWidth / 2, centerY - bitmapHeight / 2);
+        @SuppressLint("DrawAllocation") Matrix matrix = new Matrix();
+        matrix.postRotate(-azimuthDegrees, bitmapWidth / 2F, bitmapHeight / 2F);
+        matrix.postTranslate(centerX - bitmapWidth / 2F, centerY - bitmapHeight / 2F);
 
         canvas.drawBitmap(bitmap, matrix, paint);
     }

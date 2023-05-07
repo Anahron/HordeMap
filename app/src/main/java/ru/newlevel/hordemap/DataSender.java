@@ -17,16 +17,12 @@ import android.location.Location;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.PowerManager;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.core.content.ContextCompat;
-
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -41,7 +37,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.google.maps.android.SphericalUtil;
-
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -77,8 +72,8 @@ public class DataSender extends Service {
     public static List<LatLng> locationHistory = new ArrayList<>();
     private static boolean requestingLocationUpdates = false;
     private static boolean isConnectionLost;
-    private final static int UPDATE_INTERVAL = 5000;
-    private final static int FASTEST_INTERVAL = 3000;
+    private final static int UPDATE_INTERVAL = 3000;
+    private final static int FASTEST_INTERVAL = 2000;
     private final static int DISPLACEMENT = 3;
     private LocationRequest locationRequest;
     private FusedLocationProviderClient fusedLocationClient;
@@ -117,9 +112,6 @@ public class DataSender extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         checkAndStartForeground();
-        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyService::MyWakeLock");
-        wakeLock.acquire(30000L /*30sek*/);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context);
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -149,7 +141,6 @@ public class DataSender extends Service {
                                     LatLng firstLatLng = locationHistory.get(0);
                                     LatLng secondLatLng = locationHistory.get(1);
                                     LatLng thirdLatLng = locationHistory.get(2);
-                                    LatLng fourthLatLng = locationHistory.get(3);
                                     double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);   // до 2 = 11
                                     Log.d("Horde map", "Дистанция до прошлой: " + distance1);
                                     double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14

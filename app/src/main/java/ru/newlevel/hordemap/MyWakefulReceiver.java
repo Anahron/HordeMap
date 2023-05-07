@@ -4,12 +4,10 @@ import static ru.newlevel.hordemap.DataSender.sender;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.PowerManager;
 import android.util.Log;
-
 import androidx.core.content.ContextCompat;
 import androidx.legacy.content.WakefulBroadcastReceiver;
 

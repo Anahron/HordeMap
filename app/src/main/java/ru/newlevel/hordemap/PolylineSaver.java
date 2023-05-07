@@ -4,24 +4,17 @@ import static ru.newlevel.hordemap.DataSender.context;
 
 
 import android.content.Context;
-import android.os.Build;
 import android.widget.Toast;
-
 import com.google.android.gms.maps.model.LatLng;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Hashtable;
@@ -35,14 +28,12 @@ public class PolylineSaver {
         System.out.println("вызван метод сохранения пути");
         if (meters > 10) {
             String formattedDateTime = null;
-            LocalDateTime localDateTime = null;
+            LocalDateTime localDateTime;
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 localDateTime = LocalDateTime.now();
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
                 formattedDateTime = localDateTime.format(formatter);
             }
-            Type type = new TypeToken<List<LatLng>>() {
-            }.getType();
             Gson gson = new Gson();
             String json = gson.toJson(list);
             try {
@@ -115,8 +106,6 @@ public class PolylineSaver {
             }
             reader.close();
             inputStream.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }

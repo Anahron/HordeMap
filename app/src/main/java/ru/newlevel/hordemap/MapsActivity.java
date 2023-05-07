@@ -1,27 +1,24 @@
 package ru.newlevel.hordemap;
 
-import static android.provider.Settings.ACTION_BATTERY_SAVER_SETTINGS;
-import static android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS;
 import static ru.newlevel.hordemap.DataSender.context;
+import static ru.newlevel.hordemap.DataSender.latitude;
+import static ru.newlevel.hordemap.DataSender.longitude;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.DataSender.locationHistory;
 import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
-
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.usage.UsageStats;
-import android.app.usage.UsageStatsManager;
-import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.TypedValue;
@@ -36,50 +33,35 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
-
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.GoogleMapOptions;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.UiSettings;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CustomCap;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.gms.maps.model.SquareCap;
-import com.google.android.gms.maps.model.TileOverlayOptions;
-import com.google.android.gms.maps.model.TileProvider;
-import com.google.android.gms.maps.model.UrlTileProvider;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
-
 import org.xmlpull.v1.XmlPullParserException;
-
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Locale;
-
-import okhttp3.Cache;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -92,6 +74,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @SuppressLint("StaticFieldLeak")
     public static TextView textView1;
     private boolean IsNeedToSave = true;
+    private Polyline routePolyline;
+    private TextView distanceTextView;
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
     private static final int MY_PERMISSIONS_REQUEST_SENSOR = 1003;
@@ -113,7 +97,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     @SuppressLint("BatteryLife")
-    protected void setPermission(){
+    protected void setPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
         }
@@ -147,7 +131,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         context = this;
-        ru.newlevel.hordemap.databinding.ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
+
+        ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
         // Запрет перезагрузки при повороте
@@ -163,7 +148,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Создаем меню
         createTollbar();
-
+        distanceTextView = findViewById(R.id.distance_text_view);
+        distanceTextView.setVisibility(View.GONE);
         // Запрос разрешений
         setPermission();
     }
@@ -207,7 +193,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     ImportantMarkers.importantMarkersCreate();
                     DataSender.apDateMarkers();
                     PolylineOptions polylineOptions = new PolylineOptions()
-                            //   .addAll(PolyUtil.simplify(locationHistory, 1))
                             .addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
                     // Добавляем Polyline на карту
@@ -232,7 +217,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem4savepath.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem4savepath.setOnClickListener(s -> {
                 if (!locationHistory.isEmpty()) {
-                    PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
+                    PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(locationHistory)));
                     Toast.makeText(context, "Текущий путь сохранен и очищен", Toast.LENGTH_LONG).show();
                     locationHistory.clear();
                 } else {
@@ -257,6 +242,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         String selectedItem = hashtable.keySet().toArray(new String[0])[which];
                         Toast.makeText(context, "Выбран элемент: " + selectedItem, Toast.LENGTH_SHORT).show();
                         List<LatLng> polylines = hashtable.get(selectedItem);
+                        assert polylines != null;
                         if (polylines.isEmpty()) {
                             Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
                         } else {
@@ -426,7 +412,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Получаем размер тулбара для выставления размера кнопок
         TypedValue tv = new TypedValue();
-        @SuppressLint("UseCompatLoadingForDrawables") Drawable logo = getResources().getDrawable(R.drawable.toolbar);
+        Drawable logo = ContextCompat.getDrawable(context, R.drawable.toolbar);
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int heightPx = getResources().getDimensionPixelSize(tv.resourceId);
         toolbar.setBackground(logo);
@@ -463,26 +449,95 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         textView1.setText("COMPAS");
     }
 
+    @SuppressLint("SetTextI18n")
+    private void buildRoute(LatLng destination) {
+        // Удаление предыдущей полилинии маршрута
+        if (routePolyline != null) {
+            routePolyline.remove();
+        }
+        // Получение списка координат для построения прямой линии
+        List<LatLng> polylineCoordinates = Arrays.asList(new LatLng(mMap.getMyLocation().getLatitude(), mMap.getMyLocation().getLongitude()), destination);
+        // Получение полилинии для отображения маршрута на карте
+
+        Bitmap bitmapcustomcap = BitmapFactory.decodeResource(context.getResources(), R.drawable.star);
+        BitmapDescriptor bitmapcustomcapicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcustomcap, 60, 60, false));
+        CustomCap customCap = new CustomCap(bitmapcustomcapicon);
+
+        PolylineOptions polylineOptions = new PolylineOptions()
+                .addAll(polylineCoordinates)
+                .endCap(customCap)
+                .geodesic(true)
+                .color(Color.YELLOW)
+                .width(6);
+        double distance = SphericalUtil.computeDistanceBetween(new LatLng(mMap.getMyLocation().getLatitude(), mMap.getMyLocation().getLongitude()), destination);
+        distanceTextView.setVisibility(View.VISIBLE);
+        if ((int) distance > 1000)
+            distanceTextView.setText((Math.round(distance/10) / 100.0) + " км.");
+        else
+            distanceTextView.setText((int) distance + " м.");
+        // Добавление полилинии на карту
+        routePolyline = mMap.addPolyline(polylineOptions);
+
+        // Слежение за изменением местоположения пользователя
+        mMap.setOnMyLocationChangeListener(location -> {
+            LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+            // Обновление полилинии маршрута с учетом нового местоположения
+            List<LatLng> updatedPolylineCoordinates = Arrays.asList(currentLatLng, destination);
+            routePolyline.setPoints(updatedPolylineCoordinates);
+            double distance1 = SphericalUtil.computeDistanceBetween(currentLatLng, destination);
+            if ((int) distance1 > 1000)
+                distanceTextView.setText((Math.round(distance1 /10) / 100.0) + " км.");
+            else
+                distanceTextView.setText((int) distance1 + " м.");
+
+        });
+    }
+
     @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
-
+        mMap.setOnMapLongClickListener(latLng -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+            builder.setTitle("Выберите действие")
+                    .setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут"}, (dialog, which) -> {
+                        switch (which) {
+                            case 0:
+                                // Показать расстояние до точки
+                                float[] distance = new float[1];
+                                Location.distanceBetween(latitude, longitude, latLng.latitude, latLng.longitude, distance);
+                                Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0]/10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
+                                break;
+                            case 1:
+                                // Построить маршрут
+                                buildRoute(latLng);
+                                break;
+                            case 2:
+                                // Очистить маршрут
+                                if (routePolyline != null) {
+                                    routePolyline.remove();
+                                }
+                                distanceTextView.setVisibility(View.INVISIBLE);
+                                break;
+                        }
+                    });
+            builder.create().show();
+        });
         // Смещаем карту ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         mMap.setPadding(0, actionBarHeight, 0, 0);
-
+        mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
         // Камера на Красноярск
         //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
         LatLng location = new LatLng(55.6739849, 85.1152591);  // координаты полигона
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 10));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
 
         // Настраиваем карту
         try {
             mMap.setMyLocationEnabled(true);
-            mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
             mMap.setOnMapClickListener(latLng -> {
                 double[] distance = new double[1];
                 distance[0] = 25;

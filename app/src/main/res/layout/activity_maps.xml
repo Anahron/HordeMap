@@ -14,6 +14,23 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/main_color" />
+    <TextView
+        android:id="@+id/distance_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="7dp"
+        android:textColor="#d4bd61"
+        android:shadowColor="#a89c6a"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:layout_marginTop="60dp"
+        android:layout_marginStart="60dp"
+        android:textSize="25sp"
+        android:background="@drawable/text_view_bg"
+        android:layout_gravity="start|top"
+        tools:ignore="RtlSymmetry" />
+    <!--        android:textStyle="bold"-->
     <View
         android:id="@+id/touch_outside"
         android:layout_width="match_parent"

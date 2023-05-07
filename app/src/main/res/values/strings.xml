@@ -2,4 +2,5 @@
     <string name="app_name">Horde Map</string>
     <string name="title_activity_maps">MapsActivity</string>
     <string name="action_settings" />
+    <string name="Distance">Dist</string> />
 </resources>
