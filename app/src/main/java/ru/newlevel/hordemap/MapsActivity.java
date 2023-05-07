@@ -6,6 +6,7 @@ import static ru.newlevel.hordemap.DataSender.longitude;
 import static ru.newlevel.hordemap.DataSender.sender;
 import static ru.newlevel.hordemap.DataSender.locationHistory;
 import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -62,6 +63,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -131,7 +133,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         context = this;
-
         ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -142,12 +143,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
-
-        //Запрос логина
-        if (name == null || name.equals("name") || name.equals("")) LoginRequest.logIn(context);
-
-        // Создаем меню
         createTollbar();
+        LoginRequest.logIn(context, this);
+        // Создаем меню
         distanceTextView = findViewById(R.id.distance_text_view);
         distanceTextView.setVisibility(View.GONE);
         // Запрос разрешений
@@ -354,7 +352,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem4.setOnClickListener(s -> {
                 LoginRequest.logOut(context);
-                LoginRequest.logIn(context);
+                LoginRequest.logIn(context, this);
                 popupWindow.dismiss();
             });
             popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.START, 0, 0);
@@ -365,6 +363,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem5.setOnClickListener(s -> {
                 if (IsNeedToSave && locationHistory.size() > 0)
                     PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
+                finish();
                 MyServiceUtils.destroyAlarmManager();
                 DataSender.getInstance().myonDestroy();
                 onDestroy();
@@ -472,7 +471,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         double distance = SphericalUtil.computeDistanceBetween(new LatLng(mMap.getMyLocation().getLatitude(), mMap.getMyLocation().getLongitude()), destination);
         distanceTextView.setVisibility(View.VISIBLE);
         if ((int) distance > 1000)
-            distanceTextView.setText((Math.round(distance/10) / 100.0) + " км.");
+            distanceTextView.setText((Math.round(distance / 10) / 100.0) + " км.");
         else
             distanceTextView.setText((int) distance + " м.");
         // Добавление полилинии на карту
@@ -487,7 +486,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             routePolyline.setPoints(updatedPolylineCoordinates);
             double distance1 = SphericalUtil.computeDistanceBetween(currentLatLng, destination);
             if ((int) distance1 > 1000)
-                distanceTextView.setText((Math.round(distance1 /10) / 100.0) + " км.");
+                distanceTextView.setText((Math.round(distance1 / 10) / 100.0) + " км.");
             else
                 distanceTextView.setText((int) distance1 + " м.");
 
@@ -507,7 +506,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 // Показать расстояние до точки
                                 float[] distance = new float[1];
                                 Location.distanceBetween(latitude, longitude, latLng.latitude, latLng.longitude, distance);
-                                Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0]/10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
+                                Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
                                 break;
                             case 1:
                                 // Построить маршрут

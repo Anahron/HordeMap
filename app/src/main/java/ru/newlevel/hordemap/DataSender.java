@@ -96,7 +96,6 @@ public class DataSender extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        System.out.println("ЗАПУСТИЛСЯ МЕТОД ОНКРЕАТЕ ДАТАСЕНДЕР");
         MyServiceUtils.startAlarmManager(context);
     }
 
@@ -282,11 +281,10 @@ public class DataSender extends Service {
     public void sendGPS() {
         try {
             Log.d("Horde map", "Вызван метод sendGPS, отсылаем данные и получаем ответ");
-            // Формируем запрос. Макет запроса id:name:latitude:longitude
-            if (name == null || name.equals("name") || name.equals(""))
-                LoginRequest.logIn(context);
+            // Макет запроса id:name:latitude:longitude
+//            if (name == null || name.equals("name") || name.equals(""))
+//                LoginRequest.logIn(context, mapsActivity);
             String post = id + "/" + name + "/" + latitude + "/" + longitude;
-
             Socket clientSocket = new Socket();
             clientSocket.connect(new InetSocketAddress(ipAdress, port), 4000);
             // Получаем входной и выходной потоки для обмена данными с сервером

@@ -48,7 +48,7 @@ public class MyServiceUtils {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "CHANNEL_1")
                 .setSmallIcon(R.mipmap.hordecircle_round)
                 .setContentTitle("Horde Map")
-                .setContentText("Приложение работает в фоновом режиме")
+                .setContentText("Horde Map получает GPS данные в фоновом режиме")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)

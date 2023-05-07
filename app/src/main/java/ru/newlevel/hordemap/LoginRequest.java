@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.text.InputType;
 import android.widget.EditText;
 import android.widget.Toast;
+
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 
@@ -27,20 +28,21 @@ import java.net.Socket;
 
 public class LoginRequest extends Service {
     private static SharedPreferences prefs;
-    public static String answer = "";
+    static String answer = "";
 
     private static void createDialog(Context context) {
         logOut(context);
         final String[] phoneNumber = new String[1];
-
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Введите номер телефона формата '891312341212'");
+
+        builder.setTitle("Авторизация");
+        builder.setMessage("Введите номер телефона \nформата '891312341212' \nили идентификатор");
         EditText input = new EditText(context);
         input.setInputType(InputType.TYPE_CLASS_PHONE);
         builder.setView(input);
 
         // добавляем кнопки "Отмена" и "Ок" в AlertDialog
-        builder.setPositiveButton("Ок", (dialog, which) -> {
+        builder.setPositiveButton("ОТПРАВИТЬ", (dialog, which) -> {
             phoneNumber[0] = input.getText().toString().trim();
             System.out.println(phoneNumber[0]);
             Thread thread = new Thread(() -> getLoginAccessFromServer(phoneNumber[0]));
@@ -89,12 +91,29 @@ public class LoginRequest extends Service {
         context.stopService(intent);
     }
 
-    public static void logIn(Context context) {
+    public static void logIn(Context context, MapsActivity mapsActivity) {
         prefs = context.getSharedPreferences("HordePref", MODE_PRIVATE);
         long mySavedID = prefs.getLong("id", 0L);
         String mySavedName = prefs.getString("name", "name");
+
         if (mySavedID == 0L || mySavedName.equals("name") || mySavedName.equals("")) {
-            createDialog(context);
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+
+            builder.setTitle("Раскрытие информации.");
+            builder.setMessage("Для корректной работы приложения требуется собирать Ваши данные о местоположении, в том числе в фоновом режиме. Мы не передаем данные о вашем местоположении третьим лицам и используем их только внутри нашего приложения, в том числе для передачи другим пользователям.");
+
+            builder.setPositiveButton("Я ПОНИМАЮ", (dialog, which) -> {
+                createDialog(context);
+            });
+
+            builder.setNegativeButton("Отказываюсь", (dialog, which) -> {
+                mapsActivity.finish();
+            });
+            builder.setCancelable(false);
+            AlertDialog dialog = builder.create();
+            dialog.show();
+
         } else {
             MapsActivity.id = mySavedID;
             MapsActivity.name = mySavedName;
@@ -102,7 +121,9 @@ public class LoginRequest extends Service {
             MapsActivity.permission = true;
             Toast.makeText(context, "Авторизация пройдена, привет " + MapsActivity.name, Toast.LENGTH_LONG).show();
         }
+
     }
+
     private static void getLoginAccessFromServer(String phonenumber) {
         // Создаем сокет
         Socket clientSocket = new Socket();
@@ -122,13 +143,16 @@ public class LoginRequest extends Service {
             writer.flush();
             System.out.println("Запрос на авторизацию отправлен: " + phonenumber);
             // Читаем данные из входного потока
-            answer = reader.readLine();
+            String tempAnswer;
+            if ((tempAnswer = reader.readLine()) != null)
+                answer = tempAnswer;
             System.out.println(answer + " полученый ответ");
         } catch (IOException e) {
             e.printStackTrace();
             ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
         }
     }
+
     public static void startGPSsender() {
         System.out.println("Запущено выполнение фонового сбора и отправки данных");
         DataSender.isMarkersON = true;
