@@ -1,13 +1,11 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.GeoUpdateService.context;
-import static ru.newlevel.hordemap.GeoUpdateService.latitude;
-import static ru.newlevel.hordemap.GeoUpdateService.longitude;
 import static ru.newlevel.hordemap.GeoUpdateService.locationHistory;
 import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -79,6 +77,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private boolean IsNeedToSave = true;
     private Polyline routePolyline;
     private TextView distanceTextView;
+    @SuppressLint("StaticFieldLeak")
+    private static Context context;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -86,6 +86,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final int MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION = 1004;
     private static final int MY_PERMISSIONS_REQUEST_WAKE_LOCK = 1005;
     private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
+
+    public static Context getContext() {
+        return context;
+    }
 
     protected void onDestroy() {
         System.out.println("Вызван в мэйне");
@@ -145,6 +149,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
         createToolbar();
         LoginRequest.logIn(context, this);
+    }
+
+    public static void makeToast(String text){
+        Toast.makeText(context, text, Toast.LENGTH_LONG).show();
     }
 
     private Button createMenuButtons2(int heightPx) {
@@ -496,7 +504,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             case 0:
                                 // Показать расстояние до точки
                                 float[] distance = new float[1];
-                                Location.distanceBetween(latitude, longitude, latLng.latitude, latLng.longitude, distance);
+                                Location.distanceBetween(GeoUpdateService.getLatitude(), GeoUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
                                 Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
                                 break;
                             case 1:

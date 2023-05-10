@@ -1,27 +1,14 @@
 package ru.newlevel.hordemap;
 
 import static android.content.Context.MODE_PRIVATE;
-import static ru.newlevel.hordemap.GeoUpdateService.context;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.widget.Toast;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 
 public class LoginRequest {
     private static SharedPreferences prefs;
-    private static String answer = "";
     private static Long id = 0L;
     private static String name;
 
@@ -33,44 +20,29 @@ public class LoginRequest {
         return name;
     }
 
-    static void checkLogIn(String phoneNumber) {
-        Thread thread = new Thread(() -> getLoginAccessFromServer(phoneNumber));
-        thread.start();
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if (answer.equals("404") || answer.equals("")) {
-            onLoginFailure();
-        } else {
-            onLoginSuccess(phoneNumber);
-        }
-    }
-
-    private static void onLoginFailure() {
-        Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
+    static void onLoginFailure(Context context) {
+        MapsActivity.makeToast("Авторизация НЕ пройдена, обмен гео данными запрещен");
         stopGeoUpdateService(context);
     }
 
-    private static void onLoginSuccess(String phoneNumber) {
+    static void onLoginSuccess(String phoneNumber, String answer, Context context) {
         name = answer;
         id = Long.parseLong(phoneNumber);
-        Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
+        MapsActivity.makeToast("Авторизация пройдена, привет " + name);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString("name", name);
         editor.putLong("id", id);
         editor.apply();
-        startGeoUpdateService();
+        startGeoUpdateService(context);
     }
 
     public static void logOut(Context context) {
+        stopGeoUpdateService(context);
         SharedPreferences.Editor editor = prefs.edit();
         editor.clear();
         editor.apply();
         id = 0L;
         name = "name";
-        stopGeoUpdateService(context);
     }
 
     public static void logIn(Context context, MapsActivity mapsActivity) {
@@ -84,37 +56,13 @@ public class LoginRequest {
         } else {
             id = mySavedID;
             name = mySavedName;
-            startGeoUpdateService();
+            startGeoUpdateService(context);
             MapsActivity.permissionForGeoUpdate = true;
-            Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
-        }
-
-    }
-
-    static void getLoginAccessFromServer(String phonenumber) {
-        Socket clientSocket = new Socket();
-        try {
-            clientSocket.connect(new InetSocketAddress(GeoUpdateService.ipAdress, GeoUpdateService.port), 10000);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        try (InputStream inputStream = clientSocket.getInputStream();
-             OutputStream outputStream = clientSocket.getOutputStream();
-             PrintWriter writer = new PrintWriter(outputStream);
-             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            writer.println(phonenumber);
-            writer.flush();
-            String tempAnswer;
-            if ((tempAnswer = reader.readLine()) != null)
-                answer = tempAnswer;
-        } catch (IOException e) {
-            e.printStackTrace();
-            ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
+            MapsActivity.makeToast("Авторизация пройдена, привет " + name);
         }
     }
 
-    public static void startGeoUpdateService() {
-        System.out.println("Запущено выполнение фонового сбора и отправки данных");
+    public static void startGeoUpdateService(Context context) {
         MapsActivity.permissionForGeoUpdate = true;
         MarkersHandler.isMarkersON = true;
         GeoUpdateService sender = GeoUpdateService.getInstance();

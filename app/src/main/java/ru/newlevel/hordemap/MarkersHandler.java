@@ -1,9 +1,9 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.GeoUpdateService.context;
 import static ru.newlevel.hordemap.MapsActivity.googleMap;
 
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
@@ -22,17 +22,17 @@ import java.util.Objects;
 public class MarkersHandler {
     private static final int  markerSize = 60;
     private static final List<Marker> importantMarkers = new ArrayList<>();
-    private static final Bitmap swords1 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords1);
-    private static final Bitmap swords2 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords2);
-    private static final Bitmap swords3 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords3);
-    private static final Bitmap swords4 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords4);
-    private static final Bitmap swords5 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords5);
-    private static final Bitmap swords6 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords6);
-    private static final Bitmap swords7 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords7);
-    private static final Bitmap swords8 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords8);
-    private static final Bitmap swords9 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords9);
-    private static final Bitmap blue_camp = BitmapFactory.decodeResource(context.getResources(), R.drawable.blue_camp);
-    private static final Bitmap yellow_camp = BitmapFactory.decodeResource(context.getResources(), R.drawable.yellow_camp);
+    private static final Bitmap swords1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords1);
+    private static final Bitmap swords2 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords2);
+    private static final Bitmap swords3 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords3);
+    private static final Bitmap swords4 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords4);
+    private static final Bitmap swords5 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords5);
+    private static final Bitmap swords6 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords6);
+    private static final Bitmap swords7 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords7);
+    private static final Bitmap swords8 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords8);
+    private static final Bitmap swords9 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords9);
+    private static final Bitmap blue_camp = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.blue_camp);
+    private static final Bitmap yellow_camp = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.yellow_camp);
     private static final BitmapDescriptor swordsicon1 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords1, markerSize, markerSize, false));
     private static final BitmapDescriptor swordsicon2 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords2, markerSize, markerSize, false));
     private static final BitmapDescriptor swordsicon3 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords3, markerSize, markerSize, false));
@@ -83,11 +83,11 @@ public class MarkersHandler {
     public static void createMarkers(HashMap<Long, String> map) {
         Log.d("Horde map", "Удаляются старые и создаются новые маркеры");
         savedmarkers = map;
-        Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
-        Bitmap bitmapcom = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwingcomander);
+        Bitmap bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
+        Bitmap bitmapcom = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwingcomander);
         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
         BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, MARKER_SIZE, MARKER_SIZE, false));
-        ((Activity) context).runOnUiThread(() -> {
+        ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
             for (Marker marker : markers) {
                 marker.remove();
             }

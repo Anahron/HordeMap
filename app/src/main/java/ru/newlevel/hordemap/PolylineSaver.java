@@ -1,8 +1,5 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.GeoUpdateService.context;
-
-
 import android.content.Context;
 import android.widget.Toast;
 import com.google.android.gms.maps.model.LatLng;
@@ -75,7 +72,7 @@ public class PolylineSaver {
         Hashtable<String, List<LatLng>> hash = new Hashtable<>();
         try {
             System.out.println("Зашли в тру");
-            FileInputStream inputStream = context.openFileInput("gps.txt");
+            FileInputStream inputStream = MapsActivity.getContext().openFileInput("gps.txt");
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             String line;
             Type type = new TypeToken<List<LatLng>>() {

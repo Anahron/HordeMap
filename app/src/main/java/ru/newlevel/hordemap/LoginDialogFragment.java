@@ -11,10 +11,10 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.DialogFragment;
 
 public class LoginDialogFragment extends DialogFragment {
-    private Context mContext;
+    private final Context mContext;
     private static final String SEND_MASSAGE = "ОТПРАВИТЬ";
     private static final String AUTHORIZATION = "Авторизация";
-    private static final String AUTHORIZATION_MASSAGE = "Введите номер телефона \nформата '891312341212' \nили идентификатор";
+    private static final String AUTHORIZATION_MASSAGE = " Введите номер телефона \nформата '891312341212' \nили идентификатор";
 
     public LoginDialogFragment(Context context) {
         mContext = context;
@@ -31,7 +31,19 @@ public class LoginDialogFragment extends DialogFragment {
         builder.setView(input);
         builder.setPositiveButton(SEND_MASSAGE, (dialog, which) -> {
             final String phoneNumber = input.getText().toString().trim();
-            LoginRequest.checkLogIn(phoneNumber);
+            final String[] answerFromServer = {""};
+            Thread thread = new Thread(() -> answerFromServer[0] = GeoUpdateService.requestInfoFromServer(phoneNumber));
+            thread.start();
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            if (answerFromServer[0].equals("404") || answerFromServer[0].equals("")) {
+                LoginRequest.onLoginFailure(mContext);
+            } else {
+                LoginRequest.onLoginSuccess(phoneNumber, answerFromServer[0], mContext);
+            }
         });
         builder.setNegativeButton("CANCEL", null);
         builder.setCancelable(false);

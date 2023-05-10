@@ -1,16 +1,13 @@
 package ru.newlevel.hordemap;
 
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -48,11 +45,9 @@ public class GeoUpdateService extends Service {
     //  public static String ipAdress = "192.168.1.21";  //  локал
     //  public static int port = 8080; // локал
     @SuppressLint("StaticFieldLeak")
-    public static Context context;
-    @SuppressLint("StaticFieldLeak")
     private static GeoUpdateService instance = null;
-    public static double latitude;
-    public static double longitude;
+    private static double latitude;
+    private static double longitude;
     public static List<LatLng> locationHistory = new ArrayList<>();
     private static boolean requestingLocationUpdates = false;
     private static boolean isConnectionLost;
@@ -73,6 +68,14 @@ public class GeoUpdateService extends Service {
             instance = new GeoUpdateService();
         }
         return instance;
+    }
+
+    public static double getLatitude() {
+        return latitude;
+    }
+
+    public static double getLongitude() {
+        return longitude;
     }
 
     @SuppressLint("MissingPermission")
@@ -164,7 +167,7 @@ public class GeoUpdateService extends Service {
     }
 
     public void exchangeGPSData() {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
+        ExecutorService executor = Executors.newFixedThreadPool(4);;
         executor.execute(() -> {
             try {
                 Log.d("Horde map", "Вызван метод exchangeGPSData");
@@ -184,7 +187,8 @@ public class GeoUpdateService extends Service {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
                 String json = reader.readLine();
 
-                Type type = new TypeToken<HashMap<Long, String>>() {}.getType();
+                Type type = new TypeToken<HashMap<Long, String>>() {
+                }.getType();
                 Gson gson = new Gson();
                 try {
                     if (json != null) {
@@ -201,12 +205,12 @@ public class GeoUpdateService extends Service {
                 }
                 clientSocket.close();
                 if (isConnectionLost) {
-                    ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение установлено", Toast.LENGTH_SHORT).show());
+                    MapsActivity.makeToast("Соединение установлено");
                     isConnectionLost = false;
                 }
 
             } catch (Exception ex) {
-                ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
+                MapsActivity.makeToast("Соединение не установлено");
                 isConnectionLost = true;
                 ex.printStackTrace();
                 Log.d("Horde map", "Соединение с сервером не установлено");
@@ -230,6 +234,8 @@ public class GeoUpdateService extends Service {
                 Log.d("Horde map", "Запрос отправлен: " + request);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
                 answer[0] = reader.readLine();
+                if (answer[0] == null)
+                    answer[0] = "";
                 clientSocket.close();
             } catch (Exception ex) {
                 ex.printStackTrace();
