@@ -1,10 +1,12 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.DataSender.context;
+import static ru.newlevel.hordemap.GeoUpdateService.context;
 import static ru.newlevel.hordemap.MapsActivity.mMap;
 
+import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.Log;
 
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -13,9 +15,11 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
-public class ImportantMarkers {
+public class MarkersHandler {
     private static final int  markerSize = 60;
     private static final List<Marker> importantMarkers = new ArrayList<>();
     private static final Bitmap swords1 = BitmapFactory.decodeResource(context.getResources(), R.drawable.swords1);
@@ -40,6 +44,11 @@ public class ImportantMarkers {
     private static final BitmapDescriptor swordsicon9 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords9, markerSize, markerSize, false));
     private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
     private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
+
+    private static HashMap<Long, String> savedmarkers = new HashMap<>();
+    private static final ArrayList<Marker> markers = new ArrayList<>();
+    public static Boolean isMarkersON = true;
+    public static int MARKER_SIZE = 60;
 
     public static void importantMarkersCreate(){
         importantMarkers.clear();
@@ -70,4 +79,55 @@ public class ImportantMarkers {
            marker.setVisible(true);
         }
     }
+
+    public static void createMarkers(HashMap<Long, String> map) {
+        Log.d("Horde map", "Удаляются старые и создаются новые маркеры");
+        savedmarkers = map;
+        Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwing);
+        Bitmap bitmapcom = BitmapFactory.decodeResource(context.getResources(), R.drawable.pngwingcomander);
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
+        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, MARKER_SIZE, MARKER_SIZE, false));
+        ((Activity) context).runOnUiThread(() -> {
+            for (Marker marker : markers) {
+                marker.remove();
+            }
+            markers.clear();
+            for (Long id : map.keySet()) {
+                if (!Objects.equals(MapsActivity.id, id) && isMarkersON) {
+                    String[] data = Objects.requireNonNull(map.get(id)).split("/");
+                    String hour = data[3].substring(11, 13);
+                    int hourkrsk = Integer.parseInt(hour) + 7;
+                    if (hourkrsk >= 24)
+                        hourkrsk = hourkrsk - 24;
+                    String minutes = data[3].substring(13, 16);
+                    String rank = (Integer.parseInt(data[4]) == 1 ? "Сержант" : "Рядовой");
+                    Marker marker = mMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
+                            .title(data[0])
+                            .alpha(Float.parseFloat(data[5]))
+                            .snippet(rank + " " + hourkrsk + minutes)
+                            .icon(Integer.parseInt(data[4]) == 1 ? iconcom : icon));
+                    markers.add(marker);
+                }
+            }
+        });
+    }
+
+    public static void markersOff() {
+        for (Marker marker : markers) {
+            marker.setVisible(false);
+        }
+    }
+
+    public static void markersOn() {
+        if (markers.isEmpty())
+            createMarkers(savedmarkers);
+        else
+            for (Marker marker : markers) {
+                marker.setVisible(true);
+            }
+    }
+
+
+
 }

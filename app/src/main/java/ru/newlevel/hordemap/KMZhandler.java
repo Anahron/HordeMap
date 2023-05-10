@@ -27,7 +27,7 @@ public class KMZhandler {
             URL url;
             try {
                 System.out.println("Пытаемся скачать файл карты");
-                url = new URL(DataSender.requestInfoFromServer("mapurl"));
+                url = new URL(GeoUpdateService.requestInfoFromServer("mapurl"));
                 try (BufferedInputStream inputStream = new BufferedInputStream(url.openStream());
                      FileOutputStream outputStream = new FileOutputStream(newDir)) {
                     byte[] buffer = new byte[1024];

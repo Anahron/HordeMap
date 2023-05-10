@@ -1,20 +1,18 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.DataSender.context;
+import static android.content.Context.MODE_PRIVATE;
+import static ru.newlevel.hordemap.GeoUpdateService.context;
 import static ru.newlevel.hordemap.MapsActivity.name;
 
 import android.app.Activity;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.os.IBinder;
 import android.text.InputType;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 
 import java.io.BufferedReader;
@@ -26,11 +24,11 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-public class LoginRequest extends Service {
+public class LoginRequest {
     private static SharedPreferences prefs;
     static String answer = "";
 
-    private static void createDialog(Context context) {
+    private static void createLogInDialog(Context context) {
         logOut(context);
         final String[] phoneNumber = new String[1];
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
@@ -41,7 +39,6 @@ public class LoginRequest extends Service {
         input.setInputType(InputType.TYPE_CLASS_PHONE);
         builder.setView(input);
 
-        // добавляем кнопки "Отмена" и "Ок" в AlertDialog
         builder.setPositiveButton("ОТПРАВИТЬ", (dialog, which) -> {
             phoneNumber[0] = input.getText().toString().trim();
             System.out.println(phoneNumber[0]);
@@ -57,8 +54,8 @@ public class LoginRequest extends Service {
                 System.out.println("Авторизация не пройдена");
                 Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
                 MapsActivity.permission = false;
-                DataSender.offMarkers();
-                Intent intent = new Intent(context, DataSender.class);
+                MarkersHandler.markersOff();
+                Intent intent = new Intent(context, GeoUpdateService.class);
                 context.stopService(intent);
             } else {
                 System.out.println("Авторизация пройдена");
@@ -70,10 +67,9 @@ public class LoginRequest extends Service {
                 editor.putLong("id", MapsActivity.id);
                 editor.apply();
                 MapsActivity.permission = true;
-                startGPSsender();
+                startGeoUpdateService();
             }
         });
-        // запрет на закрытие диалога при нажатии на кнопку "Назад" на устройстве
         builder.setCancelable(false);
         AlertDialog dialog = builder.create();
         dialog.show();
@@ -86,8 +82,8 @@ public class LoginRequest extends Service {
         MapsActivity.id = 0L;
         name = "name";
         MapsActivity.permission = false;
-        DataSender.offMarkers();
-        Intent intent = new Intent(context, DataSender.class);
+        MarkersHandler.markersOff();
+        Intent intent = new Intent(context, GeoUpdateService.class);
         context.stopService(intent);
     }
 
@@ -104,7 +100,7 @@ public class LoginRequest extends Service {
             builder.setMessage("Для корректной работы приложения требуется собирать Ваши данные о местоположении для работы функции обмена геоданными и построения маршрута пройденого пути, в том числе в фоновом режиме, даже если приложение закрыто и не используется. Мы не передаем данные о вашем местоположении третьим лицам и используем их только внутри нашего приложения, в том числе для передачи другим пользователям.");
 
             builder.setPositiveButton("Я ПОНИМАЮ", (dialog, which) -> {
-                createDialog(context);
+                createLogInDialog(context);
                 mapsActivity.setPermission();
             });
 
@@ -118,7 +114,7 @@ public class LoginRequest extends Service {
         } else {
             MapsActivity.id = mySavedID;
             MapsActivity.name = mySavedName;
-            startGPSsender();
+            startGeoUpdateService();
             MapsActivity.permission = true;
             Toast.makeText(context, "Авторизация пройдена, привет " + MapsActivity.name, Toast.LENGTH_LONG).show();
         }
@@ -126,24 +122,20 @@ public class LoginRequest extends Service {
     }
 
     private static void getLoginAccessFromServer(String phonenumber) {
-        // Создаем сокет
         Socket clientSocket = new Socket();
         try {
-            clientSocket.connect(new InetSocketAddress(DataSender.ipAdress, DataSender.port), 10000);
+            clientSocket.connect(new InetSocketAddress(GeoUpdateService.ipAdress, GeoUpdateService.port), 10000);
         } catch (IOException e) {
             e.printStackTrace();
             ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Соединение не установлено", Toast.LENGTH_LONG).show());
         }
-        // Получаем входной и выходной потоки для обмена данными с сервером
         try (InputStream inputStream = clientSocket.getInputStream();
              OutputStream outputStream = clientSocket.getOutputStream();
              PrintWriter writer = new PrintWriter(outputStream);
              BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-            // Отправляем запрос серверу
             writer.println(phonenumber);
             writer.flush();
             System.out.println("Запрос на авторизацию отправлен: " + phonenumber);
-            // Читаем данные из входного потока
             String tempAnswer;
             if ((tempAnswer = reader.readLine()) != null)
                 answer = tempAnswer;
@@ -154,24 +146,15 @@ public class LoginRequest extends Service {
         }
     }
 
-    public static void startGPSsender() {
+    public static void startGeoUpdateService() {
         System.out.println("Запущено выполнение фонового сбора и отправки данных");
-        DataSender.isMarkersON = true;
-        DataSender sender = new DataSender();
-        // getInstance чтобы не плодить экземпляры класса
-        new Thread(() -> {
-            Intent intent = new Intent(context, DataSender.class);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent);
-            }
-            sender.sendGPS(); //обновление списка координат сразу после запуска не дожидаясь алармменеджера
-        }).start();
-    }
-
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
+        MarkersHandler.isMarkersON = true;
+        GeoUpdateService sender = GeoUpdateService.getInstance();
+        sender.exchangeGPSData();//обновление списка координат сразу после запуска не дожидаясь алармменеджера
+        Intent service = new Intent(context, GeoUpdateService.class);
+        service.setAction("com.newlevel.ACTION_SEND_DATA");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(service);
+        }
     }
 }

@@ -47,7 +47,7 @@
         </receiver>
         <!-- Declare service -->
         <service
-            android:name=".DataSender"
+            android:name=".GeoUpdateService"
             android:enabled="true" />
         <service
             android:name=".MyWakefulReceiver"

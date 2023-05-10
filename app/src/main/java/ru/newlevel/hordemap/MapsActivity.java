@@ -1,10 +1,9 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.DataSender.context;
-import static ru.newlevel.hordemap.DataSender.latitude;
-import static ru.newlevel.hordemap.DataSender.longitude;
-import static ru.newlevel.hordemap.DataSender.sender;
-import static ru.newlevel.hordemap.DataSender.locationHistory;
+import static ru.newlevel.hordemap.GeoUpdateService.context;
+import static ru.newlevel.hordemap.GeoUpdateService.latitude;
+import static ru.newlevel.hordemap.GeoUpdateService.longitude;
+import static ru.newlevel.hordemap.GeoUpdateService.locationHistory;
 import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
 
 import android.Manifest;
@@ -21,7 +20,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -41,7 +39,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -141,18 +138,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        // Запрет перезагрузки при повороте
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
-        // Получаем фрагмент карты
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
         createTollbar();
         LoginRequest.logIn(context, this);
-        // Создаем меню
-        distanceTextView = findViewById(R.id.distance_text_view);
-        distanceTextView.setVisibility(View.GONE);
     }
 
     private Button createMenuButtons2(int heightPx) {
@@ -191,8 +183,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
                     mMap.clear();
-                    ImportantMarkers.importantMarkersCreate();
-                    DataSender.apDateMarkers();
+                    MarkersHandler.importantMarkersCreate();
+                    MarkersHandler.markersOn();
                     PolylineOptions polylineOptions = new PolylineOptions()
                             .addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
@@ -208,8 +200,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem3hidePath.setOnClickListener(s -> {
                 mMap.clear();
-                ImportantMarkers.importantMarkersCreate();
-                DataSender.apDateMarkers();
+                MarkersHandler.importantMarkersCreate();
+                MarkersHandler.markersOn();
                 popupWindow.dismiss();
             });
 
@@ -331,8 +323,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 seekBar.setProgress(60);
                 builder.setPositiveButton("OK", (dialog, which) -> {
                     int value = seekBar.getProgress();
-                    DataSender.MARKER_SIZE = value + 1;
-                    DataSender.apDateMarkers();
+                    MarkersHandler.MARKER_SIZE = value + 1;
+                    MarkersHandler.markersOn();
                 });
                 AlertDialog dialog = builder.create();
                 dialog.show();
@@ -368,7 +360,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
                 finish();
                 MyServiceUtils.destroyAlarmManager();
-                DataSender.getInstance().myonDestroy();
                 onDestroy();
                 popupWindow.dismiss();
             });
@@ -394,20 +385,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             // Обработка изменения состояния переключателя
             if (isChecked && permission) {
                 System.out.println("Включение маркеров");
-                DataSender.isMarkersON = true;
-                DataSender.apDateMarkers();
-                //обновление списка координат сразу после запуска не дожидаясь алармменеджера
-                new Thread(() -> sender.sendGPS());
+                MarkersHandler.isMarkersON = true;
+                MarkersHandler.markersOn();
             } else {
                 System.out.println("Выключение маркеров");
-                DataSender.isMarkersON = false;
-                DataSender.offMarkers();
+                MarkersHandler.isMarkersON = false;
+                MarkersHandler.markersOff();
             }
         });
         return markerswitch;
     }
 
     private void createTollbar() {
+        // Дистанция до точки
+        distanceTextView = findViewById(R.id.distance_text_view);
+        distanceTextView.setVisibility(View.GONE);
         // Добавляем тулбар
         Toolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setPadding(convertDpToPx(0), 0, convertDpToPx(0), convertDpToPx(5));
@@ -558,7 +550,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             mMap.getUiSettings().setZoomControlsEnabled(true);
 
         // Загружаем метки полигона
-        ImportantMarkers.importantMarkersCreate();
+        MarkersHandler.importantMarkersCreate();
         // Показываем только текст маркера, без перемещения к нему камеры
         mMap.setOnMarkerClickListener(marker -> {
             if (marker.isInfoWindowShown()) {

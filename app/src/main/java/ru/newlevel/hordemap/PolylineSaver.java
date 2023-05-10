@@ -1,6 +1,6 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.DataSender.context;
+import static ru.newlevel.hordemap.GeoUpdateService.context;
 
 
 import android.content.Context;

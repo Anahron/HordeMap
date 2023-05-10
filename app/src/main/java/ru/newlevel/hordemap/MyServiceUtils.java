@@ -1,6 +1,7 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.DataSender.getInstance;
+import static ru.newlevel.hordemap.GeoUpdateService.context;
+import static ru.newlevel.hordemap.GeoUpdateService.getInstance;
 
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
@@ -12,6 +13,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.SystemClock;
+import android.service.notification.StatusBarNotification;
 import android.util.Log;
 
 import androidx.annotation.RequiresApi;
@@ -21,6 +23,7 @@ public class MyServiceUtils {
 
     public static AlarmManager alarmMgr;
     public static PendingIntent pendingIntent;
+    private static final int NOTIFICATION_ID = 1;
 
     @SuppressLint("ShortAlarm")
     public static void startAlarmManager(Context context) {
@@ -32,7 +35,6 @@ public class MyServiceUtils {
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
         pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         alarmMgr.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 25000, pendingIntent);
-        Log.d("Horde map", "Аларм менеджер отработал " + getInstance());
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -55,10 +57,33 @@ public class MyServiceUtils {
                 .setTimeoutAfter(200);
         return builder.build();
     }
+
     public static void destroyAlarmManager(){
         if (pendingIntent != null) {
             Log.d("Horde map", "Аларм менеджер Остановлен в методе onDestroy");
             MyServiceUtils.alarmMgr.cancel(pendingIntent);
         }
     }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    public static void checkAndStartForeground(GeoUpdateService geoUpdateService) {
+        NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
+        StatusBarNotification[] activeNotifications = notificationManager.getActiveNotifications();
+
+        boolean notificationDisplayed = false;
+        for (StatusBarNotification statusBarNotification : activeNotifications) {
+            if (statusBarNotification.getId() == NOTIFICATION_ID) {
+                notificationDisplayed = true;
+                break;
+            }
+        }
+        if (!notificationDisplayed) {
+            Log.d("Horde map", "Запустили сервис startForeground");
+            geoUpdateService.startForeground(NOTIFICATION_ID, MyServiceUtils.createNotification(context));
+        } else {
+            Log.d("Horde map", "Сервис startForeground уже запущен");
+        }
+    }
+
+
 }
