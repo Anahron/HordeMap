@@ -1,9 +1,5 @@
 package ru.newlevel.hordemap;
 
-
-import static ru.newlevel.hordemap.MapsActivity.id;
-import static ru.newlevel.hordemap.MapsActivity.name;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Service;
@@ -173,7 +169,7 @@ public class GeoUpdateService extends Service {
             try {
                 Log.d("Horde map", "Вызван метод exchangeGPSData");
                 // Макет запроса id:name:latitude:longitude
-                String post = id + "/" + name + "/" + latitude + "/" + longitude;
+                String post = LoginRequest.getId() + "/" + LoginRequest.getName() + "/" + latitude + "/" + longitude;
 
                 Socket clientSocket = new Socket();
                 clientSocket.connect(new InetSocketAddress(ipAdress, port), 4000);

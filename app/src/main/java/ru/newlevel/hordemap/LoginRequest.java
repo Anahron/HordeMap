@@ -2,7 +2,6 @@ package ru.newlevel.hordemap;
 
 import static android.content.Context.MODE_PRIVATE;
 import static ru.newlevel.hordemap.GeoUpdateService.context;
-import static ru.newlevel.hordemap.MapsActivity.name;
 
 import android.app.Activity;
 import android.content.Context;
@@ -27,19 +26,35 @@ import java.net.Socket;
 public class LoginRequest {
     private static SharedPreferences prefs;
     static String answer = "";
+    private static Long id = 0L;
+    private static String name;
+    private static final String INFO_MASSAGE = "Для корректной работы приложения требуется собирать Ваши данные о местоположении для работы функции обмена геоданными и построения маршрута пройденого пути, в том числе в фоновом режиме, даже если приложение закрыто и не используется. Мы не передаем данные о вашем местоположении третьим лицам и используем их только внутри нашего приложения, в том числе для передачи другим пользователям.";
+    private static final String AUTHORIZATION_MASSAGE = "Введите номер телефона \nформата '891312341212' \nили идентификатор";
+    private static final String INFO = "Раскрытие информации.";
+    private static final String SEND_MASSAGE = "ОТПРАВИТЬ";
+    private static final String AUTHORIZATION = "Авторизация";
+    private static final String ACCEPT = "Я ПОНИМАЮ";
+    private static final String DECLINE ="Отказываюсь";
+    public static Long getId() {
+        return id;
+    }
+
+    public static String getName() {
+        return name;
+    }
 
     private static void createLogInDialog(Context context) {
         logOut(context);
         final String[] phoneNumber = new String[1];
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
 
-        builder.setTitle("Авторизация");
-        builder.setMessage("Введите номер телефона \nформата '891312341212' \nили идентификатор");
+        builder.setTitle(AUTHORIZATION);
+        builder.setMessage(AUTHORIZATION_MASSAGE);
         EditText input = new EditText(context);
         input.setInputType(InputType.TYPE_CLASS_PHONE);
         builder.setView(input);
 
-        builder.setPositiveButton("ОТПРАВИТЬ", (dialog, which) -> {
+        builder.setPositiveButton(SEND_MASSAGE, (dialog, which) -> {
             phoneNumber[0] = input.getText().toString().trim();
             System.out.println(phoneNumber[0]);
             Thread thread = new Thread(() -> getLoginAccessFromServer(phoneNumber[0]));
@@ -49,24 +64,21 @@ public class LoginRequest {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            Toast.makeText(context, "Получен логин " + answer, Toast.LENGTH_SHORT).show();
             if (answer.equals("404") || answer.equals("")) {
-                System.out.println("Авторизация не пройдена");
                 Toast.makeText(context, "Авторизация НЕ пройдена, обмен гео данными запрещен", Toast.LENGTH_LONG).show();
-                MapsActivity.permission = false;
+                MapsActivity.permissionForGeoUpdate = false;
                 MarkersHandler.markersOff();
                 Intent intent = new Intent(context, GeoUpdateService.class);
                 context.stopService(intent);
             } else {
-                System.out.println("Авторизация пройдена");
-                MapsActivity.name = answer;
-                MapsActivity.id = Long.parseLong(phoneNumber[0]);
-                Toast.makeText(context, "Авторизация пройдена, привет " + MapsActivity.name, Toast.LENGTH_LONG).show();
+                name = answer;
+                id = Long.parseLong(phoneNumber[0]);
+                Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.putString("name", name);
-                editor.putLong("id", MapsActivity.id);
+                editor.putLong("id", id);
                 editor.apply();
-                MapsActivity.permission = true;
+                MapsActivity.permissionForGeoUpdate = true;
                 startGeoUpdateService();
             }
         });
@@ -79,9 +91,9 @@ public class LoginRequest {
         SharedPreferences.Editor editor = prefs.edit();
         editor.clear();
         editor.apply();
-        MapsActivity.id = 0L;
+        id = 0L;
         name = "name";
-        MapsActivity.permission = false;
+        MapsActivity.permissionForGeoUpdate = false;
         MarkersHandler.markersOff();
         Intent intent = new Intent(context, GeoUpdateService.class);
         context.stopService(intent);
@@ -93,30 +105,24 @@ public class LoginRequest {
         String mySavedName = prefs.getString("name", "name");
 
         if (mySavedID == 0L || mySavedName.equals("name") || mySavedName.equals("")) {
-
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
-
-            builder.setTitle("Раскрытие информации.");
-            builder.setMessage("Для корректной работы приложения требуется собирать Ваши данные о местоположении для работы функции обмена геоданными и построения маршрута пройденого пути, в том числе в фоновом режиме, даже если приложение закрыто и не используется. Мы не передаем данные о вашем местоположении третьим лицам и используем их только внутри нашего приложения, в том числе для передачи другим пользователям.");
-
-            builder.setPositiveButton("Я ПОНИМАЮ", (dialog, which) -> {
+            builder.setTitle(INFO);
+            builder.setMessage(INFO_MASSAGE);
+            builder.setPositiveButton(ACCEPT, (dialog, which) -> {
                 createLogInDialog(context);
                 mapsActivity.setPermission();
             });
 
-            builder.setNegativeButton("Отказываюсь", (dialog, which) -> {
-                mapsActivity.finish();
-            });
+            builder.setNegativeButton(DECLINE, (dialog, which) -> mapsActivity.finish());
             builder.setCancelable(false);
             AlertDialog dialog = builder.create();
             dialog.show();
-
         } else {
-            MapsActivity.id = mySavedID;
-            MapsActivity.name = mySavedName;
+            id = mySavedID;
+            name = mySavedName;
             startGeoUpdateService();
-            MapsActivity.permission = true;
-            Toast.makeText(context, "Авторизация пройдена, привет " + MapsActivity.name, Toast.LENGTH_LONG).show();
+            MapsActivity.permissionForGeoUpdate = true;
+            Toast.makeText(context, "Авторизация пройдена, привет " + name, Toast.LENGTH_LONG).show();
         }
 
     }
