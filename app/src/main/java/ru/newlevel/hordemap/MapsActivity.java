@@ -5,6 +5,8 @@ import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothClass;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -54,6 +56,7 @@ import com.google.android.gms.maps.model.SquareCap;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
+
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -186,7 +189,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             menuItem2showPath.setBackgroundResource(R.drawable.menubutton);
             menuItem2showPath.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem2showPath.setOnClickListener(s -> {
-                // Создаем объект PolylineOptions
                 if (locationHistory.isEmpty())
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
@@ -196,9 +198,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     PolylineOptions polylineOptions = new PolylineOptions()
                             .addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
-                    // Добавляем Polyline на карту
                     polyline = googleMap.addPolyline(polylineOptions);
-
                 }
                 popupWindow.dismiss();
             });
@@ -287,15 +287,16 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
-            if (popupWindow.isShowing()) popupWindow.dismiss();
-            else popupWindow.showAsDropDown(menubutton);
+            if (popupWindow.isShowing())
+                popupWindow.dismiss();
+            else
+                popupWindow.showAsDropDown(menubutton);
 
             Button menuItem0 = view.findViewById(R.id.menu_item0);  // Смена типа карты
             menuItem0.setBackgroundResource(R.drawable.menubutton);
             menuItem0.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem0.setOnClickListener(s -> {
                 int mapType = googleMap.getMapType();
-                // Переключите режим карты на следующий доступный режим
                 switch (mapType) {
                     case GoogleMap.MAP_TYPE_NORMAL:
                         googleMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
@@ -323,7 +324,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 builder.setTitle("Размер маркеров");
                 SeekBar seekBar = new SeekBar(context);
                 builder.setView(seekBar);
-                // Установка диапазона значений
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     seekBar.setMin(10);
                 }

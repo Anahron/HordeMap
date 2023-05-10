@@ -57,7 +57,6 @@ public class LoginRequest {
             id = mySavedID;
             name = mySavedName;
             startGeoUpdateService(context);
-            MapsActivity.permissionForGeoUpdate = true;
             MapsActivity.makeToast("Авторизация пройдена, привет " + name);
         }
     }

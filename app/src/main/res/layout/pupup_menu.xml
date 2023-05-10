@@ -11,17 +11,16 @@
         android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
         android:layout_marginTop="20dp"
+        android:layout_marginEnd="16dp"
+        android:gravity="center"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="4"
-        android:text="Смена типа карты"
+        android:shadowRadius="1"
+        android:text="@string/change_map_type"
         android:textColor="#d4bd61"
-        android:gravity="center"
-        android:textSize="13dp"
-        />
+        android:textSize="13sp" />
     <Button
         android:id="@+id/menu_item1"
         android:layout_width="220dp"
@@ -32,11 +31,11 @@
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="4"
-        android:text="Загрузить полигон"
+        android:shadowRadius="1"
+        android:text="@string/load_map"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="13dp"
+        android:textSize="13sp"
         />
     <Button
         android:id="@+id/menu_item2"
@@ -48,11 +47,11 @@
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="4"
-        android:text="Размер маркеров"
+        android:shadowRadius="1"
+        android:text="@string/marker_size"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="13dp"
+        android:textSize="13sp"
         />
     <Button
         android:id="@+id/menu_item3"
@@ -64,11 +63,11 @@
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="4"
-        android:text="Показать дистанцию"
+        android:shadowRadius="1"
+        android:text="@string/show_distance"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="13dp"
+        android:textSize="13sp"
         />
     <Button
         android:id="@+id/menu_item4"
@@ -80,11 +79,11 @@
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="4"
-        android:text="Сбросить логин"
+        android:shadowRadius="1"
+        android:text="@string/relog"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="13dp"
+        android:textSize="13sp"
         />
     <Button
         android:id="@+id/menu_item5"
@@ -96,11 +95,11 @@
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
-        android:shadowRadius="4"
-        android:text="Закрыть"
+        android:shadowRadius="1"
+        android:text="@string/exit"
         android:textColor="#d4bd61"
         android:gravity="center"
-        android:textSize="13dp"
+        android:textSize="13sp"
         android:layout_marginBottom="20dp"
         />
 </LinearLayout>

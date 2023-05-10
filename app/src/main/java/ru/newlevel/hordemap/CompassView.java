@@ -75,7 +75,6 @@ public class CompassView extends View implements SensorEventListener {
     private void init() {
         bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.compas);
         sensorManager = (SensorManager) getContext().getSystemService(Context.SENSOR_SERVICE);
-
     }
 
     @Override
@@ -95,8 +94,6 @@ public class CompassView extends View implements SensorEventListener {
                 sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR), SensorManager.SENSOR_STATUS_ACCURACY_HIGH |
                 50000 );
     }
-
-
 
     @Override
     protected void onDraw(Canvas canvas) {

@@ -83,6 +83,12 @@ public class GeoUpdateService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        locationRequest = LocationRequest.create();
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(UPDATE_INTERVAL);
+        locationRequest.setFastestInterval(FASTEST_INTERVAL);
+        locationRequest.setSmallestDisplacement(DISPLACEMENT);
         MyServiceUtils.startAlarmManager(this);
     }
 
@@ -99,12 +105,6 @@ public class GeoUpdateService extends Service {
         System.out.println("onStartCommand вызвана");
         super.onStartCommand(intent, flags, startId);
         MyServiceUtils.checkAndStartForeground(this);
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        locationRequest = LocationRequest.create();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(UPDATE_INTERVAL);
-        locationRequest.setFastestInterval(FASTEST_INTERVAL);
-        locationRequest.setSmallestDisplacement(DISPLACEMENT);
         locatonCallback = new LocationCallback() {
             @SuppressLint("SuspiciousIndentation")
             @Override
@@ -205,12 +205,10 @@ public class GeoUpdateService extends Service {
                 }
                 clientSocket.close();
                 if (isConnectionLost) {
-                    MapsActivity.makeToast("Соединение установлено");
                     isConnectionLost = false;
                 }
 
             } catch (Exception ex) {
-                MapsActivity.makeToast("Соединение не установлено");
                 isConnectionLost = true;
                 ex.printStackTrace();
                 Log.d("Horde map", "Соединение с сервером не установлено");

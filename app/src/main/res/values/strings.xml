@@ -2,5 +2,18 @@
     <string name="app_name">Horde Map</string>
     <string name="title_activity_maps">MapsActivity</string>
     <string name="action_settings" />
-    <string name="Distance">Dist</string> />
+    <string name="Distance">Dist</string>
+    <string name="load_map">Загрузить полигон</string>
+    <string name="marker_size">Размер маркеров</string>
+    <string name="show_distance">Показать дистанцию</string>
+    <string name="relog">Сбросить логин</string>
+    <string name="exit">Закрыть</string>
+    <string name="change_map_type">Смена типа карты</string>
+    <string name="clear_path">Очистить путь</string>
+    <string name="show_path">Показать путь</string>
+    <string name="hide_path">Скрыть путь</string>
+    <string name="save_path">Сохранить путь</string>
+    <string name="Load_path">Загрузить путь</string>
+    <string name="delete_all_path">Удалить все пути</string>
+    />
 </resources>
