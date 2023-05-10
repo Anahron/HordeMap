@@ -34,12 +34,15 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -56,7 +59,9 @@ import com.google.android.gms.maps.model.SquareCap;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
+
 import org.xmlpull.v1.XmlPullParserException;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,7 +71,7 @@ import java.util.List;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     public static GoogleMap mMap;
     public static Long id = 0L;
@@ -148,8 +153,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Создаем меню
         distanceTextView = findViewById(R.id.distance_text_view);
         distanceTextView.setVisibility(View.GONE);
-        // Запрос разрешений
-        setPermission();
     }
 
     private Button createMenuButtons2(int heightPx) {
@@ -535,8 +538,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
 
         // Настраиваем карту
-        try {
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             mMap.setMyLocationEnabled(true);
+        }
+        mMap.setMyLocationEnabled(true);
             mMap.setOnMapClickListener(latLng -> {
                 double[] distance = new double[1];
                 distance[0] = 25;
@@ -550,9 +556,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
             mMap.getUiSettings().setCompassEnabled(true);
             mMap.getUiSettings().setZoomControlsEnabled(true);
-        } catch (SecurityException e) {
-            Log.e("MapsActivity", "Error: " + e.getMessage());
-        }
+
         // Загружаем метки полигона
         ImportantMarkers.importantMarkersCreate();
         // Показываем только текст маркера, без перемещения к нему камеры
