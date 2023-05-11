@@ -57,13 +57,6 @@ public class MyServiceUtils {
         return builder.build();
     }
 
-    public static void destroyAlarmManager() {
-        if (pendingIntent != null) {
-            Log.d("Horde map", "Аларм менеджер Остановлен в методе onDestroy");
-            MyServiceUtils.alarmMgr.cancel(pendingIntent);
-        }
-    }
-
     @RequiresApi(api = Build.VERSION_CODES.O)
     public static void checkAndStartForeground(GeoUpdateService geoUpdateService) {
         System.out.println("В метод checkAndStartForeground пришло : " + geoUpdateService);
