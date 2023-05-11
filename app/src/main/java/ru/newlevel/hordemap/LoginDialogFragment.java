@@ -12,12 +12,14 @@ import androidx.fragment.app.DialogFragment;
 
 public class LoginDialogFragment extends DialogFragment {
     private final Context mContext;
+    private final MapsActivity mMapsActivity;
     private static final String SEND_MASSAGE = "ОТПРАВИТЬ";
     private static final String AUTHORIZATION = "Авторизация";
     private static final String AUTHORIZATION_MASSAGE = " Введите номер телефона \nформата '891312341212' \nили идентификатор";
 
-    public LoginDialogFragment(Context context) {
+    public LoginDialogFragment(Context context, MapsActivity mapsActivity) {
         mContext = context;
+        mMapsActivity = mapsActivity;
     }
 
     @NonNull
@@ -30,6 +32,7 @@ public class LoginDialogFragment extends DialogFragment {
         input.setInputType(InputType.TYPE_CLASS_PHONE);
         builder.setView(input);
         builder.setPositiveButton(SEND_MASSAGE, (dialog, which) -> {
+            mMapsActivity.setPermission();
             final String phoneNumber = input.getText().toString().trim();
             final String[] answerFromServer = {""};
             Thread thread = new Thread(() -> answerFromServer[0] = GeoUpdateService.requestInfoFromServer(phoneNumber));

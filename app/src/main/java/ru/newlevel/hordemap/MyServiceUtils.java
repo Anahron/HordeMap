@@ -22,7 +22,7 @@ public class MyServiceUtils {
 
     public static AlarmManager alarmMgr;
     public static PendingIntent pendingIntent;
-    private static final int NOTIFICATION_ID = 1;
+    public static final int NOTIFICATION_ID = 1;
 
     @SuppressLint("ShortAlarm")
     public static void startAlarmManager(Context context) {
@@ -53,7 +53,7 @@ public class MyServiceUtils {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setTimeoutAfter(200);
+                .setTimeoutAfter(500);
         return builder.build();
     }
 
@@ -66,6 +66,7 @@ public class MyServiceUtils {
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     public static void checkAndStartForeground(GeoUpdateService geoUpdateService) {
+        System.out.println("В метод checkAndStartForeground пришло : " + geoUpdateService);
         NotificationManager notificationManager = MapsActivity.getContext().getSystemService(NotificationManager.class);
 
         boolean notificationDisplayed = false;
@@ -81,5 +82,27 @@ public class MyServiceUtils {
         } else {
             Log.d("Horde map", "Сервис startForeground уже запущен");
         }
+    }
+
+    public static void startGeoUpdateService(Context context) {
+        MapsActivity.permissionForGeoUpdate = true;
+        MarkersHandler.isMarkersON = true;
+        GeoUpdateService sender = GeoUpdateService.getInstance();
+        sender.exchangeGPSData();//обновление списка координат сразу после запуска не дожидаясь алармменеджера
+        Intent service = new Intent(context, GeoUpdateService.class);
+        service.setAction("com.newlevel.ACTION_SEND_DATA");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(service);
+            MyServiceUtils.startAlarmManager(context);
+        }
+    }
+
+    public static void stopGeoUpdateService(Context context) {
+        MarkersHandler.markersOff();
+        MapsActivity.permissionForGeoUpdate = false;
+        Intent intent = new Intent(context, GeoUpdateService.class);
+        if (MyServiceUtils.alarmMgr != null)
+            MyServiceUtils.alarmMgr.cancel(MyServiceUtils.pendingIntent);
+        context.stopService(intent);
     }
 }

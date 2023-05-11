@@ -89,7 +89,7 @@ public class GeoUpdateService extends Service {
         locationRequest.setInterval(UPDATE_INTERVAL);
         locationRequest.setFastestInterval(FASTEST_INTERVAL);
         locationRequest.setSmallestDisplacement(DISPLACEMENT);
-        MyServiceUtils.startAlarmManager(this);
+        MyServiceUtils.checkAndStartForeground(this);
     }
 
     @Nullable
@@ -104,7 +104,6 @@ public class GeoUpdateService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         System.out.println("onStartCommand вызвана");
         super.onStartCommand(intent, flags, startId);
-        MyServiceUtils.checkAndStartForeground(this);
         locatonCallback = new LocationCallback() {
             @SuppressLint("SuspiciousIndentation")
             @Override

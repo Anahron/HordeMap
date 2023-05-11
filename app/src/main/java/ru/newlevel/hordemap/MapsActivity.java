@@ -5,8 +5,7 @@ import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothClass;
-import android.content.ComponentName;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -35,10 +34,10 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -69,9 +68,23 @@ import java.util.List;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
 
-    public static GoogleMap googleMap;
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
+    public static GoogleMap gMap;
     public static Boolean permissionForGeoUpdate = false;
     private Polyline polyline;
 
@@ -109,8 +122,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @SuppressLint("BatteryLife")
     protected void setPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, MY_PERMISSIONS_REQUEST_LOCATION);
+        } else {
+            enableMyLocationAndClicksListener();
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, MY_PERMISSIONS_REQUEST_INTERNET);
@@ -154,7 +169,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         LoginRequest.logIn(context, this);
     }
 
-    public static void makeToast(String text){
+    public static void makeToast(String text) {
         Toast.makeText(context, text, Toast.LENGTH_LONG).show();
     }
 
@@ -192,13 +207,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (locationHistory.isEmpty())
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
-                    googleMap.clear();
+                    gMap.clear();
                     MarkersHandler.importantMarkersCreate();
                     MarkersHandler.markersOn();
                     PolylineOptions polylineOptions = new PolylineOptions()
                             .addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
-                    polyline = googleMap.addPolyline(polylineOptions);
+                    polyline = gMap.addPolyline(polylineOptions);
                 }
                 popupWindow.dismiss();
             });
@@ -207,7 +222,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             menuItem3hidePath.setBackgroundResource(R.drawable.menubutton);
             menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem3hidePath.setOnClickListener(s -> {
-                googleMap.clear();
+                gMap.clear();
                 MarkersHandler.importantMarkersCreate();
                 MarkersHandler.markersOn();
                 popupWindow.dismiss();
@@ -249,7 +264,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         } else {
                             PolylineOptions polylineOptions2 = new PolylineOptions()   // тест 1
                                     .addAll(polylines).jointType(JointType.ROUND).startCap(new RoundCap()).endCap(new SquareCap()).geodesic(true).color(Color.BLACK).width(10);
-                            polyline = googleMap.addPolyline(polylineOptions2);
+                            polyline = gMap.addPolyline(polylineOptions2);
                         }
                     });
                     AlertDialog dialog = builder.create();
@@ -296,13 +311,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             menuItem0.setBackgroundResource(R.drawable.menubutton);
             menuItem0.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem0.setOnClickListener(s -> {
-                int mapType = googleMap.getMapType();
+                int mapType = gMap.getMapType();
                 switch (mapType) {
                     case GoogleMap.MAP_TYPE_NORMAL:
-                        googleMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+                        gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
                         break;
                     case GoogleMap.MAP_TYPE_HYBRID:
-                        googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+                        gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
                         break;
                 }
                 popupWindow.dismiss();
@@ -312,7 +327,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             menuItem1.setBackgroundResource(R.drawable.menubutton);
             menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem1.setOnClickListener(s -> {
-                new KmlLayerLoaderTask(this, googleMap).execute();
+                new KmlLayerLoaderTask(this, gMap).execute();
                 popupWindow.dismiss();
             });
 
@@ -366,13 +381,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             menuItem5.setOnClickListener(s -> {
                 if (IsNeedToSave && locationHistory.size() > 0)
                     PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
+                MyServiceUtils.stopGeoUpdateService(context);
                 finish();
-                MyServiceUtils.destroyAlarmManager();
-                onDestroy();
                 popupWindow.dismiss();
             });
             popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.START, 0, 0);
-
         });
         return menubutton;
     }
@@ -456,7 +469,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (routePolyline != null) {
             routePolyline.remove();
         }
-        List<LatLng> polylineCoordinates = Arrays.asList(new LatLng(googleMap.getMyLocation().getLatitude(), googleMap.getMyLocation().getLongitude()), destination);
+        List<LatLng> polylineCoordinates = Arrays.asList(new LatLng(gMap.getMyLocation().getLatitude(), gMap.getMyLocation().getLongitude()), destination);
         Bitmap bitmapcustomcap = BitmapFactory.decodeResource(context.getResources(), R.drawable.star);
         BitmapDescriptor bitmapcustomcapicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcustomcap, 60, 60, false));
         CustomCap customCap = new CustomCap(bitmapcustomcapicon);
@@ -467,7 +480,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .geodesic(true)
                 .color(Color.YELLOW)
                 .width(6);
-        double distance = SphericalUtil.computeDistanceBetween(new LatLng(googleMap.getMyLocation().getLatitude(), googleMap.getMyLocation().getLongitude()), destination);
+        double distance = SphericalUtil.computeDistanceBetween(new LatLng(gMap.getMyLocation().getLatitude(), gMap.getMyLocation().getLongitude()), destination);
 
         distanceTextView.setVisibility(View.VISIBLE);
         if ((int) distance > 1000)
@@ -475,10 +488,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         else
             distanceTextView.setText((int) distance + " м.");
 
-        routePolyline = googleMap.addPolyline(polylineOptions);
+        routePolyline = gMap.addPolyline(polylineOptions);
 
         // Слежение за изменением местоположения пользователя
-        googleMap.setOnMyLocationChangeListener(location -> {
+        gMap.setOnMyLocationChangeListener(location -> {
             LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
 
             // Обновление полилинии маршрута с учетом нового местоположения
@@ -492,54 +505,38 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-    @SuppressLint("PotentialBehaviorOverride")
-    @Override
-    public void onMapReady(@NonNull GoogleMap googleMap) {
-        MapsActivity.googleMap = googleMap;
-        MapsActivity.googleMap.setOnMapLongClickListener(latLng -> {
-            AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-            builder.setTitle("Выберите действие")
-                    .setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут"}, (dialog, which) -> {
-                        switch (which) {
-                            case 0:
-                                // Показать расстояние до точки
-                                float[] distance = new float[1];
-                                Location.distanceBetween(GeoUpdateService.getLatitude(), GeoUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
-                                Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
-                                break;
-                            case 1:
-                                // Построить маршрут
-                                buildRoute(latLng);
-                                break;
-                            case 2:
-                                // Очистить маршрут
-                                if (routePolyline != null) {
-                                    routePolyline.remove();
-                                }
-                                distanceTextView.setVisibility(View.INVISIBLE);
-                                break;
-                        }
-                    });
-            builder.create().show();
-        });
-        // Смещаем карту ниже тулбара
-        TypedValue tv = new TypedValue();
-        getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
-        int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
-        MapsActivity.googleMap.setPadding(0, actionBarHeight, 0, 0);
-        MapsActivity.googleMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-        // Камера на Красноярск
-        //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
-        LatLng location = new LatLng(55.6739849, 85.1152591);  // координаты полигона
-        MapsActivity.googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
 
-        // Настраиваем карту
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            MapsActivity.googleMap.setMyLocationEnabled(true);
-        }
-        MapsActivity.googleMap.setMyLocationEnabled(true);
-            MapsActivity.googleMap.setOnMapClickListener(latLng -> {
+    private void enableMyLocationAndClicksListener() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            gMap.setMyLocationEnabled(true);
+            gMap.setOnMapLongClickListener(latLng -> {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+                builder.setTitle("Выберите действие")
+                        .setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут"}, (dialog, which) -> {
+                            switch (which) {
+                                case 0:
+                                    // Показать расстояние до точки
+                                    float[] distance = new float[1];
+                                    Location.distanceBetween(GeoUpdateService.getLatitude(), GeoUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
+                                    Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
+                                    break;
+                                case 1:
+                                    // Построить маршрут
+                                    buildRoute(latLng);
+                                    break;
+                                case 2:
+                                    // Очистить маршрут
+                                    if (routePolyline != null) {
+                                        routePolyline.remove();
+                                    }
+                                    distanceTextView.setVisibility(View.INVISIBLE);
+                                    break;
+                            }
+                        });
+                builder.create().show();
+            });
+            gMap.setOnMapClickListener(latLng -> {
                 double[] distance = new double[1];
                 distance[0] = 25;
                 if (polyline != null) {
@@ -549,14 +546,32 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     }
                 }
             });
-            MapsActivity.googleMap.getUiSettings().setMyLocationButtonEnabled(true);
-            MapsActivity.googleMap.getUiSettings().setCompassEnabled(true);
-            MapsActivity.googleMap.getUiSettings().setZoomControlsEnabled(true);
+        }
+    }
 
+    @SuppressLint("PotentialBehaviorOverride")
+    @Override
+    public void onMapReady(@NonNull GoogleMap googleMap) {
+        gMap = googleMap;
+        enableMyLocationAndClicksListener();
+        // Смещаем карту ниже тулбара
+        TypedValue tv = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
+        int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
+        gMap.setPadding(0, actionBarHeight, 0, 0);
+        gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+        // Камера на Красноярск
+        //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
+        LatLng location = new LatLng(55.6739849, 85.1152591);  // координаты полигона
+        gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
+        // Настраиваем карту
+        gMap.getUiSettings().setMyLocationButtonEnabled(true);
+        gMap.getUiSettings().setCompassEnabled(true);
+        gMap.getUiSettings().setZoomControlsEnabled(true);
         // Загружаем метки полигона
         MarkersHandler.importantMarkersCreate();
         // Показываем только текст маркера, без перемещения к нему камеры
-        MapsActivity.googleMap.setOnMarkerClickListener(marker -> {
+        gMap.setOnMarkerClickListener(marker -> {
             if (marker.isInfoWindowShown()) {
                 marker.hideInfoWindow();
             } else {
@@ -572,7 +587,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (kmlSavedFile.exists()) {
                     System.out.println("Проверили что kmlSavedFile.exists() и добавляем слой из кеша");
                     InputStream in = new FileInputStream(kmlSavedFile);
-                    KmlLayer kmlLayer = new KmlLayer(MapsActivity.googleMap, in, context);
+                    KmlLayer kmlLayer = new KmlLayer(MapsActivity.gMap, in, context);
                     in.close();
                     kmlLayer.addLayerToMap();
                 }

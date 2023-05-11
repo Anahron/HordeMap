@@ -1,9 +1,8 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.MapsActivity.googleMap;
+import static ru.newlevel.hordemap.MapsActivity.gMap;
 
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
@@ -53,27 +52,27 @@ public class MarkersHandler {
     public static void importantMarkersCreate(){
         importantMarkers.clear();
         MarkerOptions marker1 = new MarkerOptions().position(new LatLng(55.6739849,85.1152591)).icon(swordsicon1);
-        importantMarkers.add(googleMap.addMarker(marker1));
+        importantMarkers.add(gMap.addMarker(marker1));
         MarkerOptions marker2 = new MarkerOptions().position(new LatLng(55.671909,85.1136278)).icon(swordsicon2);
-        importantMarkers.add(googleMap.addMarker(marker2));
+        importantMarkers.add(gMap.addMarker(marker2));
         MarkerOptions marker3 = new MarkerOptions().position(new LatLng(55.6698473,85.1120416)).icon(swordsicon3);
-        importantMarkers.add(googleMap.addMarker(marker3));
+        importantMarkers.add(gMap.addMarker(marker3));
         MarkerOptions marker4 = new MarkerOptions().position(new LatLng(55.6706025,85.1084187)).icon(swordsicon4);
-        importantMarkers.add(googleMap.addMarker(marker4));
+        importantMarkers.add(gMap.addMarker(marker4));
         MarkerOptions marker5 = new MarkerOptions().position(new LatLng(55.6727025,85.1099604)).icon(swordsicon5);
-        importantMarkers.add(googleMap.addMarker(marker5));
+        importantMarkers.add(gMap.addMarker(marker5));
         MarkerOptions marker6 = new MarkerOptions().position(new LatLng(55.6746783,85.1116493)).icon(swordsicon6);
-        importantMarkers.add(googleMap.addMarker(marker6));
+        importantMarkers.add(gMap.addMarker(marker6));
         MarkerOptions marker7 = new MarkerOptions().position(new LatLng(55.6754975,85.1079993)).icon(swordsicon7);
-        importantMarkers.add(googleMap.addMarker(marker7));
+        importantMarkers.add(gMap.addMarker(marker7));
         MarkerOptions marker8 = new MarkerOptions().position(new LatLng(55.6734572,85.1064004)).icon(swordsicon8);
-        importantMarkers.add(googleMap.addMarker(marker8));
+        importantMarkers.add(gMap.addMarker(marker8));
         MarkerOptions marker9 = new MarkerOptions().position(new LatLng(55.6713818,85.104792)).icon(swordsicon9);
-        importantMarkers.add(googleMap.addMarker(marker9));
+        importantMarkers.add(gMap.addMarker(marker9));
         MarkerOptions markerM1 = new MarkerOptions().position(new LatLng(55.6677,85.1148)).title("Мертвяк ЮГ").icon(blue_campicon);
-        importantMarkers.add(googleMap.addMarker(markerM1));
+        importantMarkers.add(gMap.addMarker(markerM1));
         MarkerOptions markerM2 = new MarkerOptions().position(new LatLng(55.6704,85.1004)).title("Мертвяк СЕВЕР").icon(yellow_campicon);
-        importantMarkers.add(googleMap.addMarker(markerM2));
+        importantMarkers.add(gMap.addMarker(markerM2));
 
         for (Marker marker : importantMarkers ) {
            marker.setVisible(true);
@@ -101,7 +100,7 @@ public class MarkersHandler {
                         hourkrsk = hourkrsk - 24;
                     String minutes = data[3].substring(13, 16);
                     String rank = (Integer.parseInt(data[4]) == 1 ? "Сержант" : "Рядовой");
-                    Marker marker = googleMap.addMarker(new MarkerOptions()
+                    Marker marker = gMap.addMarker(new MarkerOptions()
                             .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
                             .title(data[0])
                             .alpha(Float.parseFloat(data[5]))
