@@ -23,29 +23,6 @@ public class KMZhandler {
 
     public static File DownloadKMZ(Context context, File filedir) throws InterruptedException {
         File newDir = new File(filedir, "krsk.kmz");
-        Thread thread = new Thread(() -> {
-            URL url;
-            try {
-                System.out.println("Пытаемся скачать файл карты");
-                url = new URL(GeoUpdateService.requestInfoFromServer("mapurl"));
-                try (BufferedInputStream inputStream = new BufferedInputStream(url.openStream());
-                     FileOutputStream outputStream = new FileOutputStream(newDir)) {
-                    byte[] buffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = inputStream.read(buffer, 0, buffer.length)) >= 0) {
-                        outputStream.write(buffer, 0, bytesRead);
-                    }
-                } catch (IOException e) {
-                    System.out.println("Ошибка скачивания");
-                }
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            }
-        });
-        thread.start();
-        thread.join();
-        if (!newDir.exists()) {
-            System.out.println("Не удалось скачать файл, загружаем из RAW");
             int resourceId = R.raw.krsk1;
             // Определяем путь и имя файла для сохранения
             try (InputStream inputStream = context.getResources().openRawResource(resourceId);
@@ -56,12 +33,9 @@ public class KMZhandler {
                 while ((length = inputStream.read(buffer)) > 0) {
                     outputStream.write(buffer, 0, length);
                 }
-                System.out.println(newDir.exists());
-                System.out.println(newDir.length());
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
         return unpackKmz(newDir, filedir);
     }
 

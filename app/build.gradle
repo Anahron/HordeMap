@@ -1,10 +1,10 @@
 plugins {
     id 'com.android.application'
+    id 'com.google.gms.google-services'
     id 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin'
 }
 
 android {
-    namespace 'ru.newlevel.hordemap'
     compileSdk 33
 
     defaultConfig {
@@ -26,15 +26,20 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
-            sourceCompatibility JavaVersion.VERSION_1_8
-            targetCompatibility JavaVersion.VERSION_1_8
     }
     buildFeatures {
         viewBinding true
     }
     buildToolsVersion '30.0.3'
 }
+
 dependencies {
+    implementation 'io.github.cdimascio:dotenv-java:2.2.0'
+    implementation 'com.google.gms:google-services:4.3.15'
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation platform('com.google.firebase:firebase-bom:32.0.0')
+    implementation 'com.google.firebase:firebase-database'
+    implementation 'com.google.firebase:firebase-firestore:24.6.0'
     implementation 'com.google.maps:google-maps-services:0.15.0'
     implementation 'commons-io:commons-io:2.11.0'
     implementation 'com.squareup.okhttp3:okhttp:4.9.2'
@@ -45,12 +50,10 @@ dependencies {
     implementation 'androidx.fragment:fragment:1.5.7'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
-    implementation 'com.google.android.gms:play-services-maps:18.1.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'com.google.maps.android:android-maps-utils:3.4.0'
     implementation group: 'com.google.code.gson', name: 'gson', version: '2.10.1'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-
 }

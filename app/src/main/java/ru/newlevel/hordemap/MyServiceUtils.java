@@ -80,8 +80,9 @@ public class MyServiceUtils {
     public static void startGeoUpdateService(Context context) {
         MapsActivity.permissionForGeoUpdate = true;
         MarkersHandler.isMarkersON = true;
-        GeoUpdateService sender = GeoUpdateService.getInstance();
-        sender.exchangeGPSData();//обновление списка координат сразу после запуска не дожидаясь алармменеджера
+//        GeoUpdateService sender = GeoUpdateService.getInstance();
+//       // sender.exchangeGPSData();//обновление списка координат сразу после запуска не дожидаясь алармменеджера
+//        sender.getAllGeoData();
         Intent service = new Intent(context, GeoUpdateService.class);
         service.setAction("com.newlevel.ACTION_SEND_DATA");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

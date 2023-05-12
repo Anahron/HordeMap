@@ -19,9 +19,10 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
 import java.io.BufferedReader;
@@ -29,14 +30,15 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Map;
+
+import com.google.firebase.database.DatabaseReference;
+
 
 public class GeoUpdateService extends Service {
 
@@ -50,15 +52,12 @@ public class GeoUpdateService extends Service {
     private static double longitude;
     public static List<LatLng> locationHistory = new ArrayList<>();
     private static boolean requestingLocationUpdates = false;
-    private static boolean isConnectionLost;
-
     private final static int UPDATE_INTERVAL = 3000;
     private final static int FASTEST_INTERVAL = 2000;
     private final static int DISPLACEMENT = 3;
 
     private LocationRequest locationRequest;
     private FusedLocationProviderClient fusedLocationClient;
-    private LocationCallback locatonCallback;
     private static Location location;
 
     private static final Location[] lastLocation = {null};
@@ -68,6 +67,71 @@ public class GeoUpdateService extends Service {
             instance = new GeoUpdateService();
         }
         return instance;
+    }
+
+    private void sendGeoData(String userId, String userName, double latitude, double longitude) {
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference();
+        String geoDataPath = "geoData/" + userId;
+        // Создаем объект с обновлениями
+        Map<String, Object> updates = new HashMap<>();
+        updates.put(geoDataPath + "/latitude", latitude);
+        updates.put(geoDataPath + "/longitude", longitude);
+        updates.put(geoDataPath + "/userName", userName);
+        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
+        System.out.println("Отправка данных : " + updates);
+        // Применяем обновления к базе данных
+        database.updateChildren(updates);
+    }
+
+    private void getAllGeoData() {
+        HashMap<String, String> hashMap = new HashMap<>();
+        long timeNow = System.currentTimeMillis();
+        float[] alpha = {0};
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference().child("geoData");
+        database.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                try {
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        String userId = snapshot.getKey();
+                        String userName = snapshot.child("userName").getValue(String.class);
+                        double latitude = snapshot.child("latitude").getValue(Double.class);
+                        double longitude = snapshot.child("longitude").getValue(Double.class);
+                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
+                        long timeDiffMillis = timeNow - timestamp;
+                        long timeDiffMinutes = timeDiffMillis / 60000;
+                        if (timeDiffMinutes >= 10 || latitude == 0.0) {
+                            snapshot.getRef().removeValue();
+                            continue;
+                        } else {
+                            alpha[0] = 1 - (timeDiffMinutes / 10F);
+                            if (alpha[0] < 0.5)
+                                alpha[0] = 0.5F;
+                        }
+                        String data = userName + "/" +
+                                latitude + "/" +
+                                longitude + "/" +
+                                timestamp + "/" +
+                                alpha[0];
+                        hashMap.put(userId, data);
+                    }
+                } catch (Exception e) {
+                    System.out.println("Null в DataSnapshot");
+                    e.printStackTrace();
+                }
+                if (!hashMap.isEmpty()) {
+                    MarkersHandler.createMarkers(hashMap);
+                } else {
+                    Log.d("Horde map", "Данные пусты");
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Обработка ошибки
+                System.out.println("Ошибка: " + databaseError.getMessage());
+            }
+        });
     }
 
     public static double getLatitude() {
@@ -104,7 +168,10 @@ public class GeoUpdateService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         System.out.println("onStartCommand вызвана");
         super.onStartCommand(intent, flags, startId);
-        locatonCallback = new LocationCallback() {
+        // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
+        // до 2 = 11
+        // до 3 = 14
+        LocationCallback locationCallback = new LocationCallback() {
             @SuppressLint("SuspiciousIndentation")
             @Override
             public void onLocationResult(@NonNull LocationResult locationResult) {
@@ -153,68 +220,18 @@ public class GeoUpdateService extends Service {
         if (latitude == 0.0) {
             Log.d("Horde map", " Координаты 0.0 выключаем слушатель");
             requestingLocationUpdates = false;
-            fusedLocationClient.removeLocationUpdates(locatonCallback);
+            fusedLocationClient.removeLocationUpdates(locationCallback);
         }
 
         if (!requestingLocationUpdates) {
             requestingLocationUpdates = true;
             Log.d("Horde map", " Запустили locationCallback");
-            fusedLocationClient.requestLocationUpdates(locationRequest, locatonCallback, Looper.myLooper());
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
         }
-        exchangeGPSData();
+        sendGeoData(User.getInstance().getUserId(), User.getInstance().getUserName(), latitude, longitude);
+        getAllGeoData();
+        //    exchangeGPSData();
         return START_STICKY;
-    }
-
-    public void exchangeGPSData() {
-        ExecutorService executor = Executors.newFixedThreadPool(4);;
-        executor.execute(() -> {
-            try {
-                Log.d("Horde map", "Вызван метод exchangeGPSData");
-                // Макет запроса id:name:latitude:longitude
-                String post = LoginRequest.getId() + "/" + LoginRequest.getName() + "/" + latitude + "/" + longitude;
-
-                Socket clientSocket = new Socket();
-                clientSocket.connect(new InetSocketAddress(ipAdress, port), 4000);
-                InputStream inputStream = clientSocket.getInputStream();
-                OutputStream outputStream = clientSocket.getOutputStream();
-
-                PrintWriter writer = new PrintWriter(outputStream);
-                writer.println(post);
-                writer.flush();
-                Log.d("Horde map", "Запрос отправлен: " + post);
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                String json = reader.readLine();
-
-                Type type = new TypeToken<HashMap<Long, String>>() {
-                }.getType();
-                Gson gson = new Gson();
-                try {
-                    if (json != null) {
-                        HashMap<Long, String> hashMap = gson.fromJson(json, type);
-                        Log.d("Horde map", "Запрос получен: " + json);
-                        if (!hashMap.isEmpty())
-                            MarkersHandler.createMarkers(hashMap);
-                    } else {
-                        Log.d("Horde map", "Данные пусты");
-                    }
-                } catch (JsonSyntaxException e) {
-                    Log.d("Horde map", "Данные ошибочны");
-                    Log.d("Horde map", json);
-                }
-                clientSocket.close();
-                if (isConnectionLost) {
-                    isConnectionLost = false;
-                }
-
-            } catch (Exception ex) {
-                isConnectionLost = true;
-                ex.printStackTrace();
-                Log.d("Horde map", "Соединение с сервером не установлено");
-            } finally {
-                executor.shutdown();
-            }
-        });
     }
 
     public static String requestInfoFromServer(String request) {

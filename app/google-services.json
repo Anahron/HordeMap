@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "1031356381967",
+    "firebase_url": "https://horde-4112c-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "horde-4112c",
+    "storage_bucket": "horde-4112c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1031356381967:android:0fd5e74b33e9eb0dd61c7a",
+        "android_client_info": {
+          "package_name": "ru.newlevel.hordemap"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1031356381967-ks6sptipmnn407nhgu5cr4o9ld4dqerg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMAgP5Q4-vdHqA3C0eaSZ0EWyRkmb3OoI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1031356381967-ks6sptipmnn407nhgu5cr4o9ld4dqerg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

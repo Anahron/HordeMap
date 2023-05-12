@@ -2,6 +2,7 @@ package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.MapsActivity.gMap;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -13,10 +14,14 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.TimeZone;
 
 public class MarkersHandler {
     private static final int  markerSize = 60;
@@ -44,7 +49,7 @@ public class MarkersHandler {
     private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
     private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
 
-    private static HashMap<Long, String> savedmarkers = new HashMap<>();
+    private static HashMap<String, String> savedmarkers = new HashMap<>();
     private static final ArrayList<Marker> markers = new ArrayList<>();
     public static Boolean isMarkersON = true;
     public static int MARKER_SIZE = 60;
@@ -79,7 +84,8 @@ public class MarkersHandler {
         }
     }
 
-    public static void createMarkers(HashMap<Long, String> map) {
+    public static void createMarkers(HashMap<String, String> map) {
+        System.out.println("В создание маркеров пришло: " + map);
         Log.d("Horde map", "Удаляются старые и создаются новые маркеры");
         savedmarkers = map;
         Bitmap bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
@@ -91,21 +97,19 @@ public class MarkersHandler {
                 marker.remove();
             }
             markers.clear();
-            for (Long id : map.keySet()) {
-                if (!Objects.equals(LoginRequest.getId(), id) && isMarkersON) {
+            for (String id : map.keySet()) {
+                if (!User.getInstance().getUserId().equals(id) && isMarkersON) {
+                    System.out.println("Полученое значение по ключу для отрисовки маркера: " + map.get(id));
                     String[] data = Objects.requireNonNull(map.get(id)).split("/");
-                    String hour = data[3].substring(11, 13);
-                    int hourkrsk = Integer.parseInt(hour) + 7;
-                    if (hourkrsk >= 24)
-                        hourkrsk = hourkrsk - 24;
-                    String minutes = data[3].substring(13, 16);
-                    String rank = (Integer.parseInt(data[4]) == 1 ? "Сержант" : "Рядовой");
+                    @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+                    TimeZone timeZone = TimeZone.getDefault();
+                    dateFormat.setTimeZone(timeZone);
                     Marker marker = gMap.addMarker(new MarkerOptions()
                             .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
                             .title(data[0])
-                            .alpha(Float.parseFloat(data[5]))
-                            .snippet(rank + " " + hourkrsk + minutes)
-                            .icon(Integer.parseInt(data[4]) == 1 ? iconcom : icon));
+                            .alpha(Float.parseFloat(data[4]))
+                            .snippet(dateFormat.format(new Date(Long.parseLong(data[3]))))
+                            .icon(icon));
                     markers.add(marker);
                 }
             }

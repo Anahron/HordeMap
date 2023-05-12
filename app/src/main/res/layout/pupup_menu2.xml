@@ -62,17 +62,17 @@
         android:layout_width="220dp"
         android:layout_height="40dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
-        android:background="#800101"
-        android:gravity="center"
+        android:layout_marginTop="8dp"
         android:shadowColor="#a89c6a"
         android:shadowDx="1"
         android:shadowDy="1"
         android:shadowRadius="1"
         android:text="@string/save_path"
         android:textColor="#d4bd61"
-        android:textSize="13sp" />
+        android:gravity="center"
+        android:textSize="13sp"
+        />
     <Button
         android:id="@+id/menu2_item5"
         android:layout_width="220dp"

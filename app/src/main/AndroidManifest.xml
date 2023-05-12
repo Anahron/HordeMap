@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="ru.newlevel.hordemap"
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -32,7 +35,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HordeMap"
         tools:targetApi="32">
+        <!-- Здесь добавьте теги метаданных Firebase для вашего проекта -->
 
+        <meta-data
+            android:name="com.google.firebase.database.connection_data_enabled"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.firebase.database.collection_event_listener_enabled"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.firebase.database.collection_reference_host"
+            android:value="https://your-database-url.firebaseio.com" />
         <!-- Register WakefulBroadcastReceiver -->
         <receiver
             android:name=".MyWakefulReceiver"
@@ -63,7 +76,7 @@
         -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyC_nvLmkLH_OfciCkI19t28V4qNgVObBfg" />
+            android:value="@string/google_maps_api_key" />
 
         <activity
             android:name=".MapsActivity"

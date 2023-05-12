@@ -5,7 +5,6 @@ import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -52,13 +51,11 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.gms.maps.model.SquareCap;
+import com.google.firebase.FirebaseApp;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.data.kml.KmlLayer;
-
-
 import org.xmlpull.v1.XmlPullParserException;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -156,7 +153,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Загрузка переменных окружения из файла .env
         context = this;
+        FirebaseApp.initializeApp(this);
+
         ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -165,6 +166,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
+
         createToolbar();
         LoginRequest.logIn(context, this);
     }
@@ -554,15 +556,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(@NonNull GoogleMap googleMap) {
         gMap = googleMap;
         enableMyLocationAndClicksListener();
+
         // Смещаем карту ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         gMap.setPadding(0, actionBarHeight, 0, 0);
         gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+
         // Камера на Красноярск
         //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
-        LatLng location = new LatLng(55.6739849, 85.1152591);  // координаты полигона
+
+        // Камера на полигон
+        LatLng location = new LatLng(55.6739849, 85.1152591);
         gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
         // Настраиваем карту
         gMap.getUiSettings().setMyLocationButtonEnabled(true);

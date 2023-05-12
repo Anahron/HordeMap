@@ -10,6 +10,10 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.DialogFragment;
 
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
+
 public class LoginDialogFragment extends DialogFragment {
     private final Context mContext;
     private final MapsActivity mMapsActivity;
@@ -20,6 +24,33 @@ public class LoginDialogFragment extends DialogFragment {
     public LoginDialogFragment(Context context, MapsActivity mapsActivity) {
         mContext = context;
         mMapsActivity = mapsActivity;
+    }
+    interface UserCallback {
+        void onUserFound(boolean isFound);
+    }
+
+    private void getUserNameById(String userId, UserCallback callback) {
+        System.out.println("Ищем документ с именем " + userId);
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("users").document(userId).get().addOnCompleteListener(task -> {
+            System.out.println("Вошли в \"users\"");
+            if (task.isSuccessful()) {
+                DocumentSnapshot document = task.getResult();
+                if (document.exists()) {
+                    System.out.println("Получили документ " + document);
+                    User user = User.getInstance();
+                    user.setUserId(userId);
+                    user.setUserName(document.getString("userName"));
+                    callback.onUserFound(true);
+                } else {
+                    System.out.println("Юзер не найден");
+                    callback.onUserFound(false);
+                }
+            } else {
+                System.out.println("Ошибка");
+                callback.onUserFound(false);
+            }
+        });
     }
 
     @NonNull
@@ -34,21 +65,14 @@ public class LoginDialogFragment extends DialogFragment {
         builder.setPositiveButton(SEND_MASSAGE, (dialog, which) -> {
             mMapsActivity.setPermission();
             final String phoneNumber = input.getText().toString().trim();
-            final String[] answerFromServer = {""};
-            Thread thread = new Thread(() -> answerFromServer[0] = GeoUpdateService.requestInfoFromServer(phoneNumber));
-            thread.start();
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            if (answerFromServer[0].equals("404") || answerFromServer[0].equals("")) {
-                LoginRequest.onLoginFailure(mContext);
-            } else {
-                LoginRequest.onLoginSuccess(phoneNumber, answerFromServer[0], mContext);
-            }
+            getUserNameById(phoneNumber, isFound -> {
+                if (isFound) {
+                    LoginRequest.onLoginSuccess(mContext);
+                } else {
+                    LoginRequest.onLoginFailure(mContext);
+                }
+            });
         });
-        builder.setNegativeButton("CANCEL", null);
         builder.setCancelable(false);
 
         return builder.create();
