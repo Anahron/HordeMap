@@ -45,7 +45,7 @@ public class PolylineSaver {
                 System.out.println(json + "\n");
                 outputStreamWriter.close();
                 outputStream.close();
-                Toast.makeText(context, "Пусь сохранен успешно", Toast.LENGTH_LONG).show();
+                Toast.makeText(context, "Путь сохранен успешно", Toast.LENGTH_LONG).show();
             } catch (IOException e) {
                 e.printStackTrace();
             }

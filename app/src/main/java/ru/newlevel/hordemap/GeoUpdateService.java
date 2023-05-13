@@ -19,19 +19,13 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,8 +36,8 @@ import com.google.firebase.database.DatabaseReference;
 
 public class GeoUpdateService extends Service {
 
-    public static String ipAdress = "horde.krasteplovizor.ru";  // сервер
-    public static int port = 49283; // сервер
+    // public static String ipAdress = "horde.krasteplovizor.ru";  // сервер
+    // public static int port = 49283; // сервер
     //  public static String ipAdress = "192.168.1.21";  //  локал
     //  public static int port = 8080; // локал
     @SuppressLint("StaticFieldLeak")
@@ -55,6 +49,10 @@ public class GeoUpdateService extends Service {
     private final static int UPDATE_INTERVAL = 3000;
     private final static int FASTEST_INTERVAL = 2000;
     private final static int DISPLACEMENT = 3;
+
+    private final static String GEO_DATA_PATH = "geoData";
+    private final static String GEO_MARKERS_PATH = "geoMarkers";
+    private final static String MASSAGE_PATH = "massages";
 
     private LocationRequest locationRequest;
     private FusedLocationProviderClient fusedLocationClient;
@@ -71,7 +69,7 @@ public class GeoUpdateService extends Service {
 
     private void sendGeoData(String userId, String userName, double latitude, double longitude) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = "geoData/" + userId;
+        String geoDataPath = GEO_DATA_PATH + "/" + userId;
         // Создаем объект с обновлениями
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/latitude", latitude);
@@ -83,15 +81,58 @@ public class GeoUpdateService extends Service {
         database.updateChildren(updates);
     }
 
-    private void getAllGeoData() {
-        HashMap<String, String> hashMap = new HashMap<>();
+    static void sendGeoMarker(String userName, double latitude, double longitude, int selectedItem, String title) {
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference();
+        String geoDataPath = GEO_MARKERS_PATH + "/" + System.currentTimeMillis();
+        // Создаем объект с обновлениями
+        Map<String, Object> updates = new HashMap<>();
+        updates.put(geoDataPath + "/latitude", latitude);
+        updates.put(geoDataPath + "/longitude", longitude);
+        updates.put(geoDataPath + "/userName", userName);
+        updates.put(geoDataPath + "/title", title);
+        updates.put(geoDataPath + "/item", selectedItem);
+        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
+        System.out.println("Отправка данных : " + updates);
+        // Применяем обновления к базе данных
+        database.updateChildren(updates);
+    }
+
+    public static void deleteMarker(Marker marker) {
+        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH);
+        databaseMarkers.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                try {
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        double latitude = snapshot.child("latitude").getValue(Double.class);
+                        double longitude = snapshot.child("longitude").getValue(Double.class);
+                        if (latitude == marker.getPosition().latitude && longitude == marker.getPosition().longitude) {
+                            snapshot.getRef().removeValue();
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("Null в DataSnapshot");
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Обработка ошибки
+                System.out.println("Ошибка: " + databaseError.getMessage());
+            }
+        });
+    }
+
+    static void getAllGeoData() {
         long timeNow = System.currentTimeMillis();
         float[] alpha = {0};
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference().child("geoData");
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference().child(GEO_DATA_PATH);
         database.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 try {
+                    HashMap<String, String> hashMap = new HashMap<>();
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                         String userId = snapshot.getKey();
                         String userName = snapshot.child("userName").getValue(String.class);
@@ -113,16 +154,17 @@ public class GeoUpdateService extends Service {
                                 longitude + "/" +
                                 timestamp + "/" +
                                 alpha[0];
+                        System.out.println("Положили в hash " + data);
                         hashMap.put(userId, data);
+                    }
+                    if (!hashMap.isEmpty()) {
+                        MarkersHandler.createMarkers(hashMap);
+                    } else {
+                        Log.d("Horde map", "Данные пусты");
                     }
                 } catch (Exception e) {
                     System.out.println("Null в DataSnapshot");
                     e.printStackTrace();
-                }
-                if (!hashMap.isEmpty()) {
-                    MarkersHandler.createMarkers(hashMap);
-                } else {
-                    Log.d("Horde map", "Данные пусты");
                 }
             }
 
@@ -132,6 +174,94 @@ public class GeoUpdateService extends Service {
                 System.out.println("Ошибка: " + databaseError.getMessage());
             }
         });
+
+        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH);
+        databaseMarkers.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                try {
+                    HashMap<String, String> hashMap = new HashMap<>();
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        double latitude = snapshot.child("latitude").getValue(Double.class);
+                        double longitude = snapshot.child("longitude").getValue(Double.class);
+                        String title = snapshot.child("title").getValue(String.class);
+                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
+                        int item = snapshot.child("item").getValue(Integer.class);
+                        long timeDiffMillis = timeNow - timestamp;
+                        long timeDiffMinutes = timeDiffMillis / 60000;
+                        if (timeDiffMinutes >= 1440 || latitude == 0.0) {
+                            snapshot.getRef().removeValue();
+                            continue;
+                        } else {
+                            alpha[0] = 1;
+                        }
+                        String data = title + "/" +
+                                latitude + "/" +
+                                longitude + "/" +
+                                timestamp + "/" +
+                                alpha[0] + "/" +
+                                item;
+                        hashMap.put(snapshot.getKey(), data);
+                    }
+                    if (!hashMap.isEmpty()) {
+                        MarkersHandler.createMapMarkers(hashMap);
+                    } else {
+                        Log.d("Horde map", "Данные пусты");
+                    }
+                } catch (Exception e) {
+                    System.out.println("Null в DataSnapshot получения маркеров");
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Обработка ошибки
+                System.out.println("Ошибка: " + databaseError.getMessage());
+            }
+        });
+
+        DatabaseReference databaseMassage = FirebaseDatabase.getInstance().getReference().child(MASSAGE_PATH);
+        databaseMassage.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                try {
+                    HashMap<String, String> hashMap = new HashMap<>();
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        String userName = snapshot.child("userName").getValue(String.class);
+                        String massage = snapshot.child("massage").getValue(String.class);
+                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
+                        long timeDiffMillis = timeNow - timestamp;
+                        long timeDiffMinutes = timeDiffMillis / 60000;
+                        if (timeDiffMinutes >= 2880 || latitude == 0.0) {
+                            snapshot.getRef().removeValue();
+                            continue;
+                        } else {
+                            alpha[0] = 1;
+                        }
+                        String data = userName + "/" +
+                                latitude + "/" +
+                                longitude + "/" +
+                                timestamp + "/" +
+                                alpha[0];
+                       // hashMap.put(snapshot.getKey(), data);
+                    }
+                } catch (Exception e) {
+                    System.out.println("Null в DataSnapshot получения маркеров");
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                // Обработка ошибки
+                System.out.println("Ошибка: " + databaseError.getMessage());
+            }
+        });
+    }
+
+    static void sendMassage(){
+
     }
 
     public static double getLatitude() {
@@ -234,33 +364,4 @@ public class GeoUpdateService extends Service {
         return START_STICKY;
     }
 
-    public static String requestInfoFromServer(String request) {
-        final String[] answer = {""};
-        Thread thread = new Thread(() -> {
-            try {
-                Socket clientSocket = new Socket();
-                clientSocket.connect(new InetSocketAddress(ipAdress, port), 4000);
-                InputStream inputStream = clientSocket.getInputStream();
-                OutputStream outputStream = clientSocket.getOutputStream();
-                PrintWriter writer = new PrintWriter(outputStream);
-                writer.println(request);
-                writer.flush();
-                Log.d("Horde map", "Запрос отправлен: " + request);
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                answer[0] = reader.readLine();
-                if (answer[0] == null)
-                    answer[0] = "";
-                clientSocket.close();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
-        thread.start();
-        try {
-            thread.join(); // Ожидаем завершения выполнения потока
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        return answer[0];
-    }
 }

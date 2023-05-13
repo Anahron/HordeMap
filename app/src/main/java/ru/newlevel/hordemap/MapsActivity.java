@@ -1,7 +1,6 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.GeoUpdateService.locationHistory;
-import static ru.newlevel.hordemap.KmlLayerLoaderTask.kmlSavedFile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -24,6 +23,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.SeekBar;
@@ -37,6 +38,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -47,6 +49,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CustomCap;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
@@ -54,32 +57,15 @@ import com.google.android.gms.maps.model.SquareCap;
 import com.google.firebase.FirebaseApp;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
-import com.google.maps.android.data.kml.KmlLayer;
-import org.xmlpull.v1.XmlPullParserException;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
-    @Override
-    protected void onPause() {
-        super.onPause();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-    }
 
     public static GoogleMap gMap;
     public static Boolean permissionForGeoUpdate = false;
@@ -92,6 +78,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView distanceTextView;
     @SuppressLint("StaticFieldLeak")
     private static Context context;
+    private RecyclerView recyclerView;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -210,7 +197,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
                     gMap.clear();
-                    MarkersHandler.importantMarkersCreate();
+                    MarkersHandler.setVisible();
                     MarkersHandler.markersOn();
                     PolylineOptions polylineOptions = new PolylineOptions()
                             .addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
@@ -225,7 +212,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem3hidePath.setOnClickListener(s -> {
                 gMap.clear();
-                MarkersHandler.importantMarkersCreate();
+                MarkersHandler.setVisible();
                 MarkersHandler.markersOn();
                 popupWindow.dismiss();
             });
@@ -349,6 +336,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 builder.setPositiveButton("OK", (dialog, which) -> {
                     int value = seekBar.getProgress();
                     MarkersHandler.MARKER_SIZE = value + 1;
+                    MarkersHandler.markersOff();
                     MarkersHandler.markersOn();
                 });
                 AlertDialog dialog = builder.create();
@@ -507,7 +495,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-
     private void enableMyLocationAndClicksListener() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -515,7 +502,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             gMap.setOnMapLongClickListener(latLng -> {
                 AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
                 builder.setTitle("Выберите действие")
-                        .setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут"}, (dialog, which) -> {
+                        .setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут", "Поставить маркер"}, (dialog, which) -> {
                             switch (which) {
                                 case 0:
                                     // Показать расстояние до точки
@@ -533,6 +520,101 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                         routePolyline.remove();
                                     }
                                     distanceTextView.setVisibility(View.INVISIBLE);
+                                    break;
+                                case 3:
+                                    // Поставить маркер
+                                    // Создание диалогового окна
+
+                                    AlertDialog.Builder dialogMarkerBuilder = new AlertDialog.Builder(context);
+                                    dialogMarkerBuilder.setTitle(" Выберите иконку \n и введите название");
+
+                                    // Загрузка макета для диалогового окна
+                                    LayoutInflater inflater = LayoutInflater.from(context);
+                                    View dialogView = inflater.inflate(R.layout.dialog_marker_info, null);
+                                    dialogMarkerBuilder.setView(dialogView);
+
+                                    // Получение элементов управления из макета диалогового окна
+                                    ImageView icon1 = dialogView.findViewById(R.id.icon1_focus);
+                                    ImageView icon2 = dialogView.findViewById(R.id.icon2_swords);
+                                    ImageView icon3 = dialogView.findViewById(R.id.icon3_flag_red);
+                                    ImageView icon4 = dialogView.findViewById(R.id.icon4_flag_yellow);
+                                    ImageView icon5 = dialogView.findViewById(R.id.icon5_flag_green);
+                                    ImageView icon6 = dialogView.findViewById(R.id.icon6_flag_blue);
+                                    EditText descriptionEditText = dialogView.findViewById(R.id.description_edit_text);
+                                    String[] description = {"Маркер"};
+                                    int[] selectedIcon = {0};
+                                    icon1.setOnClickListener(v -> {
+                                        selectedIcon[0] = 0;
+                                        icon1.setAlpha(1F);
+                                        icon2.setAlpha(0.3F);
+                                        icon3.setAlpha(0.3F);
+                                        icon4.setAlpha(0.3F);
+                                        icon5.setAlpha(0.3F);
+                                        icon6.setAlpha(0.3F);
+                                    });
+
+                                    icon2.setOnClickListener(v -> {
+                                        selectedIcon[0] = 1;
+                                        icon1.setAlpha(0.3F);
+                                        icon2.setAlpha(1F);
+                                        icon3.setAlpha(0.3F);
+                                        icon4.setAlpha(0.3F);
+                                        icon5.setAlpha(0.3F);
+                                        icon6.setAlpha(0.3F);
+                                    });
+
+                                    icon3.setOnClickListener(v -> {
+                                        selectedIcon[0] = 2;
+                                        icon1.setAlpha(0.3F);
+                                        icon2.setAlpha(0.3F);
+                                        icon3.setAlpha(1F);
+                                        icon4.setAlpha(0.3F);
+                                        icon5.setAlpha(0.3F);
+                                        icon6.setAlpha(0.3F);
+                                    });
+
+                                    icon4.setOnClickListener(v -> {
+                                        selectedIcon[0] = 3;
+                                        icon1.setAlpha(0.3F);
+                                        icon2.setAlpha(0.3F);
+                                        icon3.setAlpha(0.3F);
+                                        icon4.setAlpha(1F);
+                                        icon5.setAlpha(0.3F);
+                                        icon6.setAlpha(0.3F);
+                                    });
+                                    icon5.setOnClickListener(v -> {
+                                        selectedIcon[0] = 4;
+                                        icon1.setAlpha(0.3F);
+                                        icon2.setAlpha(0.3F);
+                                        icon3.setAlpha(0.3F);
+                                        icon4.setAlpha(0.3F);
+                                        icon5.setAlpha(1F);
+                                        icon6.setAlpha(0.3F);
+                                    });
+                                    icon6.setOnClickListener(v -> {
+                                        selectedIcon[0] = 5;
+                                        icon1.setAlpha(0.3F);
+                                        icon2.setAlpha(0.3F);
+                                        icon3.setAlpha(0.3F);
+                                        icon4.setAlpha(0.3F);
+                                        icon5.setAlpha(0.3F);
+                                        icon6.setAlpha(1F);
+                                    });
+
+                                    // Установка кнопки "Отмена"
+                                    dialogMarkerBuilder.setNegativeButton("Отмена", (dialogInterface, which1) -> {
+                                        dialogInterface.dismiss();
+                                    });
+                                    // Установка кнопки "Поставить маркер"
+                                    dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
+                                        if (descriptionEditText.getText().toString().length() > 0)
+                                            description[0] = String.valueOf(descriptionEditText.getText());
+                                        GeoUpdateService.sendGeoMarker(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
+                                        GeoUpdateService.getAllGeoData();
+                                        dialogInterface.dismiss();
+                                    });
+                                    // Создание диалогового окна
+                                    dialogMarkerBuilder.create().show();
                                     break;
                             }
                         });
@@ -568,7 +650,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
 
         // Камера на полигон
-        LatLng location = new LatLng(55.6739849, 85.1152591);
+        LatLng location = new LatLng(52.079417, 47.731866);
         gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
         // Настраиваем карту
         gMap.getUiSettings().setMyLocationButtonEnabled(true);
@@ -578,28 +660,53 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         MarkersHandler.importantMarkersCreate();
         // Показываем только текст маркера, без перемещения к нему камеры
         gMap.setOnMarkerClickListener(marker -> {
-            if (marker.isInfoWindowShown()) {
-                marker.hideInfoWindow();
-            } else {
-                marker.showInfoWindow();
-            }
+            marker.showInfoWindow();
             return true;
         });
 
-        try {
-            if (kmlSavedFile != null) {
-                System.out.println("Проверили что kmlSavedFile != null");
-                assert kmlSavedFile != null;
-                if (kmlSavedFile.exists()) {
-                    System.out.println("Проверили что kmlSavedFile.exists() и добавляем слой из кеша");
-                    InputStream in = new FileInputStream(kmlSavedFile);
-                    KmlLayer kmlLayer = new KmlLayer(MapsActivity.gMap, in, context);
-                    in.close();
-                    kmlLayer.addLayerToMap();
-                }
+        gMap.setOnInfoWindowLongClickListener(new GoogleMap.OnInfoWindowLongClickListener() {
+            @Override
+            public void onInfoWindowLongClick(@NonNull Marker marker) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                builder.setTitle("Удаление маркера")
+                        .setMessage("Вы уверены, что хотите удалить маркер?")
+                        .setPositiveButton("Да", (dialog, which) -> {
+                            // Удаление маркера
+                            GeoUpdateService.deleteMarker(marker);
+                            marker.remove();
+                        })
+                        .setNegativeButton("Нет", (dialog, which) -> {
+                            // Отмена удаления
+                            dialog.dismiss();
+                        })
+                        .show();
             }
-        } catch (XmlPullParserException | IOException e) {
-            e.printStackTrace();
-        }
+        });
+
+        gMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+            @Override
+            public void onInfoWindowClick(Marker marker) {
+                System.out.println("Закрываем в setOnInfoWindowClickListener");
+                // Здесь обрабатывайте нажатие на всплывающее окно
+                marker.hideInfoWindow();
+            }
+        });
+
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
 }
