@@ -38,8 +38,8 @@
 
         <ImageButton
             android:id="@+id/buttonSend"
-            android:layout_width="45dp"
-            android:layout_height="45dp"
+            android:layout_width="35dp"
+            android:layout_height="35dp"
             android:scaleType="fitCenter"
             android:layout_margin="5dp" />
 
@@ -47,9 +47,9 @@
 
     <ImageButton
         android:id="@+id/close_massager"
-        android:layout_width="45dp"
-        android:layout_height="45dp"
-        android:layout_margin="10dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_margin="15dp"
         android:scaleType="fitCenter"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

@@ -19,7 +19,7 @@
         android:orientation="vertical">
 
         <LinearLayout
-            android:layout_width="355dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             android:gravity="start"
@@ -31,6 +31,7 @@
                 android:id="@+id/textViewUsername"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingStart="20dp"
                 android:text="Username"
                 android:textColor="@color/black"
                 android:textSize="17sp"
@@ -38,22 +39,33 @@
 
             <TextView
                 android:id="@+id/textViewTime"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:layout_weight="1"
                 android:text="Time"
+                android:gravity="end"
+                android:paddingEnd="15dp"
                 android:textColor="@color/black"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
+
         </LinearLayout>
+        <!-- Горизонтальная черта -->
+        <View
+            android:layout_width="200dp"
+            android:layout_height="1dp"
+            android:alpha="0.50"
+            android:background="@drawable/horizontal_gradient" />
 
         <TextView
             android:id="@+id/textViewMessage"
-            android:layout_width="354dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
-            android:paddingStart="10dp"
+            android:paddingStart="15dp"
             android:paddingTop="3dp"
             android:paddingBottom="3dp"
             android:text="Message"

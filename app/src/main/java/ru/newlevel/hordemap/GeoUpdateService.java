@@ -85,6 +85,7 @@ public class GeoUpdateService extends Service {
         System.out.println("Отправка данных : " + updates);
         // Применяем обновления к базе данных
         database.updateChildren(updates);
+        checkLastMessage();
     }
 
     static void sendGeoMarker(String userName, double latitude, double longitude, int selectedItem, String title) {
@@ -101,6 +102,40 @@ public class GeoUpdateService extends Service {
         System.out.println("Отправка данных : " + updates);
         // Применяем обновления к базе данных
         database.updateChildren(updates);
+    }
+
+    public static void checkLastMessage() {
+        System.out.println("ПРоверяем последние сообщения");
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
+        lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    if (MessagesAdapter.lastDisplayedMessage == null) {
+                        MapsActivity.imageButton.setBackgroundResource(R.drawable.yesmassage);
+                        return;
+                    } else {
+                        for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
+                            Messages lastMessage = messageSnapshot.getValue(Messages.class);
+                            assert lastMessage != null;
+                            if (!lastMessage.getMassage().equals(MessagesAdapter.lastDisplayedMessage.getMassage())) {
+                                MapsActivity.imageButton.setBackgroundResource(R.drawable.yesmassage);
+                                return;
+                            }
+                        }
+                    }
+                }
+                System.out.println("Штамп совпал??");
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+
+
     }
 
     public static void deleteMarker(Marker marker) {
@@ -229,8 +264,6 @@ public class GeoUpdateService extends Service {
     }
 
     private static void updateLastMessageText(String messageId, String newMessage) {
-        System.out.println("Зашли в updateLastMessageText");
-        System.out.println(newMessage);
         DatabaseReference database = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
         Map<String, Object> update = new HashMap<>();
         update.put(messageId + "/massage", newMessage);
@@ -249,6 +282,7 @@ public class GeoUpdateService extends Service {
     }
 
     public static void getMessagesFromDatabase(boolean isNeedFool) {
+        System.out.println("Запрос getMessagesFromDatabase");
         DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
         messagesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -272,6 +306,7 @@ public class GeoUpdateService extends Service {
                     adapter.setLatestMessages(messages);
                 }
             }
+
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 // Обработка ошибки чтения

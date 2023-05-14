@@ -175,10 +175,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void createMassager() {
         imageButton = findViewById(R.id.massage);
+        imageButton.setBackgroundResource(R.drawable.nomassage);
         imageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Dialog dialog = new Dialog(context, R.style.AlertDialogNoMargins);
+                imageButton.setBackgroundResource(R.drawable.nomassage);
                 dialog.setContentView(R.layout.activity_messages);
                 recyclerView = dialog.findViewById(R.id.recyclerViewMessages);
                 recyclerView.setLayoutManager(new LinearLayoutManager(context));

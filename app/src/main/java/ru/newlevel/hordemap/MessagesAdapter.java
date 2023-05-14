@@ -20,6 +20,7 @@ import java.util.TimeZone;
 public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.MessageViewHolder> {
 
     private static List<Messages> messages;
+    public static Messages lastDisplayedMessage;
 
     public void setMessages(List<Messages> messages) {
         this.messages = messages;
@@ -88,6 +89,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         }
 
         public void bind(Messages message) {
+            lastDisplayedMessage = message;
             dateFormat.setTimeZone(timeZone);
             senderTextView.setText(message.getUserName());
             timeTextView.setText(dateFormat.format(new Date(message.getTimestamp())));
