@@ -3,9 +3,7 @@ package ru.newlevel.hordemap;
 import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Build;
 
 import com.google.firebase.FirebaseApp;
 
@@ -15,6 +13,7 @@ public class LoginRequest {
     static void onLoginFailure(Context context) {
         MapsActivity.makeToast("Авторизация НЕ пройдена, обмен гео данными запрещен");
         MyServiceUtils.stopGeoUpdateService(context);
+        MapsActivity.imageButton.setClickable(false);
     }
 
     static void onLoginSuccess(Context context) {
@@ -24,6 +23,7 @@ public class LoginRequest {
         editor.putString("id", User.getInstance().getUserId());
         editor.apply();
         MyServiceUtils.startGeoUpdateService(context);
+        MapsActivity.imageButton.setClickable(true);
     }
 
     public static void logOut(Context context) {
@@ -33,6 +33,7 @@ public class LoginRequest {
         editor.apply();
         User.getInstance().setUserName("name");
         User.getInstance().setUserId("0");
+        MapsActivity.imageButton.setClickable(false);
     }
 
     public static void logIn(Context context, MapsActivity mapsActivity) {
@@ -47,6 +48,7 @@ public class LoginRequest {
             User.getInstance().setUserName(mySavedName);
             User.getInstance().setUserId(mySavedID);
             MyServiceUtils.startGeoUpdateService(context);
+            MapsActivity.imageButton.setClickable(true);
             MapsActivity.makeToast("Авторизация пройдена, привет " + mySavedName);
         }
     }

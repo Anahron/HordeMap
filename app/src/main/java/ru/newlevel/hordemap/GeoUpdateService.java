@@ -1,5 +1,7 @@
 package ru.newlevel.hordemap;
 
+import static ru.newlevel.hordemap.MapsActivity.adapter;
+
 import android.annotation.SuppressLint;
 import android.app.Service;
 import android.content.Intent;
@@ -54,9 +56,11 @@ public class GeoUpdateService extends Service {
     private final static String GEO_MARKERS_PATH = "geoMarkers";
     private final static String MASSAGE_PATH = "massages";
 
+
     private LocationRequest locationRequest;
     private FusedLocationProviderClient fusedLocationClient;
     private static Location location;
+    public static List<Messages> allMessages = new ArrayList<>();
 
     private static final Location[] lastLocation = {null};
 
@@ -66,6 +70,7 @@ public class GeoUpdateService extends Service {
         }
         return instance;
     }
+
 
     private void sendGeoData(String userId, String userName, double latitude, double longitude) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
@@ -221,47 +226,78 @@ public class GeoUpdateService extends Service {
             }
         });
 
-        DatabaseReference databaseMassage = FirebaseDatabase.getInstance().getReference().child(MASSAGE_PATH);
-        databaseMassage.addListenerForSingleValueEvent(new ValueEventListener() {
+//        DatabaseReference databaseMassage = FirebaseDatabase.getInstance().getReference().child(MASSAGE_PATH);
+//        databaseMassage.addListenerForSingleValueEvent(new ValueEventListener() {
+//            @Override
+//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+//                try {
+//                    HashMap<String, String> hashMap = new HashMap<>();
+//                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+//                        String userName = snapshot.child("userName").getValue(String.class);
+//                        String massage = snapshot.child("massage").getValue(String.class);
+//                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
+//                        long timeDiffMillis = timeNow - timestamp;
+//                        long timeDiffMinutes = timeDiffMillis / 60000;
+//                    }
+//                } catch (Exception e) {
+//                    System.out.println("Null в DataSnapshot получения маркеров");
+//                    e.printStackTrace();
+//                }
+//            }
+//
+//            @Override
+//            public void onCancelled(@NonNull DatabaseError databaseError) {
+//                // Обработка ошибки
+//                System.out.println("Ошибка: " + databaseError.getMessage());
+//            }
+//        });
+    }
+
+    public static void getMessagesFromDatabase(boolean isNeedFool) {
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        messagesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                try {
-                    HashMap<String, String> hashMap = new HashMap<>();
+                List<Messages> messages = new ArrayList<>();
+                if (isNeedFool)
+                    allMessages.clear();
+                if (allMessages.isEmpty()) {
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        String userName = snapshot.child("userName").getValue(String.class);
-                        String massage = snapshot.child("massage").getValue(String.class);
-                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
-                        long timeDiffMillis = timeNow - timestamp;
-                        long timeDiffMinutes = timeDiffMillis / 60000;
-                        if (timeDiffMinutes >= 2880 || latitude == 0.0) {
-                            snapshot.getRef().removeValue();
-                            continue;
-                        } else {
-                            alpha[0] = 1;
-                        }
-                        String data = userName + "/" +
-                                latitude + "/" +
-                                longitude + "/" +
-                                timestamp + "/" +
-                                alpha[0];
-                       // hashMap.put(snapshot.getKey(), data);
+                        Messages message = snapshot.getValue(Messages.class);
+                        allMessages.add(message);
+                        adapter.setMessages(allMessages);
                     }
-                } catch (Exception e) {
-                    System.out.println("Null в DataSnapshot получения маркеров");
-                    e.printStackTrace();
+                } else {
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        Messages message = snapshot.getValue(Messages.class);
+                        if (allMessages.contains(message))
+                            continue;
+                        messages.add(message);
+                        adapter.setLatestMessages(messages);
+                        System.out.println("Прочти сообщение " + message.getMassage());
+                    }
                 }
             }
 
+
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Обработка ошибки
-                System.out.println("Ошибка: " + databaseError.getMessage());
+                // Обработка ошибки чтения
             }
         });
     }
 
-    static void sendMassage(){
-
+    static void sendMassage(String massage) {
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference();
+        String geoDataPath = MASSAGE_PATH + "/" + System.currentTimeMillis();
+        // Создаем объект с обновлениями
+        Map<String, Object> updates = new HashMap<>();
+        updates.put(geoDataPath + "/userName", User.getInstance().getUserName());
+        updates.put(geoDataPath + "/massage", massage);
+        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
+        System.out.println("Отправка сообщения : " + updates);
+        // Применяем обновления к базе данных
+        database.updateChildren(updates);
     }
 
     public static double getLatitude() {

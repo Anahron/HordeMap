@@ -4,6 +4,7 @@ import static ru.newlevel.hordemap.GeoUpdateService.locationHistory;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -11,19 +12,28 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.media.ImageWriter;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.Settings;
+import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
@@ -38,6 +48,7 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -61,7 +72,6 @@ import com.google.maps.android.SphericalUtil;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
@@ -78,7 +88,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView distanceTextView;
     @SuppressLint("StaticFieldLeak")
     private static Context context;
+    private Handler handler;
+    public static MessagesAdapter adapter = new MessagesAdapter();
     private RecyclerView recyclerView;
+    public static ImageButton imageButton;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -141,7 +154,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Загрузка переменных окружения из файла .env
         context = this;
         FirebaseApp.initializeApp(this);
 
@@ -150,12 +162,90 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
+        createMassager();
+        imageButton.setClickable(false);
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
 
         createToolbar();
         LoginRequest.logIn(context, this);
+    }
+
+    private void createMassager() {
+        imageButton = findViewById(R.id.massage);
+        imageButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Dialog dialog = new Dialog(context, R.style.AlertDialogNoMargins);
+                dialog.setContentView(R.layout.activity_messages);
+                recyclerView = dialog.findViewById(R.id.recyclerViewMessages);
+                recyclerView.setLayoutManager(new LinearLayoutManager(context));
+                recyclerView.setAdapter(adapter);
+                dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                GeoUpdateService.getMessagesFromDatabase(true);
+
+                ImageButton closeButton = dialog.findViewById(R.id.close_massager);
+                closeButton.setOnClickListener(v12 -> dialog.dismiss());
+                closeButton.setBackgroundResource(R.drawable.close_button);
+
+                ImageButton downButton = dialog.findViewById(R.id.go_down);
+                downButton.setOnClickListener(v12 ->   recyclerView.scrollToPosition(adapter.getItemCount() - 1));
+                downButton.setBackgroundResource(R.drawable.down_button);
+
+                EditText textMassage = dialog.findViewById(R.id.editTextMessage);
+                textMassage.setInputType(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE);
+                textMassage.requestFocus();
+                dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+                textMassage.setOnEditorActionListener((textView, actionId, keyEvent) -> {
+                    if (actionId == EditorInfo.IME_ACTION_DONE) {
+                        GeoUpdateService.sendMassage(String.valueOf(textMassage.getText()));
+                        GeoUpdateService.getMessagesFromDatabase(false);
+                        textMassage.setText("");
+                        recyclerView.requestFocus();
+                        recyclerView.postDelayed(() -> {
+                            recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+                            textMassage.requestFocus();
+                        }, 200); // Задержка для обеспечения фокуса на RecyclerView
+                        return true;
+                    }
+                    return false;
+                });
+                ImageButton button = dialog.findViewById(R.id.buttonSend);
+                button.setBackgroundResource(R.drawable.send_massage);
+
+                button.setOnClickListener(v1 -> {
+                    GeoUpdateService.sendMassage(String.valueOf(textMassage.getText()));
+                    GeoUpdateService.getMessagesFromDatabase(false);
+                    textMassage.setText("");
+                    recyclerView.requestFocus();
+                    recyclerView.postDelayed(() -> {
+                        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+                        textMassage.requestFocus();
+                    }, 200); // Задержка для обеспечения фокуса на RecyclerView
+                });
+
+                handler = new Handler();
+                final int[] previousItemCount = {adapter.getItemCount()}; // Предыдущий размер списка
+                Runnable runnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        GeoUpdateService.getMessagesFromDatabase(false); // Читаем сообщения с базы раз в 1 сек.
+                        int newItemCount = adapter.getItemCount(); // Текущий размер списка
+                        if (newItemCount > previousItemCount[0]) {
+                            previousItemCount[0] =newItemCount;
+                            recyclerView.scrollToPosition(newItemCount - 1); // Прокрутить список вниз, если не находится внизу
+                        }
+                        handler.postDelayed(this, 1000);
+                    }
+                };
+                handler.post(runnable);
+                recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+                dialog.setOnDismissListener(dialog1 -> handler.removeCallbacks(runnable));
+                dialog.show();
+            }
+        });
     }
 
     public static void makeToast(String text) {
@@ -199,8 +289,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     gMap.clear();
                     MarkersHandler.setVisible();
                     MarkersHandler.markersOn();
-                    PolylineOptions polylineOptions = new PolylineOptions()
-                            .addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
+                    PolylineOptions polylineOptions = new PolylineOptions().addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
                     polyline = gMap.addPolyline(polylineOptions);
                 }
@@ -291,10 +380,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
-            if (popupWindow.isShowing())
-                popupWindow.dismiss();
-            else
-                popupWindow.showAsDropDown(menubutton);
+            if (popupWindow.isShowing()) popupWindow.dismiss();
+            else popupWindow.showAsDropDown(menubutton);
 
             Button menuItem0 = view.findViewById(R.id.menu_item0);  // Смена типа карты
             menuItem0.setBackgroundResource(R.drawable.menubutton);
@@ -464,19 +551,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         BitmapDescriptor bitmapcustomcapicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcustomcap, 60, 60, false));
         CustomCap customCap = new CustomCap(bitmapcustomcapicon);
 
-        PolylineOptions polylineOptions = new PolylineOptions()
-                .addAll(polylineCoordinates)
-                .endCap(customCap)
-                .geodesic(true)
-                .color(Color.YELLOW)
-                .width(6);
+        PolylineOptions polylineOptions = new PolylineOptions().addAll(polylineCoordinates).endCap(customCap).geodesic(true).color(Color.YELLOW).width(6);
         double distance = SphericalUtil.computeDistanceBetween(new LatLng(gMap.getMyLocation().getLatitude(), gMap.getMyLocation().getLongitude()), destination);
 
         distanceTextView.setVisibility(View.VISIBLE);
         if ((int) distance > 1000)
             distanceTextView.setText((Math.round(distance / 10) / 100.0) + " км.");
-        else
-            distanceTextView.setText((int) distance + " м.");
+        else distanceTextView.setText((int) distance + " м.");
 
         routePolyline = gMap.addPolyline(polylineOptions);
 
@@ -490,134 +571,131 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             double distance1 = SphericalUtil.computeDistanceBetween(currentLatLng, destination);
             if ((int) distance1 > 1000)
                 distanceTextView.setText((Math.round(distance1 / 10) / 100.0) + " км.");
-            else
-                distanceTextView.setText((int) distance1 + " м.");
+            else distanceTextView.setText((int) distance1 + " м.");
         });
     }
 
     private void enableMyLocationAndClicksListener() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             gMap.setMyLocationEnabled(true);
             gMap.setOnMapLongClickListener(latLng -> {
                 AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-                builder.setTitle("Выберите действие")
-                        .setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут", "Поставить маркер"}, (dialog, which) -> {
-                            switch (which) {
-                                case 0:
-                                    // Показать расстояние до точки
-                                    float[] distance = new float[1];
-                                    Location.distanceBetween(GeoUpdateService.getLatitude(), GeoUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
-                                    Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
-                                    break;
-                                case 1:
-                                    // Построить маршрут
-                                    buildRoute(latLng);
-                                    break;
-                                case 2:
-                                    // Очистить маршрут
-                                    if (routePolyline != null) {
-                                        routePolyline.remove();
-                                    }
-                                    distanceTextView.setVisibility(View.INVISIBLE);
-                                    break;
-                                case 3:
-                                    // Поставить маркер
-                                    // Создание диалогового окна
-
-                                    AlertDialog.Builder dialogMarkerBuilder = new AlertDialog.Builder(context);
-                                    dialogMarkerBuilder.setTitle(" Выберите иконку \n и введите название");
-
-                                    // Загрузка макета для диалогового окна
-                                    LayoutInflater inflater = LayoutInflater.from(context);
-                                    View dialogView = inflater.inflate(R.layout.dialog_marker_info, null);
-                                    dialogMarkerBuilder.setView(dialogView);
-
-                                    // Получение элементов управления из макета диалогового окна
-                                    ImageView icon1 = dialogView.findViewById(R.id.icon1_focus);
-                                    ImageView icon2 = dialogView.findViewById(R.id.icon2_swords);
-                                    ImageView icon3 = dialogView.findViewById(R.id.icon3_flag_red);
-                                    ImageView icon4 = dialogView.findViewById(R.id.icon4_flag_yellow);
-                                    ImageView icon5 = dialogView.findViewById(R.id.icon5_flag_green);
-                                    ImageView icon6 = dialogView.findViewById(R.id.icon6_flag_blue);
-                                    EditText descriptionEditText = dialogView.findViewById(R.id.description_edit_text);
-                                    String[] description = {"Маркер"};
-                                    int[] selectedIcon = {0};
-                                    icon1.setOnClickListener(v -> {
-                                        selectedIcon[0] = 0;
-                                        icon1.setAlpha(1F);
-                                        icon2.setAlpha(0.3F);
-                                        icon3.setAlpha(0.3F);
-                                        icon4.setAlpha(0.3F);
-                                        icon5.setAlpha(0.3F);
-                                        icon6.setAlpha(0.3F);
-                                    });
-
-                                    icon2.setOnClickListener(v -> {
-                                        selectedIcon[0] = 1;
-                                        icon1.setAlpha(0.3F);
-                                        icon2.setAlpha(1F);
-                                        icon3.setAlpha(0.3F);
-                                        icon4.setAlpha(0.3F);
-                                        icon5.setAlpha(0.3F);
-                                        icon6.setAlpha(0.3F);
-                                    });
-
-                                    icon3.setOnClickListener(v -> {
-                                        selectedIcon[0] = 2;
-                                        icon1.setAlpha(0.3F);
-                                        icon2.setAlpha(0.3F);
-                                        icon3.setAlpha(1F);
-                                        icon4.setAlpha(0.3F);
-                                        icon5.setAlpha(0.3F);
-                                        icon6.setAlpha(0.3F);
-                                    });
-
-                                    icon4.setOnClickListener(v -> {
-                                        selectedIcon[0] = 3;
-                                        icon1.setAlpha(0.3F);
-                                        icon2.setAlpha(0.3F);
-                                        icon3.setAlpha(0.3F);
-                                        icon4.setAlpha(1F);
-                                        icon5.setAlpha(0.3F);
-                                        icon6.setAlpha(0.3F);
-                                    });
-                                    icon5.setOnClickListener(v -> {
-                                        selectedIcon[0] = 4;
-                                        icon1.setAlpha(0.3F);
-                                        icon2.setAlpha(0.3F);
-                                        icon3.setAlpha(0.3F);
-                                        icon4.setAlpha(0.3F);
-                                        icon5.setAlpha(1F);
-                                        icon6.setAlpha(0.3F);
-                                    });
-                                    icon6.setOnClickListener(v -> {
-                                        selectedIcon[0] = 5;
-                                        icon1.setAlpha(0.3F);
-                                        icon2.setAlpha(0.3F);
-                                        icon3.setAlpha(0.3F);
-                                        icon4.setAlpha(0.3F);
-                                        icon5.setAlpha(0.3F);
-                                        icon6.setAlpha(1F);
-                                    });
-
-                                    // Установка кнопки "Отмена"
-                                    dialogMarkerBuilder.setNegativeButton("Отмена", (dialogInterface, which1) -> {
-                                        dialogInterface.dismiss();
-                                    });
-                                    // Установка кнопки "Поставить маркер"
-                                    dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
-                                        if (descriptionEditText.getText().toString().length() > 0)
-                                            description[0] = String.valueOf(descriptionEditText.getText());
-                                        GeoUpdateService.sendGeoMarker(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
-                                        GeoUpdateService.getAllGeoData();
-                                        dialogInterface.dismiss();
-                                    });
-                                    // Создание диалогового окна
-                                    dialogMarkerBuilder.create().show();
-                                    break;
+                builder.setTitle("Выберите действие").setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут", "Поставить маркер"}, (dialog, which) -> {
+                    switch (which) {
+                        case 0:
+                            // Показать расстояние до точки
+                            float[] distance = new float[1];
+                            Location.distanceBetween(GeoUpdateService.getLatitude(), GeoUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
+                            Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
+                            break;
+                        case 1:
+                            // Построить маршрут
+                            buildRoute(latLng);
+                            break;
+                        case 2:
+                            // Очистить маршрут
+                            if (routePolyline != null) {
+                                routePolyline.remove();
                             }
-                        });
+                            distanceTextView.setVisibility(View.INVISIBLE);
+                            break;
+                        case 3:
+                            // Поставить маркер
+                            // Создание диалогового окна
+
+                            AlertDialog.Builder dialogMarkerBuilder = new AlertDialog.Builder(context);
+                            dialogMarkerBuilder.setTitle(" Выберите иконку \n и введите название");
+
+                            // Загрузка макета для диалогового окна
+                            LayoutInflater inflater = LayoutInflater.from(context);
+                            View dialogView = inflater.inflate(R.layout.dialog_marker_info, null);
+                            dialogMarkerBuilder.setView(dialogView);
+
+                            // Получение элементов управления из макета диалогового окна
+                            ImageView icon1 = dialogView.findViewById(R.id.icon1_focus);
+                            ImageView icon2 = dialogView.findViewById(R.id.icon2_swords);
+                            ImageView icon3 = dialogView.findViewById(R.id.icon3_flag_red);
+                            ImageView icon4 = dialogView.findViewById(R.id.icon4_flag_yellow);
+                            ImageView icon5 = dialogView.findViewById(R.id.icon5_flag_green);
+                            ImageView icon6 = dialogView.findViewById(R.id.icon6_flag_blue);
+                            EditText descriptionEditText = dialogView.findViewById(R.id.description_edit_text);
+                            String[] description = {"Маркер"};
+                            int[] selectedIcon = {0};
+                            icon1.setOnClickListener(v -> {
+                                selectedIcon[0] = 0;
+                                icon1.setAlpha(1F);
+                                icon2.setAlpha(0.3F);
+                                icon3.setAlpha(0.3F);
+                                icon4.setAlpha(0.3F);
+                                icon5.setAlpha(0.3F);
+                                icon6.setAlpha(0.3F);
+                            });
+
+                            icon2.setOnClickListener(v -> {
+                                selectedIcon[0] = 1;
+                                icon1.setAlpha(0.3F);
+                                icon2.setAlpha(1F);
+                                icon3.setAlpha(0.3F);
+                                icon4.setAlpha(0.3F);
+                                icon5.setAlpha(0.3F);
+                                icon6.setAlpha(0.3F);
+                            });
+
+                            icon3.setOnClickListener(v -> {
+                                selectedIcon[0] = 2;
+                                icon1.setAlpha(0.3F);
+                                icon2.setAlpha(0.3F);
+                                icon3.setAlpha(1F);
+                                icon4.setAlpha(0.3F);
+                                icon5.setAlpha(0.3F);
+                                icon6.setAlpha(0.3F);
+                            });
+
+                            icon4.setOnClickListener(v -> {
+                                selectedIcon[0] = 3;
+                                icon1.setAlpha(0.3F);
+                                icon2.setAlpha(0.3F);
+                                icon3.setAlpha(0.3F);
+                                icon4.setAlpha(1F);
+                                icon5.setAlpha(0.3F);
+                                icon6.setAlpha(0.3F);
+                            });
+                            icon5.setOnClickListener(v -> {
+                                selectedIcon[0] = 4;
+                                icon1.setAlpha(0.3F);
+                                icon2.setAlpha(0.3F);
+                                icon3.setAlpha(0.3F);
+                                icon4.setAlpha(0.3F);
+                                icon5.setAlpha(1F);
+                                icon6.setAlpha(0.3F);
+                            });
+                            icon6.setOnClickListener(v -> {
+                                selectedIcon[0] = 5;
+                                icon1.setAlpha(0.3F);
+                                icon2.setAlpha(0.3F);
+                                icon3.setAlpha(0.3F);
+                                icon4.setAlpha(0.3F);
+                                icon5.setAlpha(0.3F);
+                                icon6.setAlpha(1F);
+                            });
+
+                            // Установка кнопки "Отмена"
+                            dialogMarkerBuilder.setNegativeButton("Отмена", (dialogInterface, which1) -> {
+                                dialogInterface.dismiss();
+                            });
+                            // Установка кнопки "Поставить маркер"
+                            dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
+                                if (descriptionEditText.getText().toString().length() > 0)
+                                    description[0] = String.valueOf(descriptionEditText.getText());
+                                GeoUpdateService.sendGeoMarker(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
+                                GeoUpdateService.getAllGeoData();
+                                dialogInterface.dismiss();
+                            });
+                            // Создание диалогового окна
+                            dialogMarkerBuilder.create().show();
+                            break;
+                    }
+                });
                 builder.create().show();
             });
             gMap.setOnMapClickListener(latLng -> {
@@ -668,18 +746,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onInfoWindowLongClick(@NonNull Marker marker) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                builder.setTitle("Удаление маркера")
-                        .setMessage("Вы уверены, что хотите удалить маркер?")
-                        .setPositiveButton("Да", (dialog, which) -> {
-                            // Удаление маркера
-                            GeoUpdateService.deleteMarker(marker);
-                            marker.remove();
-                        })
-                        .setNegativeButton("Нет", (dialog, which) -> {
-                            // Отмена удаления
-                            dialog.dismiss();
-                        })
-                        .show();
+                builder.setTitle("Удаление маркера").setMessage("Вы уверены, что хотите удалить маркер?").setPositiveButton("Да", (dialog, which) -> {
+                    // Удаление маркера
+                    GeoUpdateService.deleteMarker(marker);
+                    marker.remove();
+                }).setNegativeButton("Нет", (dialog, which) -> {
+                    // Отмена удаления
+                    dialog.dismiss();
+                }).show();
             }
         });
 
@@ -708,5 +782,4 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onStop() {
         super.onStop();
     }
-
 }
