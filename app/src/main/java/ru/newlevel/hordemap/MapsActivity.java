@@ -228,14 +228,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 handler = new Handler();
                 final int[] previousItemCount = {adapter.getItemCount()}; // Предыдущий размер списка
+                Messages[] lastMessage = {adapter.getItem(adapter.getItemCount() - 1)};
                 Runnable runnable = new Runnable() {
                     @Override
                     public void run() {
-                        GeoUpdateService.getMessagesFromDatabase(false); // Читаем сообщения с базы раз в 1 сек.
+                        GeoUpdateService.getMessagesFromDatabase(false);
                         int newItemCount = adapter.getItemCount(); // Текущий размер списка
-                        if (newItemCount > previousItemCount[0]) {
-                            previousItemCount[0] =newItemCount;
-                            recyclerView.scrollToPosition(newItemCount - 1); // Прокрутить список вниз, если не находится внизу
+                        try {
+                            if (newItemCount > previousItemCount[0] || !adapter.getItem(newItemCount - 1).getMassage().equals(lastMessage[0].getMassage())) {
+                                previousItemCount[0] = newItemCount;
+                                lastMessage[0] = adapter.getItem(adapter.getItemCount() - 1);
+                                recyclerView.scrollToPosition(newItemCount - 1); // Прокрутить список вниз, если не находится внизу
+                            }
+                        } catch (Exception e) {
+                            System.out.println("список пуст");
                         }
                         handler.postDelayed(this, 1000);
                     }

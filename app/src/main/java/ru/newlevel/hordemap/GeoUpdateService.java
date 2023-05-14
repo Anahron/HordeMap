@@ -25,6 +25,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
@@ -225,32 +226,26 @@ public class GeoUpdateService extends Service {
                 System.out.println("Ошибка: " + databaseError.getMessage());
             }
         });
+    }
 
-//        DatabaseReference databaseMassage = FirebaseDatabase.getInstance().getReference().child(MASSAGE_PATH);
-//        databaseMassage.addListenerForSingleValueEvent(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-//                try {
-//                    HashMap<String, String> hashMap = new HashMap<>();
-//                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-//                        String userName = snapshot.child("userName").getValue(String.class);
-//                        String massage = snapshot.child("massage").getValue(String.class);
-//                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
-//                        long timeDiffMillis = timeNow - timestamp;
-//                        long timeDiffMinutes = timeDiffMillis / 60000;
-//                    }
-//                } catch (Exception e) {
-//                    System.out.println("Null в DataSnapshot получения маркеров");
-//                    e.printStackTrace();
-//                }
-//            }
-//
-//            @Override
-//            public void onCancelled(@NonNull DatabaseError databaseError) {
-//                // Обработка ошибки
-//                System.out.println("Ошибка: " + databaseError.getMessage());
-//            }
-//        });
+    private static void updateLastMessageText(String messageId, String newMessage) {
+        System.out.println("Зашли в updateLastMessageText");
+        System.out.println(newMessage);
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        Map<String, Object> update = new HashMap<>();
+        update.put(messageId + "/massage", newMessage);
+        update.put(messageId + "/timestamp", System.currentTimeMillis());
+        database.updateChildren(update);
+    }
+
+    private static void createNewMessage(String message) {
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference();
+        String geoDataPath = MASSAGE_PATH + "/" + System.currentTimeMillis();
+        Map<String, Object> updates = new HashMap<>();
+        updates.put(geoDataPath + "/userName", User.getInstance().getUserName());
+        updates.put(geoDataPath + "/massage", message);
+        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
+        database.updateChildren(updates);
     }
 
     public static void getMessagesFromDatabase(boolean isNeedFool) {
@@ -265,21 +260,18 @@ public class GeoUpdateService extends Service {
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                         Messages message = snapshot.getValue(Messages.class);
                         allMessages.add(message);
-                        adapter.setMessages(allMessages);
                     }
+                    adapter.setMessages(allMessages);
                 } else {
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                         Messages message = snapshot.getValue(Messages.class);
                         if (allMessages.contains(message))
                             continue;
                         messages.add(message);
-                        adapter.setLatestMessages(messages);
-                        System.out.println("Прочти сообщение " + message.getMassage());
                     }
+                    adapter.setLatestMessages(messages);
                 }
             }
-
-
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 // Обработка ошибки чтения
@@ -288,16 +280,31 @@ public class GeoUpdateService extends Service {
     }
 
     static void sendMassage(String massage) {
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = MASSAGE_PATH + "/" + System.currentTimeMillis();
-        // Создаем объект с обновлениями
-        Map<String, Object> updates = new HashMap<>();
-        updates.put(geoDataPath + "/userName", User.getInstance().getUserName());
-        updates.put(geoDataPath + "/massage", massage);
-        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
-        System.out.println("Отправка сообщения : " + updates);
-        // Применяем обновления к базе данных
-        database.updateChildren(updates);
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
+
+        lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
+                        Messages lastMessage = messageSnapshot.getValue(Messages.class);
+                        if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName())) {
+                            // Изменить текст последнего сообщения
+                            String newMassage = lastMessage.getMassage() + "\n >: " + massage;
+                            updateLastMessageText(messageSnapshot.getKey(), newMassage);
+                            return;
+                        }
+                    }
+                }
+                createNewMessage(massage);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
     }
 
     public static double getLatitude() {
