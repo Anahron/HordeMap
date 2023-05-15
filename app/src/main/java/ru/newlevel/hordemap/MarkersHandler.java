@@ -90,7 +90,6 @@ public class MarkersHandler {
         }
     }
 
-
     public static void createMarkers(HashMap<String, String> map) {
         System.out.println("В создание маркеров пришло: " + map);
         Log.d("Horde map", "Удаляются старые и создаются новые маркеры");
@@ -156,7 +155,6 @@ public class MarkersHandler {
                             bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.focus);
                             break;
                     }
-                    System.out.println(bitmap);
                     BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
 
                     @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm");

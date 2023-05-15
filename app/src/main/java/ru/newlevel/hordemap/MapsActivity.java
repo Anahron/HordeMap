@@ -12,10 +12,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
-import android.media.ImageWriter;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,13 +22,11 @@ import android.provider.Settings;
 import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -86,12 +82,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean IsNeedToSave = true;
     private Polyline routePolyline;
     private TextView distanceTextView;
-    @SuppressLint("StaticFieldLeak")
     private static Context context;
     private Handler handler;
     public static MessagesAdapter adapter = new MessagesAdapter();
     private RecyclerView recyclerView;
+    @SuppressLint("StaticFieldLeak")
     public static ImageButton imageButton;
+    private KmzLoader kmzLoader;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -99,9 +96,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION = 1004;
     private static final int MY_PERMISSIONS_REQUEST_WAKE_LOCK = 1005;
     private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
+    private static final int  REQUEST_CODE_READ_EXTERNAL_STORAGE = 1007;
 
     public static Context getContext() {
         return context;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        kmzLoader.onActivityResult(requestCode, resultCode, data);
     }
 
     protected void onDestroy() {
@@ -294,7 +298,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (locationHistory.isEmpty())
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
-                    gMap.clear();
+                    polyline.remove();
                     MarkersHandler.setVisible();
                     MarkersHandler.markersOn();
                     PolylineOptions polylineOptions = new PolylineOptions().addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
@@ -311,6 +315,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 gMap.clear();
                 MarkersHandler.setVisible();
                 MarkersHandler.markersOn();
+                if (kmzLoader.savedKmlLayer != null)
+                    kmzLoader.savedKmlLayer.addLayerToMap();
                 popupWindow.dismiss();
             });
 
@@ -411,7 +417,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem1.setBackgroundResource(R.drawable.menubutton);
             menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem1.setOnClickListener(s -> {
-                new KmlLayerLoaderTask(this, gMap).execute();
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    // Если разрешение не предоставлено, запросите его у пользователя
+                    ActivityCompat.requestPermissions(this,
+                            new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                            REQUEST_CODE_READ_EXTERNAL_STORAGE);
+                } else {
+                    kmzLoader = new KmzLoader(context, gMap);
+                    kmzLoader.openFilePicker(MapsActivity.this);
+                }
+
                 popupWindow.dismiss();
             });
 
@@ -774,6 +790,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
+        if (kmzLoader.savedKmlLayer != null)
+            kmzLoader.savedKmlLayer.addLayerToMap();
+
     }
 
     @Override
@@ -784,6 +803,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
+        if (kmzLoader.savedKmlLayer != null)
+            kmzLoader.savedKmlLayer.addLayerToMap();
     }
 
     @Override
