@@ -1,6 +1,7 @@
 package ru.newlevel.hordemap;
 
 
+import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,8 +23,9 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
     private static List<Messages> messages;
     public static Messages lastDisplayedMessage;
 
+    @SuppressLint("NotifyDataSetChanged")
     public void setMessages(List<Messages> messages) {
-        this.messages = messages;
+        MessagesAdapter.messages = messages;
         notifyDataSetChanged();
     }
 
@@ -74,14 +76,15 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         return messages != null ? messages.size() : 0;
     }
 
-    public class MessageViewHolder extends RecyclerView.ViewHolder {
+    public static class MessageViewHolder extends RecyclerView.ViewHolder {
 
-        private TextView senderTextView;
-        private TextView contentTextView;
-        private TextView timeTextView;
-        private DateFormat dateFormat = new SimpleDateFormat("HH:mm");
-        private Button button;
-        private TimeZone timeZone = TimeZone.getDefault();
+        private final TextView senderTextView;
+        private final TextView contentTextView;
+        private final TextView timeTextView;
+        @SuppressLint("SimpleDateFormat")
+        private final DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+        private final Button button;
+        private final TimeZone timeZone = TimeZone.getDefault();
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -102,7 +105,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                     String[] strings = message.getMassage().split("&&&");
                     button.setVisibility(View.VISIBLE);
                     contentTextView.setText(strings.length == 3 ? strings[1] + " (" + Integer.parseInt(strings[2])/1000 + "kb)" : strings[1]);
-                    button.setOnClickListener(v12 -> GeoUpdateService.getInstance().downloadFile(strings[0], strings[1]));
+                    button.setOnClickListener(v12 -> DataUpdateService.getInstance().downloadFile(strings[0], strings[1]));
                 }
                 else {
                     contentTextView.setText(message.getMassage());

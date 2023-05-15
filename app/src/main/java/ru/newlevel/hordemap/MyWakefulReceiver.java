@@ -17,7 +17,7 @@ public class MyWakefulReceiver extends WakefulBroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         Log.d("Horde map", "Запустился MyWakefulReceiver ");
         MyServiceUtils.startAlarmManager(context);
-        Intent service = new Intent(context, GeoUpdateService.class);
+        Intent service = new Intent(context, DataUpdateService.class);
         service.setAction("com.newlevel.ACTION_SEND_DATA");
         startForegroundService(context, service);
     }

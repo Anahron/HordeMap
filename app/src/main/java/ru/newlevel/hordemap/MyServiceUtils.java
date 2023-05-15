@@ -1,6 +1,6 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.GeoUpdateService.getInstance;
+import static ru.newlevel.hordemap.DataUpdateService.getInstance;
 
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
@@ -58,8 +58,8 @@ public class MyServiceUtils {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
-    public static void checkAndStartForeground(GeoUpdateService geoUpdateService) {
-        System.out.println("В метод checkAndStartForeground пришло : " + geoUpdateService);
+    public static void checkAndStartForeground(DataUpdateService dataUpdateService) {
+        System.out.println("В метод checkAndStartForeground пришло : " + dataUpdateService);
         NotificationManager notificationManager = MapsActivity.getContext().getSystemService(NotificationManager.class);
 
         boolean notificationDisplayed = false;
@@ -71,7 +71,7 @@ public class MyServiceUtils {
         }
         if (!notificationDisplayed) {
             Log.d("Horde map", "Запустили сервис startForeground");
-            geoUpdateService.startForeground(NOTIFICATION_ID, MyServiceUtils.createNotification(MapsActivity.getContext()));
+            dataUpdateService.startForeground(NOTIFICATION_ID, MyServiceUtils.createNotification(MapsActivity.getContext()));
         } else {
             Log.d("Horde map", "Сервис startForeground уже запущен");
         }
@@ -83,7 +83,7 @@ public class MyServiceUtils {
 //        GeoUpdateService sender = GeoUpdateService.getInstance();
 //       // sender.exchangeGPSData();//обновление списка координат сразу после запуска не дожидаясь алармменеджера
 //        sender.getAllGeoData();
-        Intent service = new Intent(context, GeoUpdateService.class);
+        Intent service = new Intent(context, DataUpdateService.class);
         service.setAction("com.newlevel.ACTION_SEND_DATA");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(service);
@@ -94,7 +94,7 @@ public class MyServiceUtils {
     public static void stopGeoUpdateService(Context context) {
         MarkersHandler.markersOff();
         MapsActivity.permissionForGeoUpdate = false;
-        Intent intent = new Intent(context, GeoUpdateService.class);
+        Intent intent = new Intent(context, DataUpdateService.class);
         if (MyServiceUtils.alarmMgr != null)
             MyServiceUtils.alarmMgr.cancel(MyServiceUtils.pendingIntent);
         context.stopService(intent);

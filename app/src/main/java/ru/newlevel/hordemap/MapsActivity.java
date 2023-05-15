@@ -1,10 +1,9 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.GeoUpdateService.locationHistory;
+import static ru.newlevel.hordemap.DataUpdateService.locationHistory;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
@@ -116,7 +115,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (requestCode == 100)
             kmzLoader.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 101)
-            GeoUpdateService.getInstance().onActivityResult(requestCode, resultCode, data);
+            DataUpdateService.getInstance().onActivityResult(requestCode, resultCode, data);
     }
 
     protected void onDestroy() {
@@ -222,10 +221,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 progressBar = dialog.findViewById(R.id.progressBar);
                 progressBar.setVisibility(View.INVISIBLE);
 
-                GeoUpdateService.getMessagesFromDatabase(true);
+                DataUpdateService.getMessagesFromDatabase(true);
 
                 dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-
 
                 ImageButton closeButton = dialog.findViewById(R.id.close_massager);  // Кнопка закрыть
                 closeButton.setOnClickListener(v12 -> dialog.dismiss());
@@ -242,8 +240,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
                 textMassage.setOnEditorActionListener((textView, actionId, keyEvent) -> {
                     if (actionId == EditorInfo.IME_ACTION_DONE) {
-                        GeoUpdateService.sendMassage(String.valueOf(textMassage.getText()));
-                        GeoUpdateService.getMessagesFromDatabase(false);
+                        DataUpdateService.sendMassage(String.valueOf(textMassage.getText()));
+                        DataUpdateService.getMessagesFromDatabase(false);
                         textMassage.setText("");
                         recyclerView.requestFocus();
                         recyclerView.postDelayed(() -> {
@@ -257,8 +255,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 ImageButton button = dialog.findViewById(R.id.buttonSend);   // Отправка
                 button.setBackgroundResource(R.drawable.send_massage);
                 button.setOnClickListener(v1 -> {
-                    GeoUpdateService.sendMassage(String.valueOf(textMassage.getText()));
-                    GeoUpdateService.getMessagesFromDatabase(false);
+                    DataUpdateService.sendMassage(String.valueOf(textMassage.getText()));
+                    DataUpdateService.getMessagesFromDatabase(false);
                     textMassage.setText("");
                     recyclerView.requestFocus();
                     recyclerView.postDelayed(() -> {
@@ -270,7 +268,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 ImageButton downloadButton = dialog.findViewById(R.id.buttonSendFile);   // загрузка
                 downloadButton.setBackgroundResource(R.drawable.download_button);
                 downloadButton.setOnClickListener(v1 -> {
-                    GeoUpdateService.onSendFileButtonClick(MapsActivity.this);
+                    DataUpdateService.onSendFileButtonClick(MapsActivity.this);
                     recyclerView.requestFocus();
                     recyclerView.postDelayed(() -> {
                         recyclerView.scrollToPosition(adapter.getItemCount() - 1);
@@ -285,7 +283,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Runnable runnable = new Runnable() {
                     @Override
                     public void run() {
-                        GeoUpdateService.getMessagesFromDatabase(false);
+                        DataUpdateService.getMessagesFromDatabase(false);
                         int newItemCount = adapter.getItemCount(); // Текущий размер списка
                         try {
                             if (newItemCount > previousItemCount[0] || !adapter.getItem(newItemCount - 1).getMassage().equals(lastMessage[0].getMassage())) {
@@ -656,7 +654,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         case 0:
                             // Показать расстояние до точки
                             float[] distance = new float[1];
-                            Location.distanceBetween(GeoUpdateService.getLatitude(), GeoUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
+                            Location.distanceBetween(DataUpdateService.getLatitude(), DataUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
                             Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
                             break;
                         case 1:
@@ -758,8 +756,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
                                 if (descriptionEditText.getText().toString().length() > 0)
                                     description[0] = String.valueOf(descriptionEditText.getText());
-                                GeoUpdateService.sendGeoMarker(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
-                                GeoUpdateService.getAllGeoData();
+                                DataUpdateService.sendGeoMarker(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
+                                DataUpdateService.getAllGeoData();
                                 dialogInterface.dismiss();
                             });
                             // Создание диалогового окна
@@ -819,7 +817,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 AlertDialog.Builder builder = new AlertDialog.Builder(context);
                 builder.setTitle("Удаление маркера").setMessage("Вы уверены, что хотите удалить маркер?").setPositiveButton("Да", (dialog, which) -> {
                     // Удаление маркера
-                    GeoUpdateService.deleteMarker(marker);
+                    DataUpdateService.deleteMarker(marker);
                     marker.remove();
                 }).setNegativeButton("Нет", (dialog, which) -> {
                     // Отмена удаления

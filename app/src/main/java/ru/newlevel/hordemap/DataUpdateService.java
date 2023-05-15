@@ -3,6 +3,7 @@ package ru.newlevel.hordemap;
 import static android.app.Activity.RESULT_OK;
 import static ru.newlevel.hordemap.MapsActivity.adapter;
 import static ru.newlevel.hordemap.MapsActivity.progressBar;
+import static ru.newlevel.hordemap.MapsActivity.progressText;
 
 
 import android.Manifest;
@@ -18,14 +19,13 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.provider.MediaStore;
-import android.provider.Settings;
-import android.text.style.ClickableSpan;
 import android.util.Log;
 import android.view.View;
-import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -60,17 +60,16 @@ import java.util.Map;
 import com.google.firebase.database.DatabaseReference;
 
 
-public class GeoUpdateService extends Service {
+public class DataUpdateService extends Service {
 
-    // public static String ipAdress = "horde.krasteplovizor.ru";  // сервер
-    // public static int port = 49283; // сервер
-    //  public static String ipAdress = "192.168.1.21";  //  локал
-    //  public static int port = 8080; // локал
     @SuppressLint("StaticFieldLeak")
-    private static GeoUpdateService instance = null;
+    private static DataUpdateService instance = null;
+
     private static double latitude;
     private static double longitude;
+
     public static List<LatLng> locationHistory = new ArrayList<>();
+
     private static boolean requestingLocationUpdates = false;
     private final static int UPDATE_INTERVAL = 3000;
     private final static int FASTEST_INTERVAL = 2000;
@@ -88,31 +87,82 @@ public class GeoUpdateService extends Service {
     private FusedLocationProviderClient fusedLocationClient;
     private static Location location;
     public static List<Messages> allMessages = new ArrayList<>();
-
-
+    private Handler handler = new Handler(Looper.getMainLooper());
     private static final Location[] lastLocation = {null};
 
-    public static synchronized GeoUpdateService getInstance() {
+    public static synchronized DataUpdateService getInstance() {
         if (instance == null) {
-            instance = new GeoUpdateService();
+            instance = new DataUpdateService();
         }
         return instance;
     }
 
-    void downloadFile(String url, String fileName) {
+    protected void downloadFile(String url, String fileName) {
         if (ContextCompat.checkSelfPermission(MapsActivity.getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
         } else {
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-            System.out.println("полученый файлнейм " + fileName);
+            System.out.println("Полученный файлнейм: " + fileName);
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 
             DownloadManager downloadManager = (DownloadManager) MapsActivity.getContext().getSystemService(Context.DOWNLOAD_SERVICE);
             if (downloadManager != null) {
-                downloadManager.enqueue(request);
+                long downloadId = downloadManager.enqueue(request);
+                observeDownloadProgress(downloadManager, downloadId);
             }
         }
+    }
+
+    private void observeDownloadProgress(DownloadManager downloadManager, long downloadId) {
+        DownloadManager.Query query = new DownloadManager.Query();
+        query.setFilterById(downloadId);
+        new Thread(() -> {
+            boolean downloading = true;
+            while (downloading) {
+                Cursor cursor = downloadManager.query(query);
+                if (cursor.moveToFirst()) {
+                    @SuppressLint("Range") int status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS));
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        downloading = false;
+                        onDownloadComplete();
+                    } else if (status == DownloadManager.STATUS_FAILED) {
+                        downloading = false;
+                        onDownloadFailed();
+                    } else {
+                        @SuppressLint("Range") int bytesDownloaded = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+                        @SuppressLint("Range") int bytesTotal = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+                        float percent = (bytesDownloaded * 100.0f) / bytesTotal;
+                        updateProgress(percent);
+                    }
+                }
+                cursor.close();
+            }
+        }).start();
+    }
+
+    private void updateProgress(float percent) {
+        handler.post(() -> {
+            progressBar.setVisibility(View.VISIBLE);
+            progressBar.setProgress((int) percent);
+            progressText.setVisibility(View.VISIBLE);
+        });
+    }
+
+    private void onDownloadComplete() {
+        handler.post(() -> {
+            progressBar.setVisibility(View.GONE);
+            progressText.setVisibility(View.GONE);
+            Toast.makeText(MapsActivity.getContext(), "Файл успешно загружен", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    private void onDownloadFailed() {
+        handler.post(() -> {
+            progressBar.setVisibility(View.GONE);
+            progressText.setVisibility(View.GONE);
+            Toast.makeText(MapsActivity.getContext(), "Ошибка загрузки файла", Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void sendGeoData(String userId, String userName, double latitude, double longitude) {
@@ -180,6 +230,7 @@ public class GeoUpdateService extends Service {
         }
         return fileName;
     }
+
     private long getFileSize(Uri fileUri) {
         Cursor cursor = null;
         try {
@@ -223,7 +274,6 @@ public class GeoUpdateService extends Service {
         uploadTask.addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 progressBar.setVisibility(View.GONE);
-                MapsActivity.progressText.setVisibility(View.GONE);
                 MapsActivity.progressText.setVisibility(View.GONE);
                 System.out.println("Загрузка завершена успешно");
                 fileRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
@@ -325,14 +375,9 @@ public class GeoUpdateService extends Service {
                             continue;
                         } else {
                             alpha[0] = 1 - (timeDiffMinutes / 10F);
-                            if (alpha[0] < 0.5)
-                                alpha[0] = 0.5F;
+                            if (alpha[0] < 0.5) alpha[0] = 0.5F;
                         }
-                        String data = userName + "/" +
-                                latitude + "/" +
-                                longitude + "/" +
-                                timestamp + "/" +
-                                alpha[0];
+                        String data = userName + "/" + latitude + "/" + longitude + "/" + timestamp + "/" + alpha[0];
                         System.out.println("Положили в hash " + data);
                         hashMap.put(userId, data);
                     }
@@ -374,12 +419,7 @@ public class GeoUpdateService extends Service {
                         } else {
                             alpha[0] = 1;
                         }
-                        String data = title + "/" +
-                                latitude + "/" +
-                                longitude + "/" +
-                                timestamp + "/" +
-                                alpha[0] + "/" +
-                                item;
+                        String data = title + "/" + latitude + "/" + longitude + "/" + timestamp + "/" + alpha[0] + "/" + item;
                         hashMap.put(snapshot.getKey(), data);
                     }
                     if (!hashMap.isEmpty()) {
@@ -426,8 +466,7 @@ public class GeoUpdateService extends Service {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 List<Messages> messages = new ArrayList<>();
-                if (isNeedFool)
-                    allMessages.clear();
+                if (isNeedFool) allMessages.clear();
                 if (allMessages.isEmpty()) {
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                         Messages message = snapshot.getValue(Messages.class);
@@ -437,8 +476,7 @@ public class GeoUpdateService extends Service {
                 } else {
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                         Messages message = snapshot.getValue(Messages.class);
-                        if (allMessages.contains(message))
-                            continue;
+                        if (allMessages.contains(message)) continue;
                         messages.add(message);
                     }
                     adapter.setLatestMessages(messages);
