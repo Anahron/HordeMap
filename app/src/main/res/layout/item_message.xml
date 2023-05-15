@@ -83,7 +83,16 @@
             android:background="#96A9BD"
             android:text="Скачать файл"
             android:textSize="13sp"
-            tools:visibility="visible" />
+            tools:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_margin="10dp"
+            tools:visibility="visible"
+            android:src="@drawable/downloaded_image"
+            android:layout_gravity="start"/>
 
     </LinearLayout>
 

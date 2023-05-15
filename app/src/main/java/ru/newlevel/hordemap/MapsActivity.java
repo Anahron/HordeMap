@@ -19,6 +19,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import android.text.InputType;
 import android.util.TypedValue;
@@ -45,6 +46,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -58,7 +60,6 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CustomCap;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
@@ -67,9 +68,16 @@ import com.google.firebase.FirebaseApp;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Locale;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
@@ -77,23 +85,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public static GoogleMap gMap;
     public static Boolean permissionForGeoUpdate = false;
-    private Polyline polyline;
+    public static MessagesAdapter adapter = new MessagesAdapter();
 
-    @SuppressLint("StaticFieldLeak")
-    public static TextView textView1;
     private boolean IsNeedToSave = true;
     private Polyline routePolyline;
     private TextView distanceTextView;
-    private static Context context;
     private Handler handler;
-    public static MessagesAdapter adapter = new MessagesAdapter();
     private RecyclerView recyclerView;
     @SuppressLint("StaticFieldLeak")
+    public static TextView textView1;
+    @SuppressLint("StaticFieldLeak")
     public static ImageButton imageButton;
+    @SuppressLint("StaticFieldLeak")
     public static ProgressBar progressBar;
+    @SuppressLint("StaticFieldLeak")
     public static TextView progressText;
+    @SuppressLint("StaticFieldLeak")
+    private static Context context;
     private KmzLoader kmzLoader;
-
+    private Polyline polyline;
+    private Uri photoUri;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -103,10 +114,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
     private static final int REQUEST_CODE_READ_EXTERNAL_STORAGE = 1007;
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1008;
-    private static final int REQUEST_CODE_MANAGE_EXTERNAL_STORAGE = 1009;
+    private static final int REQUEST_CODE_CAMERA_PERMISSION = 1009;
+    private static final int REQUEST_IMAGE_CAPTURE = 10;
+    private static final int REQUEST_CODE_CAMERA = 11;
+    private boolean isCameraResult = false;
 
     public static Context getContext() {
         return context;
+    }
+
+
+    @SuppressLint("IntentReset")
+    private void openCamera() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            // Создаем временный файл для сохранения снимка
+            File photoFile = createImageFile();
+            if (photoFile != null) {
+                photoUri = FileProvider.getUriForFile(this, "ru.newlevel.hordemap.fileprovider", photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+
+                // Создание интента для открытия галереи
+                @SuppressLint("IntentReset") Intent galleryIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                galleryIntent.setType("image/*");
+
+                // Создание интента для выбора из нескольких источников
+                Intent chooserIntent = Intent.createChooser(takePictureIntent, "Select Source");
+                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{galleryIntent});
+
+                startActivityForResult(chooserIntent, REQUEST_CODE_CAMERA);
+            }
+        }
     }
 
     @Override
@@ -116,7 +154,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             kmzLoader.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 101)
             DataUpdateService.getInstance().onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK) {
+            if (data != null) {
+                Uri photoUri = data.getData();
+                DataUpdateService.getInstance().sendFile(photoUri);// Интент с камерой
+            } else
+                DataUpdateService.getInstance().sendFile(photoUri);
+        }
     }
+
 
     protected void onDestroy() {
         System.out.println("Вызван в мэйне");
@@ -131,19 +177,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return Math.round((float) dp * density);
     }
 
-    protected void setPermissionForWriteExternal(){
+    protected void setPermissionForWriteExternal() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-            // Разрешение не было предоставлено, необходимо запросить его у пользователя
             Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-            Uri uri = Uri.fromParts("package", context.getPackageName(), null);
+            Uri uri = Uri.fromParts("package", getPackageName(), null);
             intent.setData(uri);
-            startActivityForResult(intent, REQUEST_CODE_MANAGE_EXTERNAL_STORAGE);
+            startActivity(intent);
         } else {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
             }
         }
     }
+
     @SuppressLint("BatteryLife")
     protected void setPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -211,13 +257,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 imageButton.setBackgroundResource(R.drawable.nomassage);
                 dialog.setContentView(R.layout.activity_messages);
 
-
                 recyclerView = dialog.findViewById(R.id.recyclerViewMessages);
                 recyclerView.setLayoutManager(new LinearLayoutManager(context));
                 recyclerView.setAdapter(adapter);
 
                 progressText = dialog.findViewById(R.id.progressText);
                 progressText.setVisibility(View.INVISIBLE);
+
                 progressBar = dialog.findViewById(R.id.progressBar);
                 progressBar.setVisibility(View.INVISIBLE);
 
@@ -252,6 +298,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                     return false;
                 });
+
                 ImageButton button = dialog.findViewById(R.id.buttonSend);   // Отправка
                 button.setBackgroundResource(R.drawable.send_massage);
                 button.setOnClickListener(v1 -> {
@@ -274,6 +321,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         recyclerView.scrollToPosition(adapter.getItemCount() - 1);
                         textMassage.requestFocus();
                     }, 200); // Задержка для обеспечения фокуса на RecyclerView
+                });
+
+                ImageButton buttonPhoto = dialog.findViewById(R.id.buttonPhoto);   // camera
+                buttonPhoto.setBackgroundResource(R.drawable.button_photo);
+                buttonPhoto.setOnClickListener(v1 -> {
+                    openCamera();
                 });
 
 
@@ -319,7 +372,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menubutton2.setTextSize(15);
         menubutton2.setOnClickListener(v -> {
             PopupWindow popupWindow = new PopupWindow(context);
-            View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu2, null, false);
+            @SuppressLint("InflateParams") View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu2, null, false);
             popupWindow.setContentView(view);
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
@@ -360,8 +413,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 gMap.clear();
                 MarkersHandler.setVisible();
                 MarkersHandler.markersOn();
-                if (kmzLoader.savedKmlLayer != null)
-                    kmzLoader.savedKmlLayer.addLayerToMap();
+                if (KmzLoader.savedKmlLayer != null)
+                    KmzLoader.savedKmlLayer.addLayerToMap();
                 popupWindow.dismiss();
             });
 
@@ -434,7 +487,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menubutton.setTextSize(15);
         menubutton.setOnClickListener(v -> {
             PopupWindow popupWindow = new PopupWindow(context);
-            View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu, null, false);
+            @SuppressLint("InflateParams") View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu, null, false);
             popupWindow.setContentView(view);
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
@@ -749,9 +802,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             });
 
                             // Установка кнопки "Отмена"
-                            dialogMarkerBuilder.setNegativeButton("Отмена", (dialogInterface, which1) -> {
-                                dialogInterface.dismiss();
-                            });
+                            dialogMarkerBuilder.setNegativeButton("Отмена", (dialogInterface, which1) -> dialogInterface.dismiss());
                             // Установка кнопки "Поставить маркер"
                             dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
                                 if (descriptionEditText.getText().toString().length() > 0)
@@ -811,34 +862,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             return true;
         });
 
-        gMap.setOnInfoWindowLongClickListener(new GoogleMap.OnInfoWindowLongClickListener() {
-            @Override
-            public void onInfoWindowLongClick(@NonNull Marker marker) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                builder.setTitle("Удаление маркера").setMessage("Вы уверены, что хотите удалить маркер?").setPositiveButton("Да", (dialog, which) -> {
-                    // Удаление маркера
-                    DataUpdateService.deleteMarker(marker);
-                    marker.remove();
-                }).setNegativeButton("Нет", (dialog, which) -> {
-                    // Отмена удаления
-                    dialog.dismiss();
-                }).show();
-            }
+        gMap.setOnInfoWindowLongClickListener(marker -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            builder.setTitle("Удаление маркера").setMessage("Вы уверены, что хотите удалить маркер?").setPositiveButton("Да", (dialog, which) -> {
+                // Удаление маркера
+                DataUpdateService.deleteMarker(marker);
+                marker.remove();
+            }).setNegativeButton("Нет", (dialog, which) -> {
+                // Отмена удаления
+                dialog.dismiss();
+            }).show();
         });
 
-        gMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
-            @Override
-            public void onInfoWindowClick(Marker marker) {
-                System.out.println("Закрываем в setOnInfoWindowClickListener");
-                // Здесь обрабатывайте нажатие на всплывающее окно
-                marker.hideInfoWindow();
-            }
+        gMap.setOnInfoWindowClickListener(marker -> {
+            System.out.println("Закрываем в setOnInfoWindowClickListener");
+            // Здесь обрабатывайте нажатие на всплывающее окно
+            marker.hideInfoWindow();
         });
 
-        if (kmzLoader.savedKmlLayer != null)
-            kmzLoader.savedKmlLayer.addLayerToMap();
+        if (KmzLoader.savedKmlLayer != null)
+            KmzLoader.savedKmlLayer.addLayerToMap();
 
     }
+
+    private File createImageFile() {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        try {
+            File imageFile = File.createTempFile(imageFileName, ".jpg", storageDir);
+            return imageFile;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 
     @Override
     protected void onPause() {
@@ -848,8 +907,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
-        if (kmzLoader.savedKmlLayer != null)
-            kmzLoader.savedKmlLayer.addLayerToMap();
+        if (KmzLoader.savedKmlLayer != null)
+            KmzLoader.savedKmlLayer.addLayerToMap();
     }
 
     @Override

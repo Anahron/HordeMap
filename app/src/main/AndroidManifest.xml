@@ -22,6 +22,7 @@
     <uses-permission android:name="android.permission.SENSOR" />
     <uses-permission android:name="android.permission-group.SENSORS" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.CHANGE_APP_IDLE_STATE"
         tools:ignore="ProtectedPermissions" />
 
@@ -38,7 +39,15 @@
         android:theme="@style/Theme.HordeMap"
         tools:targetApi="32">
         <!-- Здесь добавьте теги метаданных Firebase для вашего проекта -->
-
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="ru.newlevel.hordemap.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <meta-data
             android:name="com.google.firebase.database.connection_data_enabled"
             android:value="true" />
@@ -79,7 +88,11 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_api_key" />
-
+        <activity
+            android:name=".FullScreenImageActivity"
+            android:label="Full Screen Image"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+        </activity>
         <activity
             android:name=".MapsActivity"
             android:configChanges="orientation|screenSize"

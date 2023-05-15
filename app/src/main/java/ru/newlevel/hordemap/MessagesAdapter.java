@@ -1,22 +1,55 @@
 package ru.newlevel.hordemap;
 
 
+import static com.bumptech.glide.load.engine.DiskCacheStrategy.ALL;
+
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.os.Environment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.GlideBuilder;
+import com.bumptech.glide.Priority;
+import com.bumptech.glide.RequestBuilder;
+import com.bumptech.glide.RequestManager;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.load.engine.cache.DiskCache;
+import com.bumptech.glide.load.engine.cache.InternalCacheDiskCacheFactory;
+import com.bumptech.glide.load.engine.cache.LruResourceCache;
+import com.bumptech.glide.request.RequestOptions;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+
+
+import org.apache.commons.io.FileUtils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
+
 
 public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.MessageViewHolder> {
 
@@ -85,6 +118,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         private final DateFormat dateFormat = new SimpleDateFormat("HH:mm");
         private final Button button;
         private final TimeZone timeZone = TimeZone.getDefault();
+        private final ImageView itemImageView;
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -92,6 +126,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             contentTextView = itemView.findViewById(R.id.textViewMessage);
             timeTextView = itemView.findViewById(R.id.textViewTime);
             button = itemView.findViewById(R.id.download_button);
+            itemImageView = itemView.findViewById(R.id.imageView);
         }
 
         public void bind(Messages message) {
@@ -100,22 +135,83 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             dateFormat.setTimeZone(timeZone);
             senderTextView.setText(message.getUserName());
             timeTextView.setText(dateFormat.format(new Date(message.getTimestamp())));
-            try {
-                if (message.getMassage().startsWith("https://firebasestorage")){
+            if (message.getMassage().startsWith("https://firebasestorage")) {
+                try {
                     String[] strings = message.getMassage().split("&&&");
-                    button.setVisibility(View.VISIBLE);
-                    contentTextView.setText(strings.length == 3 ? strings[1] + " (" + Integer.parseInt(strings[2])/1000 + "kb)" : strings[1]);
-                    button.setOnClickListener(v12 -> DataUpdateService.getInstance().downloadFile(strings[0], strings[1]));
-                }
-                else {
+                    if (strings[1].endsWith(".jpg")) {
+                        contentTextView.setText(strings.length == 3 ? "Image:" + Integer.parseInt(strings[2]) / 1000 + "kb" : strings[1]);
+                     //   contentTextView.setVisibility(View.GONE);
+                        itemImageView.setVisibility(View.VISIBLE);
+                        button.setVisibility(View.GONE);
+                        itemImageView.setOnClickListener(v -> openFullScreenImage(strings[0]));
+                    } else {
+                        itemImageView.setVisibility(View.GONE);
+                        button.setVisibility(View.VISIBLE);
+                        button.setOnClickListener(v12 -> DataUpdateService.getInstance().downloadFile(strings[0], strings[1]));
+                        contentTextView.setText(strings.length == 3 ? strings[1] + " (" + Integer.parseInt(strings[2]) / 1000 + "kb)" : strings[1]);
+                    }
+                } catch (Exception e) {
                     contentTextView.setText(message.getMassage());
-                    button.setVisibility(View.GONE);
+                    e.printStackTrace();
                 }
-            } catch (Exception e) {
+            } else {
+                button.setVisibility(View.GONE);
+                itemImageView.setVisibility(View.GONE);
                 contentTextView.setText(message.getMassage());
-                e.printStackTrace();
             }
+        }
 
+        private void openFullScreenImage(String imageUrl) {
+            Intent intent = new Intent(MapsActivity.getContext(), FullScreenImageActivity.class);
+            intent.putExtra("imageUrl", imageUrl);
+            MapsActivity.getContext().startActivity(intent);
+        }
+    }
+
+    public static class GlideWrapper {
+        public static void load(Context context, StorageReference storageReference, String Uri, String fileName) {
+            RequestBuilder<Bitmap> requestBuilder = Glide.with(context)
+                    .asBitmap()
+                    .load(storageReference);
+
+            RequestOptions options = new RequestOptions()
+                    .placeholder(R.drawable.loading_image) // Замените на свой ресурс заглушки
+                    .error(R.drawable.download_image_error) // Замените на свой ресурс ошибки
+                    .priority(Priority.HIGH)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL);
+
+            requestBuilder
+                    .apply(options)
+                    .into(new CustomTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(@NonNull Bitmap resource, @Nullable Transition<? super Bitmap> transition) {
+                            // Сохранение Bitmap во внешнем хранилище
+                            File file = new File(Environment.getExternalStorageDirectory(), fileName);
+                            try (FileOutputStream fos = new FileOutputStream(file)) {
+                                resource.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                                fos.flush();
+                                // Файл сохранен успешно
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                                // Обработка ошибки сохранения файла
+                            }
+                        }
+
+                        @Override
+                        public void onLoadCleared(@Nullable Drawable placeholder) {
+
+                        }
+                    });
+        }
+    }
+
+    public static class GlideCacheModule {
+
+        @SuppressLint("VisibleForTests")
+        public static void installGlideCache(Context context, int cacheSizeBytes) {
+            GlideBuilder builder = new GlideBuilder();
+            builder.setDiskCache(new InternalCacheDiskCacheFactory(context, cacheSizeBytes));
+            Glide.init(context, builder);
         }
     }
 }

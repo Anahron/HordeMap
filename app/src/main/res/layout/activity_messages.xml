@@ -40,6 +40,12 @@
             tools:layout_editor_absoluteY="294dp"/>
 
         <ImageButton
+            android:id="@+id/buttonPhoto"
+            android:layout_width="35dp"
+            android:layout_height="35dp"
+            android:scaleType="fitCenter"
+            android:layout_margin="5dp" />
+        <ImageButton
             android:id="@+id/buttonSendFile"
             android:layout_width="35dp"
             android:layout_height="35dp"

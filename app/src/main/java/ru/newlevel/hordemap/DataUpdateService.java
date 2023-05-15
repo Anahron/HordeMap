@@ -16,6 +16,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -111,6 +112,8 @@ public class DataUpdateService extends Service {
                 long downloadId = downloadManager.enqueue(request);
                 observeDownloadProgress(downloadManager, downloadId);
             }
+            // Обновление медиахранилища после загрузки файла
+            MediaScannerConnection.scanFile(MapsActivity.getContext(), new String[]{Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + fileName}, null, null);
         }
     }
 
@@ -248,7 +251,7 @@ public class DataUpdateService extends Service {
         return 0;
     }
 
-    private void sendFile(Uri fileUri) {
+    protected void sendFile(Uri fileUri) {
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference();
         String fileName = getFileNameFromUri(fileUri);
@@ -269,19 +272,14 @@ public class DataUpdateService extends Service {
             }
             System.out.println("Прогресс загрузки: " + progress + "%");
         });
-
-        // Обработайте завершение загрузки
         uploadTask.addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 progressBar.setVisibility(View.GONE);
                 MapsActivity.progressText.setVisibility(View.GONE);
                 System.out.println("Загрузка завершена успешно");
-                fileRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                    @Override
-                    public void onSuccess(Uri uri) {
-                        String downloadUrl = uri.toString();
-                        createNewMessage(downloadUrl + "&&&" + fileName + "&&&" + fileSize);
-                    }
+                fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                    String downloadUrl = uri.toString();
+                    createNewMessage(downloadUrl + "&&&" + fileName + "&&&" + fileSize);
                 });
             } else {
                 System.out.println("Ошибка загрузки файла: " + task.getException().getMessage());
