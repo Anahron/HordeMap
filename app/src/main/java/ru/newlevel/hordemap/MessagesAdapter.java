@@ -1,10 +1,10 @@
 package ru.newlevel.hordemap;
 
-import android.annotation.SuppressLint;
-import android.os.Handler;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -34,7 +34,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         messages.addAll(latestMessages);
         notifyItemRangeInserted(messages.size() - latestMessages.size(), latestMessages.size());
 
-        if (!latestMessages.isEmpty()) {
+        if (!latestMessages.isEmpty() && !messages.get(messages.size() - 1).getMassage().startsWith("http") && !messages.get(messages.size() - 2).getMassage().startsWith("http")) {
             Messages previousMessage = null;
             if (messages.size() > 1) {
                 previousMessage = messages.get(messages.size() - 2);
@@ -47,6 +47,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             }
         }
     }
+
     public Messages getItem(int position) {
         if (messages != null && position >= 0 && position < messages.size()) {
             return messages.get(position);
@@ -79,6 +80,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         private TextView contentTextView;
         private TextView timeTextView;
         private DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+        private Button button;
         private TimeZone timeZone = TimeZone.getDefault();
 
         public MessageViewHolder(@NonNull View itemView) {
@@ -86,16 +88,31 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             senderTextView = itemView.findViewById(R.id.textViewUsername);
             contentTextView = itemView.findViewById(R.id.textViewMessage);
             timeTextView = itemView.findViewById(R.id.textViewTime);
+            button = itemView.findViewById(R.id.download_button);
         }
 
         public void bind(Messages message) {
             lastDisplayedMessage = message;
+            System.out.println("messege получен" + message.getMassage());
             dateFormat.setTimeZone(timeZone);
             senderTextView.setText(message.getUserName());
             timeTextView.setText(dateFormat.format(new Date(message.getTimestamp())));
-            contentTextView.setText(message.getMassage());
+            try {
+                if (message.getMassage().startsWith("https://firebasestorage")){
+                    String[] strings = message.getMassage().split("&&&");
+                    button.setVisibility(View.VISIBLE);
+                    contentTextView.setText(strings.length == 3 ? strings[1] + " (" + Integer.parseInt(strings[2])/1000 + "kb)" : strings[1]);
+                    button.setOnClickListener(v12 -> GeoUpdateService.getInstance().downloadFile(strings[0], strings[1]));
+                }
+                else {
+                    contentTextView.setText(message.getMassage());
+                    button.setVisibility(View.GONE);
+                }
+            } catch (Exception e) {
+                contentTextView.setText(message.getMassage());
+                e.printStackTrace();
+            }
 
         }
-
     }
-    }
+}

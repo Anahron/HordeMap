@@ -1,19 +1,37 @@
 package ru.newlevel.hordemap;
 
+import static android.app.Activity.RESULT_OK;
 import static ru.newlevel.hordemap.MapsActivity.adapter;
+import static ru.newlevel.hordemap.MapsActivity.progressBar;
 
+
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.app.DownloadManager;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.IBinder;
 import android.os.Looper;
+import android.provider.MediaStore;
+import android.provider.Settings;
+import android.text.style.ClickableSpan;
 import android.util.Log;
+import android.view.View;
+import android.widget.ProgressBar;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -22,17 +40,22 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 import com.google.firebase.database.DatabaseReference;
 
@@ -56,12 +79,16 @@ public class GeoUpdateService extends Service {
     private final static String GEO_DATA_PATH = "geoData";
     private final static String GEO_MARKERS_PATH = "geoMarkers";
     private final static String MASSAGE_PATH = "massages";
+    private final static String MASSAGE_FILE_FOLDER = "MessengerFiles";
 
+    private static final int REQUEST_CODE_SELECT_FILE = 101;
+    private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1010;
 
     private LocationRequest locationRequest;
     private FusedLocationProviderClient fusedLocationClient;
     private static Location location;
     public static List<Messages> allMessages = new ArrayList<>();
+
 
     private static final Location[] lastLocation = {null};
 
@@ -72,6 +99,21 @@ public class GeoUpdateService extends Service {
         return instance;
     }
 
+    void downloadFile(String url, String fileName) {
+        if (ContextCompat.checkSelfPermission(MapsActivity.getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
+        } else {
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+            System.out.println("полученый файлнейм " + fileName);
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+
+            DownloadManager downloadManager = (DownloadManager) MapsActivity.getContext().getSystemService(Context.DOWNLOAD_SERVICE);
+            if (downloadManager != null) {
+                downloadManager.enqueue(request);
+            }
+        }
+    }
 
     private void sendGeoData(String userId, String userName, double latitude, double longitude) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
@@ -104,6 +146,102 @@ public class GeoUpdateService extends Service {
         database.updateChildren(updates);
     }
 
+    public static void onSendFileButtonClick(Activity activity) {
+
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*"); // Выберите нужный тип файлов, например, image/* для изображений
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        activity.startActivityForResult(intent, REQUEST_CODE_SELECT_FILE);
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_SELECT_FILE && resultCode == RESULT_OK) {
+            if (data != null && data.getData() != null) {
+                Uri fileUri = data.getData();
+                sendFile(fileUri); // Вызов вашего метода sendMassage с путем к файлу
+            }
+        }
+    }
+
+    private String getFileNameFromUri(Uri uri) {
+        String fileName = null;
+        Cursor cursor = null;
+        try {
+            String[] projection = {MediaStore.MediaColumns.DISPLAY_NAME};
+            cursor = MapsActivity.getContext().getContentResolver().query(uri, projection, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                int columnIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME);
+                fileName = cursor.getString(columnIndex);
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return fileName;
+    }
+    private long getFileSize(Uri fileUri) {
+        Cursor cursor = null;
+        try {
+            String[] projection = {MediaStore.MediaColumns.SIZE};
+            cursor = MapsActivity.getContext().getContentResolver().query(fileUri, projection, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                int columnIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE);
+                return cursor.getLong(columnIndex);
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return 0;
+    }
+
+    private void sendFile(Uri fileUri) {
+        FirebaseStorage storage = FirebaseStorage.getInstance();
+        StorageReference storageRef = storage.getReference();
+        String fileName = getFileNameFromUri(fileUri);
+        Long fileSize = getFileSize(fileUri);
+        // Создайте ссылку на файл в Firebase Storage
+        StorageReference fileRef = storageRef.child(MASSAGE_FILE_FOLDER + "/" + fileName);
+
+        // Загрузите файл в Firebase Storage
+        UploadTask uploadTask = fileRef.putFile(fileUri);
+
+        // Отслеживайте прогресс загрузки (необязательно)
+        uploadTask.addOnProgressListener(taskSnapshot -> {
+            double progress = (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                progressBar.setVisibility(View.VISIBLE);
+                MapsActivity.progressText.setVisibility(View.VISIBLE);
+                MapsActivity.progressBar.setProgress((int) progress, true);
+            }
+            System.out.println("Прогресс загрузки: " + progress + "%");
+        });
+
+        // Обработайте завершение загрузки
+        uploadTask.addOnCompleteListener(task -> {
+            if (task.isSuccessful()) {
+                progressBar.setVisibility(View.GONE);
+                MapsActivity.progressText.setVisibility(View.GONE);
+                MapsActivity.progressText.setVisibility(View.GONE);
+                System.out.println("Загрузка завершена успешно");
+                fileRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                    @Override
+                    public void onSuccess(Uri uri) {
+                        String downloadUrl = uri.toString();
+                        createNewMessage(downloadUrl + "&&&" + fileName + "&&&" + fileSize);
+                    }
+                });
+            } else {
+                System.out.println("Ошибка загрузки файла: " + task.getException().getMessage());
+                // Обработайте ошибку загрузки файла
+            }
+        });
+
+
+    }
+
     public static void checkLastMessage() {
         System.out.println("ПРоверяем последние сообщения");
         DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
@@ -119,7 +257,7 @@ public class GeoUpdateService extends Service {
                         for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
                             Messages lastMessage = messageSnapshot.getValue(Messages.class);
                             assert lastMessage != null;
-                            if (!lastMessage.getMassage().equals(MessagesAdapter.lastDisplayedMessage.getMassage())) {
+                            if (lastMessage.getTimestamp() != MessagesAdapter.lastDisplayedMessage.getTimestamp()) {
                                 MapsActivity.imageButton.setBackgroundResource(R.drawable.yesmassage);
                                 return;
                             }
@@ -317,16 +455,14 @@ public class GeoUpdateService extends Service {
     static void sendMassage(String massage) {
         DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
         Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
-
         lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
                         Messages lastMessage = messageSnapshot.getValue(Messages.class);
-                        if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName())) {
-                            // Изменить текст последнего сообщения
-                            String newMassage = lastMessage.getMassage() + "\n >: " + massage;
+                        if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName()) && !lastMessage.getMassage().startsWith("http")) {
+                            String newMassage = lastMessage.getMassage() + "\n> " + massage;
                             updateLastMessageText(messageSnapshot.getKey(), newMassage);
                             return;
                         }
@@ -441,5 +577,4 @@ public class GeoUpdateService extends Service {
         //    exchangeGPSData();
         return START_STICKY;
     }
-
 }

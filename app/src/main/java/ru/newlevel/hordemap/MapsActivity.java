@@ -4,6 +4,7 @@ import static ru.newlevel.hordemap.GeoUpdateService.locationHistory;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
@@ -17,6 +18,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.provider.Settings;
 import android.text.InputType;
@@ -33,6 +35,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -88,7 +91,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private RecyclerView recyclerView;
     @SuppressLint("StaticFieldLeak")
     public static ImageButton imageButton;
+    public static ProgressBar progressBar;
+    public static TextView progressText;
     private KmzLoader kmzLoader;
+
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -96,7 +102,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION = 1004;
     private static final int MY_PERMISSIONS_REQUEST_WAKE_LOCK = 1005;
     private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
-    private static final int  REQUEST_CODE_READ_EXTERNAL_STORAGE = 1007;
+    private static final int REQUEST_CODE_READ_EXTERNAL_STORAGE = 1007;
+    private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1008;
+    private static final int REQUEST_CODE_MANAGE_EXTERNAL_STORAGE = 1009;
 
     public static Context getContext() {
         return context;
@@ -105,7 +113,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        kmzLoader.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 100)
+            kmzLoader.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 101)
+            GeoUpdateService.getInstance().onActivityResult(requestCode, resultCode, data);
     }
 
     protected void onDestroy() {
@@ -121,6 +132,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return Math.round((float) dp * density);
     }
 
+    protected void setPermissionForWriteExternal(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            // Разрешение не было предоставлено, необходимо запросить его у пользователя
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            Uri uri = Uri.fromParts("package", context.getPackageName(), null);
+            intent.setData(uri);
+            startActivityForResult(intent, REQUEST_CODE_MANAGE_EXTERNAL_STORAGE);
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
+            }
+        }
+    }
     @SuppressLint("BatteryLife")
     protected void setPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -147,6 +171,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
             }
         }
+        setPermissionForWriteExternal();
         Intent intent = new Intent();
         intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
         intent.setData(Uri.parse("package:" + getPackageName()));
@@ -186,20 +211,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Dialog dialog = new Dialog(context, R.style.AlertDialogNoMargins);
                 imageButton.setBackgroundResource(R.drawable.nomassage);
                 dialog.setContentView(R.layout.activity_messages);
+
+
                 recyclerView = dialog.findViewById(R.id.recyclerViewMessages);
                 recyclerView.setLayoutManager(new LinearLayoutManager(context));
                 recyclerView.setAdapter(adapter);
-                dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+
+                progressText = dialog.findViewById(R.id.progressText);
+                progressText.setVisibility(View.INVISIBLE);
+                progressBar = dialog.findViewById(R.id.progressBar);
+                progressBar.setVisibility(View.INVISIBLE);
+
                 GeoUpdateService.getMessagesFromDatabase(true);
 
-                ImageButton closeButton = dialog.findViewById(R.id.close_massager);
+                dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+
+
+                ImageButton closeButton = dialog.findViewById(R.id.close_massager);  // Кнопка закрыть
                 closeButton.setOnClickListener(v12 -> dialog.dismiss());
                 closeButton.setBackgroundResource(R.drawable.close_button);
 
-                ImageButton downButton = dialog.findViewById(R.id.go_down);
-                downButton.setOnClickListener(v12 ->   recyclerView.scrollToPosition(adapter.getItemCount() - 1));
+                ImageButton downButton = dialog.findViewById(R.id.go_down);    // кнопка вниз
+                downButton.setOnClickListener(v12 -> recyclerView.scrollToPosition(adapter.getItemCount() - 1));
                 downButton.setBackgroundResource(R.drawable.down_button);
 
+                recyclerView.scrollToPosition(adapter.getItemCount() - 1);
                 EditText textMassage = dialog.findViewById(R.id.editTextMessage);
                 textMassage.setInputType(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE);
                 textMassage.requestFocus();
@@ -218,9 +254,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                     return false;
                 });
-                ImageButton button = dialog.findViewById(R.id.buttonSend);
+                ImageButton button = dialog.findViewById(R.id.buttonSend);   // Отправка
                 button.setBackgroundResource(R.drawable.send_massage);
-
                 button.setOnClickListener(v1 -> {
                     GeoUpdateService.sendMassage(String.valueOf(textMassage.getText()));
                     GeoUpdateService.getMessagesFromDatabase(false);
@@ -231,6 +266,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         textMassage.requestFocus();
                     }, 200); // Задержка для обеспечения фокуса на RecyclerView
                 });
+
+                ImageButton downloadButton = dialog.findViewById(R.id.buttonSendFile);   // загрузка
+                downloadButton.setBackgroundResource(R.drawable.download_button);
+                downloadButton.setOnClickListener(v1 -> {
+                    GeoUpdateService.onSendFileButtonClick(MapsActivity.this);
+                    recyclerView.requestFocus();
+                    recyclerView.postDelayed(() -> {
+                        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+                        textMassage.requestFocus();
+                    }, 200); // Задержка для обеспечения фокуса на RecyclerView
+                });
+
 
                 handler = new Handler();
                 final int[] previousItemCount = {adapter.getItemCount()}; // Предыдущий размер списка

@@ -1,5 +1,6 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="7dp"
@@ -7,7 +8,7 @@
     android:background="@android:color/transparent"
     android:elevation="2dp"
     android:padding="10dp"
-    app:cardBackgroundColor="#00FFFFFF"
+    app:cardBackgroundColor="#4AFFFFFF"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
     app:cardMaxElevation="0dp">
@@ -15,6 +16,8 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:paddingTop="3dp"
+        android:paddingBottom="6dp"
         android:background="@drawable/rounded_background"
         android:orientation="vertical">
 
@@ -44,19 +47,19 @@
                 android:layout_marginStart="10dp"
                 android:layout_marginEnd="10dp"
                 android:layout_weight="1"
-                android:text="Time"
                 android:gravity="end"
                 android:paddingEnd="15dp"
+                android:text="Time"
                 android:textColor="@color/black"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
-
         </LinearLayout>
         <!-- Горизонтальная черта -->
         <View
-            android:layout_width="200dp"
+            android:layout_width="match_parent"
             android:layout_height="1dp"
+            android:layout_marginTop="2dp"
             android:alpha="0.50"
             android:background="@drawable/horizontal_gradient" />
 
@@ -66,11 +69,21 @@
             android:layout_height="wrap_content"
             android:background="@android:color/transparent"
             android:paddingStart="15dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
             android:text="Message"
             android:textColor="@color/black"
             android:textSize="17sp" />
+
+        <Button
+            android:id="@+id/download_button"
+            android:layout_width="match_parent"
+            android:layout_height="35sp"
+            android:layout_margin="10dp"
+            android:background="#96A9BD"
+            android:text="Скачать файл"
+            android:textSize="13sp"
+            tools:visibility="visible" />
 
     </LinearLayout>
 
