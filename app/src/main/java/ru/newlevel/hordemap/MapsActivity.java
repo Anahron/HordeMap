@@ -59,6 +59,7 @@ import com.google.android.gms.maps.model.SquareCap;
 import com.google.firebase.FirebaseApp;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.clustering.ClusterManager;
 
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -747,6 +748,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
+
     }
 
     @Override
@@ -765,4 +767,5 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onStop() {
         super.onStop();
     }
+
 }

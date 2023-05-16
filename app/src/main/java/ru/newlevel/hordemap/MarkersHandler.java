@@ -1,24 +1,29 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.MapsActivity.gMap;
-import static ru.newlevel.hordemap.MapsActivity.getContext;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.BlendMode;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.os.Build;
+import android.text.TextPaint;
+import android.text.TextUtils;
 import android.util.Log;
-import android.view.View;
-import android.widget.TextView;
 
-import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.GroundOverlayOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PointOfInterest;
+import com.google.maps.android.clustering.ClusterManager;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -28,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MarkersHandler {
     private static final int markerSize = 60;
@@ -172,6 +178,36 @@ public class MarkersHandler {
                             .snippet(dateFormat.format(new Date(Long.parseLong(data[3]))))
                             .icon(icon));
                     markers.add(marker);
+
+                    String text = data[0].length()>10 ? data[0].substring(0,8)+"..." : data[0];
+
+                    Rect textBounds = new Rect();
+                    Paint paint = new Paint();
+                    paint.setTextSize(25);
+                    paint.setColor(Color.BLACK);
+                   paint.setFakeBoldText(true);
+                   paint.setShadowLayer(3,1,1,Color.WHITE);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        paint.setBlendMode(BlendMode.SRC_OVER);
+                    }
+
+                    paint.getTextBounds(text, 0, text.length(), textBounds);
+                    int textWidth = textBounds.width();
+                    int textHeight = textBounds.height();
+
+                    Bitmap bitmap1 = Bitmap.createBitmap(textBounds.width()+5, 100, Bitmap.Config.ARGB_8888);
+                    Bitmap mutableBitmap = bitmap1.copy(Bitmap.Config.ARGB_8888, true);
+                    Canvas canvas = new Canvas(mutableBitmap);
+
+                    canvas.drawText(text, (mutableBitmap.getWidth() - textWidth) / 2, 25 , paint);
+
+                    Marker marker1 = gMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
+                            .icon(BitmapDescriptorFactory.fromBitmap(mutableBitmap)));
+                    assert marker1 != null;
+                    marker1.setAnchor(0.5F, 0f);
+                    markers.add(marker1);
+
                 }
             }
         });
@@ -200,6 +236,5 @@ public class MarkersHandler {
                 marker.setVisible(true);
             }
     }
-
 
 }
