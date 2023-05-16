@@ -1,11 +1,33 @@
 package ru.newlevel.hordemap;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+
+import java.io.File;
 import java.util.Objects;
 
-public class Messages {
+public class Message {
     private String userName;
     private String massage;
     private long timestamp;
+    private File file;
+    private Bitmap thumbnail = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.downloaded_image);
+
+    public Bitmap getThumbnail() {
+        return thumbnail;
+    }
+
+    public void setThumbnail(Bitmap thumbnail) {
+        this.thumbnail = thumbnail;
+    }
+
+    public File getFile() {
+        return file;
+    }
+
+    public void setFile(File file) {
+        this.file = file;
+    }
 
     public String getUserName() {
         return userName;
@@ -29,7 +51,7 @@ public class Messages {
             return false;
         }
 
-        Messages other = (Messages) obj;
+        Message other = (Message) obj;
         return Objects.equals(timestamp, other.timestamp);
     }
 

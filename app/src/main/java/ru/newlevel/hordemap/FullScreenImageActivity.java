@@ -6,12 +6,14 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
 
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
+import com.bumptech.glide.Glide;
 import com.jsibbold.zoomage.ZoomageView;
 
+import java.io.File;
+
+
 public class FullScreenImageActivity extends Activity {
-  private ZoomageView imageView;
+
 
     @SuppressLint({"ClickableViewAccessibility", "WrongViewCast"})
     @Override
@@ -22,16 +24,14 @@ public class FullScreenImageActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
 
         setContentView(R.layout.activity_full_screen_image);
-        imageView = findViewById(R.id.myZoomageView);
+        ZoomageView imageView = findViewById(R.id.myZoomageView);
 
-        String imageUrl = getIntent().getStringExtra("imageUrl");
+        String imagePath = getIntent().getStringExtra("imageUrl");
+        File imageFile = new File(imagePath);
 
-        StorageReference storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
-
-        GlideApp.with(this)
-                .load(storageReference)
+        Glide.with(this)
+                .load(imageFile)
                 .into(imageView);
-
     }
 
 }

@@ -2,9 +2,8 @@ package ru.newlevel.hordemap;
 
 import static android.app.Activity.RESULT_OK;
 import static ru.newlevel.hordemap.MapsActivity.adapter;
-import static ru.newlevel.hordemap.MapsActivity.progressBar;
-import static ru.newlevel.hordemap.MapsActivity.progressText;
-
+import static ru.newlevel.hordemap.Messenger.progressBar;
+import static ru.newlevel.hordemap.Messenger.progressText;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -41,7 +40,6 @@ import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
@@ -81,13 +79,23 @@ public class DataUpdateService extends Service {
     private final static String MASSAGE_PATH = "massages";
     private final static String MASSAGE_FILE_FOLDER = "MessengerFiles";
 
+    public static String getGroupID() {
+        return groupID;
+    }
+
+    public static void setGroupID(String groupID) {
+        DataUpdateService.groupID = groupID;
+    }
+
+    private static String groupID = "";
+
     private static final int REQUEST_CODE_SELECT_FILE = 101;
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1010;
 
     private LocationRequest locationRequest;
     private FusedLocationProviderClient fusedLocationClient;
     private static Location location;
-    public static List<Messages> allMessages = new ArrayList<>();
+    public static List<Message> allMessages = new ArrayList<>();
     private Handler handler = new Handler(Looper.getMainLooper());
     private static final Location[] lastLocation = {null};
 
@@ -170,7 +178,7 @@ public class DataUpdateService extends Service {
 
     private void sendGeoData(String userId, String userName, double latitude, double longitude) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = GEO_DATA_PATH + "/" + userId;
+        String geoDataPath = GEO_DATA_PATH + groupID + "/" + userId;
         // Создаем объект с обновлениями
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/latitude", latitude);
@@ -185,7 +193,7 @@ public class DataUpdateService extends Service {
 
     static void sendGeoMarker(String userName, double latitude, double longitude, int selectedItem, String title) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = GEO_MARKERS_PATH + "/" + System.currentTimeMillis();
+        String geoDataPath = GEO_MARKERS_PATH + groupID + "/" + System.currentTimeMillis();
         // Создаем объект с обновлениями
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/latitude", latitude);
@@ -200,7 +208,6 @@ public class DataUpdateService extends Service {
     }
 
     public static void onSendFileButtonClick(Activity activity) {
-
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*"); // Выберите нужный тип файлов, например, image/* для изображений
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -257,7 +264,7 @@ public class DataUpdateService extends Service {
         String fileName = getFileNameFromUri(fileUri);
         Long fileSize = getFileSize(fileUri);
         // Создайте ссылку на файл в Firebase Storage
-        StorageReference fileRef = storageRef.child(MASSAGE_FILE_FOLDER + "/" + fileName);
+        StorageReference fileRef = storageRef.child(MASSAGE_FILE_FOLDER + groupID + "/" + fileName);
 
         // Загрузите файл в Firebase Storage
         UploadTask uploadTask = fileRef.putFile(fileUri);
@@ -267,15 +274,15 @@ public class DataUpdateService extends Service {
             double progress = (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 progressBar.setVisibility(View.VISIBLE);
-                MapsActivity.progressText.setVisibility(View.VISIBLE);
-                MapsActivity.progressBar.setProgress((int) progress, true);
+                progressText.setVisibility(View.VISIBLE);
+                progressBar.setProgress((int) progress, true);
             }
             System.out.println("Прогресс загрузки: " + progress + "%");
         });
         uploadTask.addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 progressBar.setVisibility(View.GONE);
-                MapsActivity.progressText.setVisibility(View.GONE);
+                progressText.setVisibility(View.GONE);
                 System.out.println("Загрузка завершена успешно");
                 fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
                     String downloadUrl = uri.toString();
@@ -291,22 +298,22 @@ public class DataUpdateService extends Service {
     }
 
     public static void checkLastMessage() {
-        System.out.println("ПРоверяем последние сообщения");
-        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        System.out.println("Проверяем последние сообщения");
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + groupID);
         Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
         lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     if (MessagesAdapter.lastDisplayedMessage == null) {
-                        MapsActivity.imageButton.setBackgroundResource(R.drawable.yesmassage);
+                        MapsActivity.MessengerButton.setBackgroundResource(R.drawable.yesmassage);
                         return;
                     } else {
                         for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
-                            Messages lastMessage = messageSnapshot.getValue(Messages.class);
+                            Message lastMessage = messageSnapshot.getValue(Message.class);
                             assert lastMessage != null;
                             if (lastMessage.getTimestamp() != MessagesAdapter.lastDisplayedMessage.getTimestamp()) {
-                                MapsActivity.imageButton.setBackgroundResource(R.drawable.yesmassage);
+                                MapsActivity.MessengerButton.setBackgroundResource(R.drawable.yesmassage);
                                 return;
                             }
                         }
@@ -325,7 +332,7 @@ public class DataUpdateService extends Service {
     }
 
     public static void deleteMarker(Marker marker) {
-        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH);
+        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH + groupID);
         databaseMarkers.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -354,7 +361,7 @@ public class DataUpdateService extends Service {
     static void getAllGeoData() {
         long timeNow = System.currentTimeMillis();
         float[] alpha = {0};
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference().child(GEO_DATA_PATH);
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference().child(GEO_DATA_PATH + groupID);
         database.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -397,7 +404,7 @@ public class DataUpdateService extends Service {
             }
         });
 
-        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH);
+        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH + groupID);
         databaseMarkers.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -440,7 +447,7 @@ public class DataUpdateService extends Service {
     }
 
     private static void updateLastMessageText(String messageId, String newMessage) {
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + groupID);
         Map<String, Object> update = new HashMap<>();
         update.put(messageId + "/massage", newMessage);
         update.put(messageId + "/timestamp", System.currentTimeMillis());
@@ -449,7 +456,7 @@ public class DataUpdateService extends Service {
 
     private static void createNewMessage(String message) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = MASSAGE_PATH + "/" + System.currentTimeMillis();
+        String geoDataPath = MASSAGE_PATH + groupID + "/" + System.currentTimeMillis();
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/userName", User.getInstance().getUserName());
         updates.put(geoDataPath + "/massage", message);
@@ -457,27 +464,28 @@ public class DataUpdateService extends Service {
         database.updateChildren(updates);
     }
 
-    public static void getMessagesFromDatabase(boolean isNeedFool) {
+    public static synchronized void getMessagesFromDatabase(boolean isNeedFool) {
         System.out.println("Запрос getMessagesFromDatabase");
-        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + groupID);
         messagesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                List<Messages> messages = new ArrayList<>();
+                List<Message> messages = new ArrayList<>();
                 if (isNeedFool) allMessages.clear();
                 if (allMessages.isEmpty()) {
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        Messages message = snapshot.getValue(Messages.class);
+                        Message message = snapshot.getValue(Message.class);
                         allMessages.add(message);
                     }
                     adapter.setMessages(allMessages);
                 } else {
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        Messages message = snapshot.getValue(Messages.class);
+                        Message message = snapshot.getValue(Message.class);
                         if (allMessages.contains(message)) continue;
                         messages.add(message);
                     }
-                    adapter.setLatestMessages(messages);
+                    if (!messages.isEmpty())
+                        adapter.setLatestMessages(messages);
                 }
             }
 
@@ -489,14 +497,14 @@ public class DataUpdateService extends Service {
     }
 
     static void sendMassage(String massage) {
-        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH);
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + groupID);
         Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
         lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
-                        Messages lastMessage = messageSnapshot.getValue(Messages.class);
+                        Message lastMessage = messageSnapshot.getValue(Message.class);
                         if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName()) && !lastMessage.getMassage().startsWith("http")) {
                             String newMassage = lastMessage.getMassage() + "\n> " + massage;
                             updateLastMessageText(messageSnapshot.getKey(), newMassage);

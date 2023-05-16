@@ -135,8 +135,8 @@ public class CompassView extends View implements SensorEventListener {
                 averageAzimuthDegrees += azimuthSamples[i];
             }
             averageAzimuthDegrees /= NUM_SAMPLES;
-            MapsActivity.textView1.setTextSize(22F);
-            MapsActivity.textView1.setText(((int) averageAzimuthDegrees > 0 ? (int) averageAzimuthDegrees : (int) averageAzimuthDegrees + 360) + "\u00B0");
+            MapsActivity.AzimuthTextView.setTextSize(22F);
+            MapsActivity.AzimuthTextView.setText(((int) averageAzimuthDegrees > 0 ? (int) averageAzimuthDegrees : (int) averageAzimuthDegrees + 360) + "\u00B0");
             CompassView.azimuthDegrees = averageAzimuthDegrees > 0.0F ? averageAzimuthDegrees : averageAzimuthDegrees + 360.0F;
             invalidate();
         }
