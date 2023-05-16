@@ -1,16 +1,21 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.MapsActivity.gMap;
+import static ru.newlevel.hordemap.MapsActivity.getContext;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.util.Log;
-import android.widget.ImageView;
+import android.view.View;
+import android.widget.TextView;
 
+import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.GroundOverlayOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -104,7 +109,7 @@ public class MarkersHandler {
             }
             markers.clear();
             for (String id : map.keySet()) {
-                if (!User.getInstance().getUserId().equals(id) && isMarkersON) {
+                if (!User.getInstance().getRoomId().equals(id) && isMarkersON) {
                     System.out.println("Полученое значение по ключу для отрисовки маркера: " + map.get(id));
                     String[] data = Objects.requireNonNull(map.get(id)).split("/");
                     @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm");

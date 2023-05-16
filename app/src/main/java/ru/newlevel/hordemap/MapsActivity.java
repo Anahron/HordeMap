@@ -35,6 +35,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -50,6 +51,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CustomCap;
 import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
@@ -102,12 +104,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (requestCode == 100)
             kmzLoader.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 101)
-            DataUpdateService.getInstance().onActivityResult(requestCode, resultCode, data);
+            Messenger.getInstance().onActivityResult(requestCode, resultCode, data);
         if (requestCode == 11 && resultCode == RESULT_OK) {
             if (data != null) {
                 photoUri = data.getData();
             }
-            DataUpdateService.getInstance().sendFile(photoUri);
+            Messenger.getInstance().sendFile(photoUri);
         }
     }
 
@@ -187,8 +189,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         MessengerButton.setBackgroundResource(R.drawable.nomassage);
         MessengerButton.setClickable(false);
 
-        Messenger messenger = new Messenger();
-        messenger.createMassager(context);
+        Messenger.getInstance().createMassager(context);
 
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -723,6 +724,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         if (KmzLoader.savedKmlLayer != null)
             KmzLoader.savedKmlLayer.addLayerToMap();
+
+        gMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
+            @Override
+            public View getInfoWindow(Marker marker) {
+                return null; // Возвращаем null, чтобы показать своё информационное окно маркера
+            }
+
+            @Override
+            public View getInfoContents(Marker marker) {
+                // Создаем пользовательский виджет для информационного окна маркера
+                View customInfoWindow = getLayoutInflater().inflate(R.layout.custom_info_window_layout, null);
+
+                TextView titleTextView = customInfoWindow.findViewById(R.id.titleTextView);
+                TextView snippetTextView = customInfoWindow.findViewById(R.id.snippetTextView);
+
+                // Настройка текста в пользовательском виджете
+                titleTextView.setText(marker.getTitle());
+                snippetTextView.setText(marker.getSnippet());
+
+                return customInfoWindow;
+            }
+        });
 
     }
 

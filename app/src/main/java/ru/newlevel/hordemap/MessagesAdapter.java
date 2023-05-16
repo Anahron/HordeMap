@@ -88,7 +88,6 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         return null;
     }
 
-
     @NonNull
     @Override
     public MessageViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -156,7 +155,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                     } else {
                         itemImageView.setVisibility(View.GONE);
                         button.setVisibility(View.VISIBLE);
-                        button.setOnClickListener(v12 -> DataUpdateService.getInstance().downloadFile(strings[0], strings[1]));
+                        button.setOnClickListener(v12 -> Messenger.getInstance().downloadFile(strings[0], strings[1]));
                         contentTextView.setText(strings.length == 3 ? strings[1] + " (" + Integer.parseInt(strings[2]) / 1000 + "kb)" : strings[1]);
                     }
                 } catch (Exception e) {

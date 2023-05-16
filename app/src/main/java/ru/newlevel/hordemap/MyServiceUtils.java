@@ -12,11 +12,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
+
+import com.google.android.gms.ads.identifier.AdvertisingIdClient;
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
+
+import java.io.IOException;
+import java.util.UUID;
 
 public class MyServiceUtils {
 
@@ -80,9 +88,6 @@ public class MyServiceUtils {
     public static void startGeoUpdateService(Context context) {
         MapsActivity.permissionForGeoUpdate = true;
         MarkersHandler.isMarkersON = true;
-//        GeoUpdateService sender = GeoUpdateService.getInstance();
-//       // sender.exchangeGPSData();//обновление списка координат сразу после запуска не дожидаясь алармменеджера
-//        sender.getAllGeoData();
         Intent service = new Intent(context, DataUpdateService.class);
         service.setAction("com.newlevel.ACTION_SEND_DATA");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -98,5 +103,19 @@ public class MyServiceUtils {
         if (MyServiceUtils.alarmMgr != null)
             MyServiceUtils.alarmMgr.cancel(MyServiceUtils.pendingIntent);
         context.stopService(intent);
+    }
+    @SuppressLint("HardwareIds")
+    public static String getDeviceId(Context context) {
+        String androidId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+        if (androidId != null) {
+            return androidId;
+        } else {
+            try {
+                AdvertisingIdClient.Info advertisingIdInfo = AdvertisingIdClient.getAdvertisingIdInfo(context);
+                return advertisingIdInfo.getId();
+            } catch (IOException | GooglePlayServicesRepairableException | GooglePlayServicesNotAvailableException e) {
+                return UUID.randomUUID().toString();
+            }
+        }
     }
 }

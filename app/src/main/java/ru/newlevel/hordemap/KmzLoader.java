@@ -44,7 +44,6 @@ public class KmzLoader {
         try {
             activity.startActivityForResult(Intent.createChooser(intent, "Выберите KMZ файл"), REQUEST_CODE_PICK_KMZ_FILE);
         } catch (ActivityNotFoundException e) {
-            // Обработка ошибки, если нет приложения для открытия KMZ файлов
         }
     }
 
