@@ -210,7 +210,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
                 else {
                     polyline.remove();
-                    MarkersHandler.setVisible();
+                    MarkersHandler.setVisibleForImportantMarkers();
                     MarkersHandler.markersOn();
                     PolylineOptions polylineOptions = new PolylineOptions().addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                             .width(10); // Задаем ширину линии
@@ -224,7 +224,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
             menuItem3hidePath.setOnClickListener(s -> {
                 gMap.clear();
-                MarkersHandler.setVisible();
+                MarkersHandler.setVisibleForImportantMarkers();
                 MarkersHandler.markersOn();
                 if (KmzLoader.savedKmlLayer != null)
                     KmzLoader.savedKmlLayer.addLayerToMap();
@@ -613,8 +613,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
                                 if (descriptionEditText.getText().toString().length() > 0)
                                     description[0] = String.valueOf(descriptionEditText.getText());
-                                DataUpdateService.sendGeoMarker(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
-                                DataUpdateService.getAllGeoData();
+                                DataUpdateService.sendGeoMarkerToDatabase(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
+                                DataUpdateService.getAllGeoDataFromDatabase();
                                 dialogInterface.dismiss();
                             });
                             // Создание диалогового окна
@@ -672,7 +672,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle("Удаление маркера").setMessage("Вы уверены, что хотите удалить маркер?").setPositiveButton("Да", (dialog, which) -> {
                 // Удаление маркера
-                DataUpdateService.deleteMarker(marker);
+                DataUpdateService.deleteMarkerFromDatabase(marker);
                 marker.remove();
             }).setNegativeButton("Нет", (dialog, which) -> {
                 // Отмена удаления

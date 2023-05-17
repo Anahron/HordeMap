@@ -43,7 +43,6 @@ public class DataUpdateService extends Service {
     private static double longitude;
 
     public static List<LatLng> locationHistory = new ArrayList<>();
-
     private static boolean requestingLocationUpdates = false;
     private final static int UPDATE_INTERVAL = 3000;
     private final static int FASTEST_INTERVAL = 2000;
@@ -64,25 +63,24 @@ public class DataUpdateService extends Service {
         return instance;
     }
 
-    private void sendGeoData(String userId, String userName, double latitude, double longitude) {
+    private void sendGeoDataToDatabase(String userId, String userName, double latitude, double longitude) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
         String geoDataPath = GEO_DATA_PATH + User.getInstance().getRoomId() + "/" + userId;
-        // Создаем объект с обновлениями
+
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/latitude", latitude);
         updates.put(geoDataPath + "/longitude", longitude);
         updates.put(geoDataPath + "/userName", userName);
         updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
         System.out.println("Отправка данных : " + updates);
-        // Применяем обновления к базе данных
         database.updateChildren(updates);
         Messenger.getInstance().checkDatabaseForNewMessages();
     }
 
-    static void sendGeoMarker(String userName, double latitude, double longitude, int selectedItem, String title) {
+    static void sendGeoMarkerToDatabase(String userName, double latitude, double longitude, int selectedItem, String title) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
         String geoDataPath = GEO_MARKERS_PATH + User.getInstance().getRoomId() + "/" + System.currentTimeMillis();
-        // Создаем объект с обновлениями
+
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/latitude", latitude);
         updates.put(geoDataPath + "/longitude", longitude);
@@ -91,11 +89,10 @@ public class DataUpdateService extends Service {
         updates.put(geoDataPath + "/item", selectedItem);
         updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
         System.out.println("Отправка данных : " + updates);
-        // Применяем обновления к базе данных
         database.updateChildren(updates);
     }
 
-    public static void deleteMarker(Marker marker) {
+    public static void deleteMarkerFromDatabase(Marker marker) {
         DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH + User.getInstance().getRoomId());
         databaseMarkers.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -109,20 +106,17 @@ public class DataUpdateService extends Service {
                         }
                     }
                 } catch (Exception e) {
-                    System.out.println("Null в DataSnapshot");
                     e.printStackTrace();
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Обработка ошибки
-                System.out.println("Ошибка: " + databaseError.getMessage());
             }
         });
     }
 
-    static void getAllGeoData() {
+    static void getAllGeoDataFromDatabase() {
         long timeNow = System.currentTimeMillis();
         float[] alpha = {0};
         DatabaseReference database = FirebaseDatabase.getInstance().getReference().child(GEO_DATA_PATH + User.getInstance().getRoomId());
@@ -150,20 +144,17 @@ public class DataUpdateService extends Service {
                         hashMap.put(userId, data);
                     }
                     if (!hashMap.isEmpty()) {
-                        MarkersHandler.createMarkers(hashMap);
+                        MarkersHandler.createAllUsersMarkers(hashMap);
                     } else {
                         Log.d("Horde map", "Данные пусты");
                     }
                 } catch (Exception e) {
-                    System.out.println("Null в DataSnapshot");
                     e.printStackTrace();
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Обработка ошибки
-                System.out.println("Ошибка: " + databaseError.getMessage());
             }
         });
 
@@ -191,12 +182,11 @@ public class DataUpdateService extends Service {
                         hashMap.put(snapshot.getKey(), data);
                     }
                     if (!hashMap.isEmpty()) {
-                        MarkersHandler.createMapMarkers(hashMap);
+                        MarkersHandler.createCustomMapMarkers(hashMap);
                     } else {
                         Log.d("Horde map", "Данные пусты");
                     }
                 } catch (Exception e) {
-                    System.out.println("Null в DataSnapshot получения маркеров");
                     e.printStackTrace();
                 }
             }
@@ -300,8 +290,8 @@ public class DataUpdateService extends Service {
             Log.d("Horde map", " Запустили locationCallback");
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
         }
-        sendGeoData(User.getInstance().getDeviceId(), User.getInstance().getUserName(), latitude, longitude);
-        getAllGeoData();
+        sendGeoDataToDatabase(User.getInstance().getDeviceId(), User.getInstance().getUserName(), latitude, longitude);
+        getAllGeoDataFromDatabase();
         //    exchangeGPSData();
         return START_STICKY;
     }

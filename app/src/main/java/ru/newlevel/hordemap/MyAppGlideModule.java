@@ -1,12 +1,8 @@
 package ru.newlevel.hordemap;
 
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.GlideBuilder;
 import com.bumptech.glide.Priority;
@@ -22,7 +18,6 @@ import com.bumptech.glide.load.model.ModelLoaderFactory;
 import com.bumptech.glide.load.model.MultiModelLoaderFactory;
 import com.bumptech.glide.module.AppGlideModule;
 import com.bumptech.glide.signature.ObjectKey;
-import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.io.ByteArrayInputStream;
@@ -32,11 +27,9 @@ import java.io.InputStream;
 
 @GlideModule
 public class MyAppGlideModule extends AppGlideModule {
-    private static Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
-    public void applyOptions(Context context, GlideBuilder builder) {
-        // Установка размера кэша в зависимости от доступной памяти устройства
+    public void applyOptions(@NonNull Context context, GlideBuilder builder) {
         MemorySizeCalculator calculator = new MemorySizeCalculator.Builder(context)
                 .setMemoryCacheScreens(2)
                 .build();
@@ -49,7 +42,7 @@ public class MyAppGlideModule extends AppGlideModule {
     }
 
     @Override
-    public void registerComponents(Context context, Glide glide, Registry registry) {
+    public void registerComponents(@NonNull Context context, @NonNull Glide glide, @NonNull Registry registry) {
         registry.append(StorageReference.class, InputStream.class, new StorageReferenceLoaderFactory(context));
     }
 
@@ -60,8 +53,9 @@ public class MyAppGlideModule extends AppGlideModule {
             this.context = context;
         }
 
+        @NonNull
         @Override
-        public ModelLoader<StorageReference, InputStream> build(MultiModelLoaderFactory multiFactory) {
+        public ModelLoader<StorageReference, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
             return new StorageReferenceLoader(context);
         }
 
@@ -100,7 +94,7 @@ public class MyAppGlideModule extends AppGlideModule {
         }
 
         @Override
-        public void loadData(Priority priority, DataCallback<? super InputStream> callback) {
+        public void loadData(@NonNull Priority priority, DataCallback<? super InputStream> callback) {
             storageReference.getBytes(Long.MAX_VALUE)
                     .addOnSuccessListener(bytes -> {
                         inputStream = new ByteArrayInputStream(bytes);
@@ -125,11 +119,13 @@ public class MyAppGlideModule extends AppGlideModule {
             // No-op
         }
 
+        @NonNull
         @Override
         public Class<InputStream> getDataClass() {
             return InputStream.class;
         }
 
+        @NonNull
         @Override
         public DataSource getDataSource() {
             return DataSource.REMOTE;

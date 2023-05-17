@@ -331,7 +331,7 @@ public class Messenger {
 
     public static void onSendFileButtonClick(@NonNull Activity activity) {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("*/*"); // Выберите нужный тип файлов, например, image/* для изображений
+        intent.setType("*/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         activity.startActivityForResult(intent, REQUEST_CODE_SELECT_FILE);
     }
@@ -385,13 +385,12 @@ public class Messenger {
         return null;
     }
 
-    synchronized void downloadFile(String url, String fileName) {
+    synchronized void downloadFileFromDatabase(String url, String fileName) {
         if (ContextCompat.checkSelfPermission(MapsActivity.getContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
         } else {
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-            System.out.println("Полученный файлнейм: " + fileName);
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 
             DownloadManager downloadManager = (DownloadManager) MapsActivity.getContext().getSystemService(Context.DOWNLOAD_SERVICE);

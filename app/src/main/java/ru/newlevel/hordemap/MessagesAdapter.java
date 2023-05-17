@@ -1,11 +1,8 @@
 package ru.newlevel.hordemap;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -23,10 +20,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -35,7 +29,6 @@ import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.transition.Transition;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -45,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
-
 
 public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.MessageViewHolder> {
 
@@ -180,14 +172,14 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                             if (message.getFile() != null) {
                                 openFullScreenImage(message.getFile());
                             } else {
-                                    StorageReference storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(strings[0]);
-                                    GlideWrapper glideWrapper = new GlideWrapper();
-                                    glideWrapper.load(MapsActivity.getContext(), storageReference, itemImageView, message, fileName);
+                                StorageReference storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(strings[0]);
+                                GlideWrapper glideWrapper = new GlideWrapper();
+                                glideWrapper.load(MapsActivity.getContext(), storageReference, itemImageView, message, fileName);
                             }
                         });
                     } else {
                         button.setVisibility(View.VISIBLE);
-                        button.setOnClickListener(v -> Messenger.getInstance().downloadFile(strings[0], fileName));
+                        button.setOnClickListener(v -> Messenger.getInstance().downloadFileFromDatabase(strings[0], fileName));
                     }
                 } catch (Exception e) {
                     contentTextView.setText(messageText);
@@ -227,31 +219,24 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
 
         public void load(Context context, StorageReference storageReference, ImageView itemImageView, Message message, String fileName) {
             MapsActivity.makeToast("Изображение загружается, подождите");
-            RequestBuilder<Drawable> requestBuilder = Glide.with(context)
-                    .load(storageReference);
+            RequestBuilder<Drawable> requestBuilder = Glide.with(context).load(storageReference);
 
-            RequestOptions options = new RequestOptions()
-                    .error(R.drawable.download_image_error)
-                    .override(1024, 1024)
-                    .encodeQuality(50)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL);
+            RequestOptions options = new RequestOptions().error(R.drawable.download_image_error).override(1024, 1024).encodeQuality(50).diskCacheStrategy(DiskCacheStrategy.ALL);
 
-            requestBuilder
-                    .apply(options)
-                    .into(new CustomTarget<Drawable>() {
-                        @Override
-                        public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
-                            Bitmap bitmap = ((BitmapDrawable) resource).getBitmap();
-                            Bitmap thumbnailBitmap = ThumbnailUtils.extractThumbnail(bitmap, 120, 120);
-                            message.setThumbnail(thumbnailBitmap);
-                            message.setFile(saveBitmapToDownloads(bitmap, fileName));
-                            itemImageView.setImageBitmap(thumbnailBitmap);
-                        }
+            requestBuilder.apply(options).into(new CustomTarget<Drawable>() {
+                @Override
+                public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
+                    Bitmap bitmap = ((BitmapDrawable) resource).getBitmap();
+                    Bitmap thumbnailBitmap = ThumbnailUtils.extractThumbnail(bitmap, 120, 120);
+                    message.setThumbnail(thumbnailBitmap);
+                    message.setFile(saveBitmapToDownloads(bitmap, fileName));
+                    itemImageView.setImageBitmap(thumbnailBitmap);
+                }
 
-                        @Override
-                        public void onLoadCleared(@Nullable Drawable placeholder) {
-                        }
-                    });
+                @Override
+                public void onLoadCleared(@Nullable Drawable placeholder) {
+                }
+            });
         }
 
         public File saveBitmapToDownloads(Bitmap bitmap, String fileName) {

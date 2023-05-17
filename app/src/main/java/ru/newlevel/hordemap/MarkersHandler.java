@@ -12,7 +12,6 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.os.Build;
-import android.util.Log;
 
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -89,20 +88,18 @@ public class MarkersHandler {
         }
     }
 
-    public static void setVisible() {
+    public static void setVisibleForImportantMarkers() {
         for (Marker marker : importantMarkers) {
             marker.setVisible(true);
         }
     }
 
-    public static void createMarkers(HashMap<String, String> map) {
-        System.out.println("В создание маркеров пришло: " + map);
-        Log.d("Horde map", "Удаляются старые и создаются новые маркеры");
+    public static void createAllUsersMarkers(HashMap<String, String> map) {
         savedmarkers = map;
         Bitmap bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
-        Bitmap bitmapcom = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwingcomander);
+     //   Bitmap bitmapcom = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwingcomander);
         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
-        BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, MARKER_SIZE, MARKER_SIZE, false));
+     //   BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, MARKER_SIZE, MARKER_SIZE, false));
         ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
             for (Marker marker : markers) {
                 marker.remove();
@@ -110,7 +107,6 @@ public class MarkersHandler {
             markers.clear();
             for (String id : map.keySet()) {
                 if (!User.getInstance().getRoomId().equals(id) && isMarkersON) {
-                    System.out.println("Полученое значение по ключу для отрисовки маркера: " + map.get(id));
                     String[] data = Objects.requireNonNull(map.get(id)).split("/");
                     @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm");
                     TimeZone timeZone = TimeZone.getDefault();
@@ -127,8 +123,7 @@ public class MarkersHandler {
         });
     }
 
-    public static void createMapMarkers(HashMap<String, String> map) {
-        System.out.println("В создание map маркеров пришло: " + map);
+    public static void createCustomMapMarkers(HashMap<String, String> map) {
         savedMapMarkers = map;
         ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
             for (Marker marker : mapMarkers) {
@@ -218,13 +213,13 @@ public class MarkersHandler {
 
     public static void markersOn() {
         if (mapMarkers.isEmpty())
-            createMapMarkers(savedMapMarkers);
+            createCustomMapMarkers(savedMapMarkers);
         else
             for (Marker marker : mapMarkers) {
                 marker.setVisible(true);
             }
         if (markers.isEmpty())
-            createMarkers(savedmarkers);
+            createAllUsersMarkers(savedmarkers);
         else
             for (Marker marker : markers) {
                 marker.setVisible(true);

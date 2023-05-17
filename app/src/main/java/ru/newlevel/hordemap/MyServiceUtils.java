@@ -104,6 +104,7 @@ public class MyServiceUtils {
             MyServiceUtils.alarmMgr.cancel(MyServiceUtils.pendingIntent);
         context.stopService(intent);
     }
+
     @SuppressLint("HardwareIds")
     public static String getDeviceId(Context context) {
         String androidId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
