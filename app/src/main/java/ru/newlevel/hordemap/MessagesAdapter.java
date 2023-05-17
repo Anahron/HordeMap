@@ -1,12 +1,11 @@
 package ru.newlevel.hordemap;
 
-
-import static ru.newlevel.hordemap.MapsActivity.adapter;
-import static ru.newlevel.hordemap.Messenger.recyclerView;
-
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -18,11 +17,14 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
@@ -47,37 +49,54 @@ import java.util.TimeZone;
 
 public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.MessageViewHolder> {
 
-    private static List<Message> messages;
-    public static Message lastDisplayedMessage;
+    private final RecyclerView recyclerView;
+    public static Message lastDisplayedMessage = null;
+    private List<Message> messages;
+    boolean isAtBottom;
+    private final ImageButton newMessageButton;
+    private static File downloadsDir;
 
-    @SuppressLint("NotifyDataSetChanged")
-    public void setMessages(List<Message> messages) {
-        MessagesAdapter.messages = messages;
-        notifyDataSetChanged();
-        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
+
+    public MessagesAdapter(RecyclerView recyclerView, ImageButton newMessageButton) {
+        this.recyclerView = recyclerView;
+        this.newMessageButton = newMessageButton;
     }
 
-    public void setLatestMessages(List<Message> latestMessages) {
+    @SuppressLint("NotifyDataSetChanged")
+    void setAllMessages(List<Message> messages) {
+        this.messages = messages;
+        System.out.println("Пришли в setAllMessages с количеством сообщений " + messages.size());
+        recyclerView.scrollToPosition(getItemCount() - 1);
+        notifyDataSetChanged();
+    }
+
+    void setLatestMessages(List<Message> latestMessages) {
+        System.out.println("Пришли в setLatestMessages с количеством сообщений " + latestMessages.size());
         if (messages == null) {
             messages = new ArrayList<>();
         }
-        messages.addAll(latestMessages);
-        lastDisplayedMessage = latestMessages.get(latestMessages.size()-1);
+        isAtBottom = !recyclerView.canScrollVertically(1) && recyclerView.computeVerticalScrollRange() > recyclerView.getHeight();
+        if (!isAtBottom && !latestMessages.get(latestMessages.size() - 1).getUserName().equals(User.getInstance().getUserName())) {
+            newMessageButton.setVisibility(View.VISIBLE);
+        }
+        lastDisplayedMessage = latestMessages.get(latestMessages.size() - 1);
+        checkLatestMessageForDelete(latestMessages);
+    }
 
-        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
-        notifyItemRangeInserted(messages.size() - latestMessages.size(), latestMessages.size());
-
-        if (!latestMessages.isEmpty() && !messages.get(messages.size() - 1).getMassage().startsWith("http") && !messages.get(messages.size() - 2).getMassage().startsWith("http")) {
-            Message previousMessage = null;
-            if (messages.size() > 1) {
-                previousMessage = messages.get(messages.size() - 2);
-            }
-
-            Message currentMessage = latestMessages.get(latestMessages.size() - 1);
-            if (previousMessage != null && previousMessage.getUserName().equals(currentMessage.getUserName())) {
-                notifyItemRemoved(messages.size() - 2);
-                messages.remove(previousMessage);
-            }
+    @SuppressLint("NotifyDataSetChanged")
+    private void checkLatestMessageForDelete(List<Message> latestMessages) {
+        Message previousMessage = messages.get(messages.size() - 1);
+        Message currentMessage = latestMessages.get(0);
+        if (!messages.get(messages.size() - 1).getMessage().startsWith("http") && previousMessage.getUserName().equals(currentMessage.getUserName())) {
+            messages.remove(previousMessage);
+            messages.addAll(latestMessages);
+            notifyDataSetChanged();
+        } else {
+            messages.addAll(latestMessages);
+            notifyItemRangeInserted(messages.size() - latestMessages.size(), latestMessages.size());
+        }
+        if (isAtBottom) {
+            recyclerView.smoothScrollToPosition(getItemCount() - 1);
         }
     }
 
@@ -126,46 +145,66 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             itemImageView = itemView.findViewById(R.id.imageView);
         }
 
+        @SuppressLint("SetTextI18n")
         public void bind(Message message) {
             dateFormat.setTimeZone(timeZone);
             senderTextView.setText(message.getUserName());
             timeTextView.setText(dateFormat.format(new Date(message.getTimestamp())));
-            if (message.getMassage().startsWith("https://firebasestorage")) {
+
+            String messageText = message.getMessage();
+
+            if (messageText.startsWith("https://firebasestorage")) {
                 try {
-                    String[] strings = message.getMassage().split("&&&");
-                    if (strings[1].endsWith(".jpg")) {
-                        contentTextView.setText(strings.length == 3 ? "Image:" + Integer.parseInt(strings[2]) / 1000 + "kb" : strings[1]);
+                    String[] strings = messageText.split("&&&");
+                    boolean hasFileSize = strings.length == 3;
+                    String fileName = strings[1];
+                    String fileSizeText = hasFileSize ? " (" + Integer.parseInt(strings[2]) / 1000 + "kb)" : "";
+
+                    contentTextView.setText(getContentText(fileName, fileSizeText));
+                    itemImageView.setVisibility(View.GONE);
+                    button.setVisibility(View.GONE);
+
+                    if (fileName.endsWith(".jpg")) {
                         itemImageView.setVisibility(View.VISIBLE);
-                        button.setVisibility(View.GONE);
-                        if (message.getThumbnail() != null)
+
+                        if (message.getThumbnail() != null) {
                             itemImageView.setImageBitmap(message.getThumbnail());
-                        File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), strings[1]);
-                        System.out.println(strings[1]);
-                        if (file.exists())
+                        }
+
+                        File file = new File(downloadsDir, fileName);
+                        if (file.exists()) {
                             setItemsInMessage(file, message);
+                        }
+
                         itemImageView.setOnClickListener(v -> {
-                            if (message.getFile() != null)
+                            if (message.getFile() != null) {
                                 openFullScreenImage(message.getFile());
-                            else {
-                                StorageReference storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(strings[0]);
-                                GlideWrapper glideWrapper = new GlideWrapper();
-                                glideWrapper.load(MapsActivity.getContext(), storageReference, itemImageView, message, strings[1]);
+                            } else {
+                                    StorageReference storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(strings[0]);
+                                    GlideWrapper glideWrapper = new GlideWrapper();
+                                    glideWrapper.load(MapsActivity.getContext(), storageReference, itemImageView, message, fileName);
                             }
                         });
                     } else {
-                        itemImageView.setVisibility(View.GONE);
                         button.setVisibility(View.VISIBLE);
-                        button.setOnClickListener(v12 -> Messenger.getInstance().downloadFile(strings[0], strings[1]));
-                        contentTextView.setText(strings.length == 3 ? strings[1] + " (" + Integer.parseInt(strings[2]) / 1000 + "kb)" : strings[1]);
+                        button.setOnClickListener(v -> Messenger.getInstance().downloadFile(strings[0], fileName));
                     }
                 } catch (Exception e) {
-                    contentTextView.setText(message.getMassage());
+                    contentTextView.setText(messageText);
                     e.printStackTrace();
                 }
             } else {
                 button.setVisibility(View.GONE);
                 itemImageView.setVisibility(View.GONE);
-                contentTextView.setText(message.getMassage());
+                contentTextView.setText(messageText);
+            }
+        }
+
+        private String getContentText(String fileName, String fileSizeText) {
+            if (fileName.endsWith(".jpg")) {
+                return "Image:" + fileSizeText;
+            } else {
+                return fileName + fileSizeText;
             }
         }
 
@@ -208,6 +247,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                             message.setFile(saveBitmapToDownloads(bitmap, fileName));
                             itemImageView.setImageBitmap(thumbnailBitmap);
                         }
+
                         @Override
                         public void onLoadCleared(@Nullable Drawable placeholder) {
                         }
@@ -215,7 +255,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         }
 
         public File saveBitmapToDownloads(Bitmap bitmap, String fileName) {
-            File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
             File file = new File(downloadsDir, fileName);
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
@@ -223,7 +263,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            MediaScannerConnection.scanFile(MapsActivity.getContext(), new String[]{Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + fileName}, null, null);
+            MediaScannerConnection.scanFile(MapsActivity.getContext(), new String[]{downloadsDir + "/" + fileName}, null, null);
             return file;
         }
     }

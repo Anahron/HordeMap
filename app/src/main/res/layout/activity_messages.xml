@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:id="@+id/activityRoot"
     android:background="@null">
 
 
@@ -31,32 +32,32 @@
 
         <EditText
             android:id="@+id/editTextMessage"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:ems="10"
             android:hint="Введите сообщение"
             android:inputType="textMultiLine"
-            tools:layout_editor_absoluteY="294dp"/>
+            tools:layout_editor_absoluteY="294dp"
+            />
 
         <ImageButton
             android:id="@+id/buttonPhoto"
-            android:layout_width="35dp"
-            android:layout_height="35dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:scaleType="fitCenter"
             android:layout_margin="5dp" />
         <ImageButton
             android:id="@+id/buttonSendFile"
-            android:layout_width="35dp"
-            android:layout_height="35dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:scaleType="fitCenter"
             android:layout_margin="5dp" />
 
         <ImageButton
             android:id="@+id/buttonSend"
-            android:layout_width="35dp"
-            android:layout_height="35dp"
-            android:scaleType="fitCenter"
+            android:layout_width="55dp"
+            android:layout_height="40dp"
             android:layout_margin="5dp" />
 
     </LinearLayout>
@@ -79,6 +80,17 @@
         android:scaleType="fitCenter"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageButton
+        android:id="@+id/new_message"
+        android:layout_width="46dp"
+        android:layout_height="45dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="76dp"
+        android:scaleType="fitCenter"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@+id/recyclerViewMessages"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <ProgressBar
         android:id="@+id/progressBar"

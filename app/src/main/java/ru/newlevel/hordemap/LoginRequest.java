@@ -4,10 +4,10 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-
 import com.google.firebase.FirebaseApp;
 
 public class LoginRequest {
+
     private static SharedPreferences prefs;
 
     static void onLoginSuccess(Context context) {
@@ -18,7 +18,7 @@ public class LoginRequest {
         editor.putString("deviceID", User.getInstance().getDeviceId());
         editor.apply();
         MyServiceUtils.startGeoUpdateService(context);
-        MapsActivity.MessengerButton.setClickable(true);
+        Messenger.getInstance().getMessengerButton().setClickable(true);
     }
 
     public static void logOut(Context context) {
@@ -28,7 +28,7 @@ public class LoginRequest {
         editor.apply();
         User.getInstance().setUserName("Аноним");
         User.getInstance().setRoomId("0");
-        MapsActivity.MessengerButton.setClickable(false);
+        Messenger.getInstance().getMessengerButton().setClickable(false);
     }
 
     public static void logIn(Context context, MapsActivity mapsActivity) {
@@ -45,7 +45,7 @@ public class LoginRequest {
             User.getInstance().setRoomId(mySavedID);
             User.getInstance().setDeviceId(mySavedDeviceID);
             MyServiceUtils.startGeoUpdateService(context);
-            MapsActivity.MessengerButton.setClickable(true);
+            Messenger.getInstance().getMessengerButton().setClickable(true);
             MapsActivity.makeToast("Авторизация пройдена, привет " + mySavedName);
         }
     }

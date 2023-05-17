@@ -8,9 +8,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
@@ -38,7 +35,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HordeMap"
         tools:targetApi="32">
-        <!-- Здесь добавьте теги метаданных Firebase для вашего проекта -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="ru.newlevel.hordemap.fileprovider"
@@ -65,8 +61,6 @@
             android:permission="android.permission.WAKE_LOCK">
             <intent-filter>
                 <action android:name="com.newlevel.ACTION_SEND_DATA" />
-                <!--                <action android:name="android.intent.action.BOOT_COMPLETED" />-->
-                <!--                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />-->
             </intent-filter>
         </receiver>
         <!-- Declare service -->

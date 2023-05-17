@@ -76,7 +76,7 @@ public class DataUpdateService extends Service {
         System.out.println("Отправка данных : " + updates);
         // Применяем обновления к базе данных
         database.updateChildren(updates);
-        Messenger.getInstance().checkLastMessage();
+        Messenger.getInstance().checkDatabaseForNewMessages();
     }
 
     static void sendGeoMarker(String userName, double latitude, double longitude, int selectedItem, String title) {

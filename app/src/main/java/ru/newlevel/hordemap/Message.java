@@ -8,7 +8,7 @@ import java.util.Objects;
 
 public class Message {
     private String userName;
-    private String massage;
+    private String message;
     private long timestamp;
     private File file;
     private Bitmap thumbnail = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.downloaded_image);
@@ -33,8 +33,8 @@ public class Message {
         return userName;
     }
 
-    public String getMassage() {
-        return massage;
+    public String getMessage() {
+        return message;
     }
 
     public long getTimestamp() {

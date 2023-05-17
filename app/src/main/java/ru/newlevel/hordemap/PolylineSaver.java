@@ -19,10 +19,7 @@ import java.util.List;
 
 public class PolylineSaver {
 
-
-    // метод для сохранения списка в SharedPreferences
     public static void savePathList(Context context, List<LatLng> list, int meters) {
-        System.out.println("вызван метод сохранения пути");
         if (meters > 10) {
             String formattedDateTime = null;
             LocalDateTime localDateTime;
@@ -34,7 +31,6 @@ public class PolylineSaver {
             Gson gson = new Gson();
             String json = gson.toJson(list);
             try {
-                //     FileOutputStream outputStream = new FileOutputStream(file, true);
                 FileOutputStream outputStream = context.openFileOutput("gps.txt", Context.MODE_APPEND);
                 OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
                 outputStreamWriter.write(meters + " метров.\n");
@@ -61,17 +57,14 @@ public class PolylineSaver {
             outputStreamWriter.write("");
             outputStreamWriter.close();
             outputStream.close();
-            System.out.println("Типа успешно стерли файл");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public static Hashtable<String, List<LatLng>> getKeys() {
-        System.out.println("Зашли в гетКейс");
         Hashtable<String, List<LatLng>> hash = new Hashtable<>();
         try {
-            System.out.println("Зашли в тру");
             FileInputStream inputStream = MapsActivity.getContext().openFileInput("gps.txt");
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             String line;
@@ -82,17 +75,13 @@ public class PolylineSaver {
             String meters = "";
             String time = "";
             while ((line = reader.readLine()) != null) {
-                System.out.println("Прочли линию:" + line);
                 if (count == 0) {
-                    System.out.println("Записали её в метры");
                     meters = line;
                     count++;
                 } else if (count == 1) {
-                    System.out.println("Записали её во время");
                     time = line;
                     count++;
                 } else if (count == 2) {
-                    System.out.println("Запиали в json");
                     json.fromJson(line, type);
                     System.out.println(json);
                     System.out.println(hash);

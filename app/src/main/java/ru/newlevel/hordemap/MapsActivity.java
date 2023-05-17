@@ -16,7 +16,6 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -25,7 +24,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
@@ -35,7 +33,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -59,7 +56,6 @@ import com.google.android.gms.maps.model.SquareCap;
 import com.google.firebase.FirebaseApp;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
-import com.google.maps.android.clustering.ClusterManager;
 
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -71,7 +67,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public static GoogleMap gMap;
     public static Boolean permissionForGeoUpdate = false;
-    public static MessagesAdapter adapter = new MessagesAdapter();
 
     private boolean IsNeedToSave = true;
     private Polyline routePolyline;
@@ -79,12 +74,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @SuppressLint("StaticFieldLeak")
     public static TextView AzimuthTextView;
     @SuppressLint("StaticFieldLeak")
-    public static ImageButton MessengerButton;
-    @SuppressLint("StaticFieldLeak")
     private static Context context;
     private KmzLoader kmzLoader;
     private Polyline polyline;
-    public static Uri photoUri;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -104,18 +96,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 100)
             kmzLoader.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 101)
+        if (requestCode == Messenger.REQUEST_CODE_SELECT_FILE || requestCode == Messenger.REQUEST_CODE_CAMERA)
             Messenger.getInstance().onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 11 && resultCode == RESULT_OK) {
-            if (data != null) {
-                photoUri = data.getData();
-            }
-            Messenger.getInstance().sendFile(photoUri);
-        }
     }
 
     protected void onDestroy() {
-        System.out.println("Вызван в мэйне");
         if (IsNeedToSave && locationHistory.size() > 0)
             PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 1))));
         super.onDestroy();
@@ -125,19 +110,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private int convertDpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round((float) dp * density);
-    }
-
-    protected void setPermissionForWriteExternal() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-            Uri uri = Uri.fromParts("package", getPackageName(), null);
-            intent.setData(uri);
-            startActivity(intent);
-        } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
-            }
-        }
     }
 
     @SuppressLint("BatteryLife")
@@ -166,7 +138,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
             }
         }
-        setPermissionForWriteExternal();
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
+        }
         Intent intent = new Intent();
         intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
         intent.setData(Uri.parse("package:" + getPackageName()));
@@ -186,18 +160,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
-        MessengerButton = findViewById(R.id.massage);
-        MessengerButton.setBackgroundResource(R.drawable.nomassage);
-        MessengerButton.setClickable(false);
-
-        Messenger.getInstance().createMassager(context);
-
+        Messenger.getInstance().createMessenger(context);
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
 
         createToolbar();
+
         LoginRequest.logIn(context, this);
     }
 
@@ -319,16 +289,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private Button createMenuButtons(int heightPx) {
-        Button menubutton = new Button(this);
-        menubutton.setBackgroundResource(R.drawable.menu);
+        Button menuButton = new Button(this);
+        menuButton.setBackgroundResource(R.drawable.menu);
         LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10);
         layoutParams2.setMarginEnd(convertDpToPx(7));
-        menubutton.setLayoutParams(layoutParams2);
-        menubutton.setText("MENU");
-        menubutton.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
-        menubutton.setTextColor(Color.parseColor("#d4bd61"));
-        menubutton.setTextSize(15);
-        menubutton.setOnClickListener(v -> {
+        menuButton.setLayoutParams(layoutParams2);
+        menuButton.setText("MENU");
+        menuButton.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
+        menuButton.setTextColor(Color.parseColor("#d4bd61"));
+        menuButton.setTextSize(15);
+        menuButton.setOnClickListener(v -> {
             PopupWindow popupWindow = new PopupWindow(context);
             @SuppressLint("InflateParams") View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu, null, false);
             popupWindow.setContentView(view);
@@ -336,7 +306,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
             if (popupWindow.isShowing()) popupWindow.dismiss();
-            else popupWindow.showAsDropDown(menubutton);
+            else popupWindow.showAsDropDown(menuButton);
 
             Button menuItem0 = view.findViewById(R.id.menu_item0);  // Смена типа карты
             menuItem0.setBackgroundResource(R.drawable.menubutton);
@@ -415,7 +385,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 LoginRequest.logIn(context, this);
                 popupWindow.dismiss();
             });
-            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.START, 0, 0);
+            popupWindow.showAtLocation(menuButton, Gravity.TOP | Gravity.START, 0, 0);
 
             Button menuItem5 = view.findViewById(R.id.menu_item5);  // Закрыть
             menuItem5.setBackgroundResource(R.drawable.menubutton);
@@ -427,9 +397,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 finish();
                 popupWindow.dismiss();
             });
-            popupWindow.showAtLocation(menubutton, Gravity.TOP | Gravity.START, 0, 0);
+            popupWindow.showAtLocation(menuButton, Gravity.TOP | Gravity.START, 0, 0);
         });
-        return menubutton;
+        return menuButton;
     }
 
     private Button createMarkerSwitch(int heightPx) {
@@ -460,10 +430,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void createToolbar() {
-        // Дистанция до точки
         distanceTextView = findViewById(R.id.distance_text_view);
         distanceTextView.setVisibility(View.GONE);
-        // Добавляем тулбар
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setPadding(convertDpToPx(0), 0, convertDpToPx(0), convertDpToPx(5));
 
@@ -490,11 +459,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //Компас вью
         CompassView compassView = findViewById(R.id.compass_view);
         compassView.setVisibility(View.INVISIBLE);
-        compassView.compasOFF();
+        compassView.compassOFF();
         AzimuthTextView.setOnClickListener(v -> {
             if (compassView.getVisibility() == View.VISIBLE) {
                 compassView.setVisibility(View.INVISIBLE);
-                compassView.compasOFF();
+                compassView.compassOFF();
                 AzimuthTextView.setTextSize(12F);
                 AzimuthTextView.setText("COMPAS");
             } else {
@@ -565,9 +534,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             distanceTextView.setVisibility(View.INVISIBLE);
                             break;
                         case 3:
-                            // Поставить маркер
-                            // Создание диалогового окна
-
                             AlertDialog.Builder dialogMarkerBuilder = new AlertDialog.Builder(context);
                             dialogMarkerBuilder.setTitle(" Выберите иконку \n и введите название");
 
@@ -595,7 +561,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(0.3F);
                             });
-
                             icon2.setOnClickListener(v -> {
                                 selectedIcon[0] = 1;
                                 icon1.setAlpha(0.3F);
@@ -605,7 +570,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(0.3F);
                             });
-
                             icon3.setOnClickListener(v -> {
                                 selectedIcon[0] = 2;
                                 icon1.setAlpha(0.3F);
@@ -615,7 +579,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(0.3F);
                             });
-
                             icon4.setOnClickListener(v -> {
                                 selectedIcon[0] = 3;
                                 icon1.setAlpha(0.3F);
@@ -717,38 +680,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }).show();
         });
 
-        gMap.setOnInfoWindowClickListener(marker -> {
-            System.out.println("Закрываем в setOnInfoWindowClickListener");
-            // Здесь обрабатывайте нажатие на всплывающее окно
-            marker.hideInfoWindow();
-        });
+        gMap.setOnInfoWindowClickListener(Marker::hideInfoWindow);
 
         if (KmzLoader.savedKmlLayer != null)
             KmzLoader.savedKmlLayer.addLayerToMap();
-
-        gMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
-            @Override
-            public View getInfoWindow(Marker marker) {
-                return null; // Возвращаем null, чтобы показать своё информационное окно маркера
-            }
-
-            @Override
-            public View getInfoContents(Marker marker) {
-                // Создаем пользовательский виджет для информационного окна маркера
-                View customInfoWindow = getLayoutInflater().inflate(R.layout.custom_info_window_layout, null);
-
-                TextView titleTextView = customInfoWindow.findViewById(R.id.titleTextView);
-                TextView snippetTextView = customInfoWindow.findViewById(R.id.snippetTextView);
-
-                // Настройка текста в пользовательском виджете
-                titleTextView.setText(marker.getTitle());
-                snippetTextView.setText(marker.getSnippet());
-
-                return customInfoWindow;
-            }
-        });
-
-
     }
 
     @Override

@@ -11,8 +11,8 @@ android {
         applicationId "ru.newlevel.hordemap"
         minSdk 23
         targetSdk 33
-        versionCode 12
-        versionName "2.2"
+        versionCode 14
+        versionName "2.4"
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

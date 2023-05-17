@@ -90,7 +90,7 @@
             android:layout_width="60dp"
             android:layout_height="60dp"
             android:layout_marginStart="10dp"
-            tools:visibility="visible"
+            tools:visibility="gone"
             android:src="@drawable/downloaded_image"
             android:layout_gravity="start"/>
 

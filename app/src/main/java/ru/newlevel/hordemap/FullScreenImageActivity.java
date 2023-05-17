@@ -27,6 +27,7 @@ public class FullScreenImageActivity extends Activity {
         ZoomageView imageView = findViewById(R.id.myZoomageView);
 
         String imagePath = getIntent().getStringExtra("imageUrl");
+
         File imageFile = new File(imagePath);
 
         Glide.with(this)

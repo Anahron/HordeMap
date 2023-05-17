@@ -21,7 +21,7 @@ public class CompassView extends View implements SensorEventListener {
     private Bitmap bitmap;
     private SensorManager sensorManager;
     private final float[] orientationAngles = new float[3];
-    public static float azimuthDegrees = 0;
+    private float azimuthDegrees = 0;
     private final float[] rotationVectorReading = new float[3];
     private final float[] rotationMatrix = new float[9];
     private static final int NUM_SAMPLES = 3;
@@ -86,7 +86,7 @@ public class CompassView extends View implements SensorEventListener {
         super.onDetachedFromWindow();
         sensorManager.unregisterListener(this);
     }
-    protected void compasOFF() {
+    protected void compassOFF() {
         sensorManager.unregisterListener(this);
     }
     protected void compassON() {
@@ -137,7 +137,7 @@ public class CompassView extends View implements SensorEventListener {
             averageAzimuthDegrees /= NUM_SAMPLES;
             MapsActivity.AzimuthTextView.setTextSize(22F);
             MapsActivity.AzimuthTextView.setText(((int) averageAzimuthDegrees > 0 ? (int) averageAzimuthDegrees : (int) averageAzimuthDegrees + 360) + "\u00B0");
-            CompassView.azimuthDegrees = averageAzimuthDegrees > 0.0F ? averageAzimuthDegrees : averageAzimuthDegrees + 360.0F;
+            this.azimuthDegrees = averageAzimuthDegrees > 0.0F ? averageAzimuthDegrees : averageAzimuthDegrees + 360.0F;
             invalidate();
         }
     }

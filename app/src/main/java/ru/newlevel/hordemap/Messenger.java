@@ -1,9 +1,6 @@
 package ru.newlevel.hordemap;
 
 import static android.app.Activity.RESULT_OK;
-import static ru.newlevel.hordemap.MapsActivity.adapter;
-import static ru.newlevel.hordemap.MapsActivity.MessengerButton;
-import static ru.newlevel.hordemap.MapsActivity.photoUri;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -14,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Rect;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
@@ -23,15 +21,16 @@ import android.provider.MediaStore;
 import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -54,140 +53,104 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 public class Messenger {
 
+    @SuppressLint("StaticFieldLeak")
     private static Messenger instance = null;
-    public static RecyclerView recyclerView;
-    @SuppressLint("StaticFieldLeak")
-    public static ProgressBar progressBar;
-    @SuppressLint("StaticFieldLeak")
-    public static TextView progressText;
     private Handler handler;
-    private static final int REQUEST_CODE_CAMERA = 11;
     public static List<Message> allMessages = new ArrayList<>();
-    private final static String MASSAGE_PATH = "massages";
-    private final static String MASSAGE_FILE_FOLDER = "MessengerFiles";
+    private final static String MESSAGE_PATH = "messages";
+    private final static String MESSAGE_FILE_FOLDER = "MessengerFiles";
+    private final HashSet<Long> loadedMessageIds = new HashSet<>(); // для хранения идентификаторов уже загруженных сообщений
 
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1010;
-    private static final int REQUEST_CODE_SELECT_FILE = 101;
+    private static final int REQUEST_CODE_CAMERA_PERMISSION = 1011;
+    public static final int REQUEST_CODE_SELECT_FILE = 101;
+    public static final int REQUEST_CODE_CAMERA = 11;
 
-    public static synchronized Messenger getInstance() {
+    private Context context;
+    private TextView progressText;
+    private ProgressBar progressBar;
+    private RecyclerView recyclerView;
+    private MessagesAdapter adapter;
+    private ImageButton messengerButton;
+    private EditText textMessage;
+    private Dialog dialog;
+    private Uri photoUri;
+    private ImageButton newMessageButton;
+
+    public static Messenger getInstance() {
         if (instance == null) {
             instance = new Messenger();
         }
         return instance;
     }
 
-    void createMassager(Context context) {
-        MapsActivity.MessengerButton.setOnClickListener(new View.OnClickListener() {
+    public ImageButton getMessengerButton() {
+        return messengerButton;
+    }
+
+    void createMessenger(Context context) {
+        this.context = context;
+        handler = new Handler();
+        createMessengerButton();
+        createDialog();
+        createNewMessageAnnounces(dialog);
+        createAndSetupRecyclerView();
+
+        messengerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Dialog dialog = new Dialog(context, R.style.AlertDialogNoMargins);
-                MessengerButton.setBackgroundResource(R.drawable.nomassage);
-                dialog.setContentView(R.layout.activity_messages);
-
-                recyclerView = dialog.findViewById(R.id.recyclerViewMessages);
-                recyclerView.setLayoutManager(new LinearLayoutManager(context));
-                recyclerView.setNestedScrollingEnabled(true);
-                recyclerView.setAdapter(adapter);
-
-                progressText = dialog.findViewById(R.id.progressText);
-                progressText.setVisibility(View.INVISIBLE);
-
-                progressBar = dialog.findViewById(R.id.progressBar);
-                progressBar.setVisibility(View.INVISIBLE);
-
+                if (ContextCompat.checkSelfPermission(MapsActivity.getContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
+                }
                 getMessagesFromDatabase(true);
 
-                dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+                createProgressBar(dialog);
+                createScrollDownButton(dialog);
+                createEditTextMessage(dialog);
+                createSendMessageButton(dialog);
+                createUploadFileButton(dialog);
+                createOpenCameraButton(dialog);
+                createCloseMessengerButton(dialog);
 
-                ImageButton closeButton = dialog.findViewById(R.id.close_massager);  // Кнопка закрыть
-                closeButton.setOnClickListener(v12 -> dialog.dismiss());
-                closeButton.setBackgroundResource(R.drawable.close_button);
-
-                ImageButton downButton = dialog.findViewById(R.id.go_down);    // кнопка вниз
-                downButton.setOnClickListener(v14 -> recyclerView.scrollToPosition(adapter.getItemCount() - 1));
-                downButton.setBackgroundResource(R.drawable.down_button);
-
-                EditText textMassage = dialog.findViewById(R.id.editTextMessage);
-                textMassage.setInputType(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE);
-                //  textMassage.requestFocus();
-
-                //    dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
-                textMassage.setOnClickListener(v13 -> {
-                    textMassage.requestFocus();
-                    recyclerView.scrollToPosition(adapter.getItemCount() - 1);});
-
-                textMassage.setOnEditorActionListener((textView, actionId, keyEvent) -> {
-                    if (actionId == EditorInfo.IME_ACTION_DONE) {
-                        sendMassage(String.valueOf(textMassage.getText()));
-                        getMessagesFromDatabase(false);
-                        textMassage.setText("");
-                        recyclerView.requestFocus();
-                        recyclerView.postDelayed(() -> {
-                            recyclerView.scrollToPosition(adapter.getItemCount() - 1);
-                            textMassage.requestFocus();
-                        }, 200); // Задержка для обеспечения фокуса на RecyclerView
-                        return true;
-                    }
-                    return false;
-                });
-
-                ImageButton button = dialog.findViewById(R.id.buttonSend);   // Отправка
-                button.setBackgroundResource(R.drawable.send_message);
-                button.setOnClickListener(v1 -> {
-                    sendMassage(String.valueOf(textMassage.getText()));
-                    getMessagesFromDatabase(false);
-                    textMassage.setText("");
-                    recyclerView.requestFocus();
-                    recyclerView.postDelayed(() -> {
-                        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
-                        textMassage.requestFocus();
-                    }, 200); // Задержка для обеспечения фокуса на RecyclerView
-                });
-
-                ImageButton downloadButton = dialog.findViewById(R.id.buttonSendFile);   // загрузка
-                downloadButton.setBackgroundResource(R.drawable.send_file);
-                downloadButton.setOnClickListener(v1 -> {
-                    onSendFileButtonClick(((Activity) context));
-                    recyclerView.requestFocus();
-                    recyclerView.postDelayed(() -> {
-                        recyclerView.scrollToPosition(adapter.getItemCount() - 1);
-                        textMassage.requestFocus();
-                    }, 200); // Задержка для обеспечения фокуса на RecyclerView
-                });
-
-                ImageButton buttonPhoto = dialog.findViewById(R.id.buttonPhoto);   // camera
-                buttonPhoto.setBackgroundResource(R.drawable.button_photo);
-                buttonPhoto.setOnClickListener(v1 -> openCamera(context));
-
-                handler = new Handler();
-                final int[] previousItemCount = {adapter.getItemCount()}; // Предыдущий размер списка
-                Message[] lastMessage = {adapter.getItem(adapter.getItemCount() - 1)};
-                Runnable runnable = new Runnable() {
+                Runnable updateMessagesEveryMin = new Runnable() {
                     @Override
                     public void run() {
                         getMessagesFromDatabase(false);
-                        int newItemCount = adapter.getItemCount(); // Текущий размер списка
-                        try {
-                            if (newItemCount > previousItemCount[0] || !adapter.getItem(newItemCount - 1).getMassage().equals(lastMessage[0].getMassage())) {
-                                previousItemCount[0] = newItemCount;
-                                lastMessage[0] = adapter.getItem(adapter.getItemCount() - 1);
-                                recyclerView.scrollToPosition(newItemCount - 1); // Прокрутить список вниз, если не находится внизу
-                            }
-                        } catch (Exception e) {
-                            System.out.println("список пуст");
+                        boolean isAtEnd = !recyclerView.canScrollVertically(1) && recyclerView.computeVerticalScrollOffset() > 0;
+                        if (isAtEnd) {
+                            newMessageButton.setVisibility(View.GONE);
                         }
                         handler.postDelayed(this, 1000);
                     }
                 };
-                handler.post(runnable);
-                recyclerView.scrollToPosition(adapter.getItemCount() - 1);
-                dialog.setOnDismissListener(dialog1 -> handler.removeCallbacks(runnable));
+
+                // слушатель размера экрана для прокрутки элементов при открытии клавиатуры
+                final View activityRootView = dialog.findViewById(R.id.activityRoot);
+                activityRootView.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+                    Rect r = new Rect();
+                    activityRootView.getWindowVisibleDisplayFrame(r);
+
+                    int screenHeight = activityRootView.getRootView().getHeight();
+                    int keypadHeight = r.bottom - screenHeight;
+                    // если высота клавиатуры больше 15% от экрана, считаем клавиатуру открытой
+                    if (keypadHeight > screenHeight * 0.15) {
+                        if (adapter.getItemCount() > 0)
+                            recyclerView.smoothScrollToPosition(adapter.getItemCount() - 1);
+                    }
+                });
+
+                handler.post(updateMessagesEveryMin);
+                dialog.setOnDismissListener(dialog1 -> {
+                    handler.removeCallbacks(updateMessagesEveryMin);
+                    messengerButton.setBackgroundResource(R.drawable.nomassage);
+                });
                 dialog.show();
             }
         });
@@ -211,7 +174,7 @@ public class Messenger {
         return fileName;
     }
 
-    private long getFileSize(Uri fileUri) {
+    private long getFileSizeFromUri(Uri fileUri) {
         Cursor cursor = null;
         try {
             String[] projection = {MediaStore.MediaColumns.SIZE};
@@ -228,18 +191,15 @@ public class Messenger {
         return 0;
     }
 
-    protected void sendFile(Uri fileUri) {
+    synchronized void uploadFileToDatabase(Uri fileUri) {
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference();
         String fileName = getFileNameFromUri(fileUri);
-        long fileSize = getFileSize(fileUri);
-        // Создайте ссылку на файл в Firebase Storage
-        StorageReference fileRef = storageRef.child(MASSAGE_FILE_FOLDER + User.getInstance().getRoomId() + "/" + fileName);
+        long fileSize = getFileSizeFromUri(fileUri);
 
-        // Загрузите файл в Firebase Storage
+        StorageReference fileRef = storageRef.child(MESSAGE_FILE_FOLDER + User.getInstance().getRoomId() + "/" + fileName);
         UploadTask uploadTask = fileRef.putFile(fileUri);
 
-        // Отслеживайте прогресс загрузки (необязательно)
         uploadTask.addOnProgressListener(taskSnapshot -> {
             double progress = (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -247,49 +207,40 @@ public class Messenger {
                 progressText.setVisibility(View.VISIBLE);
                 progressBar.setProgress((int) progress, true);
             }
-            System.out.println("Прогресс загрузки: " + progress + "%");
         });
         uploadTask.addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 progressBar.setVisibility(View.GONE);
                 progressText.setVisibility(View.GONE);
-                System.out.println("Загрузка завершена успешно");
                 fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
                     String downloadUrl = uri.toString();
-                    createNewMessage(downloadUrl + "&&&" + fileName + "&&&" + fileSize);
+                    sendNewMessageToDatabase(downloadUrl + "&&&" + fileName + "&&&" + fileSize);
                 });
-            } else {
-                System.out.println("Ошибка загрузки файла");
-                // Обработайте ошибку загрузки файла
             }
         });
-
-
     }
 
-    void checkLastMessage() {
-        System.out.println("Проверяем последние сообщения");
-        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + User.getInstance().getRoomId());
+    void checkDatabaseForNewMessages() {
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MESSAGE_PATH + User.getInstance().getRoomId());
         Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
         lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     if (MessagesAdapter.lastDisplayedMessage == null) {
-                        MapsActivity.MessengerButton.setBackgroundResource(R.drawable.yesmassage);
-                        return;
+                        messengerButton.setBackgroundResource(R.drawable.yesmassage);
                     } else {
                         for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
                             Message lastMessage = messageSnapshot.getValue(Message.class);
                             assert lastMessage != null;
+                            System.out.println("сравниваем lastMessage.getTimestamp() " + lastMessage.getTimestamp() + " MessagesAdapter.lastDisplayedMessage.getTimestamp() " + MessagesAdapter.lastDisplayedMessage.getTimestamp());
                             if (lastMessage.getTimestamp() != MessagesAdapter.lastDisplayedMessage.getTimestamp()) {
-                                MapsActivity.MessengerButton.setBackgroundResource(R.drawable.yesmassage);
+                                messengerButton.setBackgroundResource(R.drawable.yesmassage);
                                 return;
                             }
                         }
                     }
                 }
-                System.out.println("Штамп совпал??");
             }
 
             @Override
@@ -297,20 +248,53 @@ public class Messenger {
 
             }
         });
-
-
     }
 
-    private void updateLastMessageText(String messageId, String newMessage) {
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + User.getInstance().getRoomId());
-        Map<String, Object> update = new HashMap<>();
-        update.put(messageId + "/massage", newMessage);
-        update.put(messageId + "/timestamp", System.currentTimeMillis());
-        database.updateChildren(update);
+    private void getMessagesFromDatabase(boolean isNeedFool) {
+        long maxTimestamp;
+        if (isNeedFool || MessagesAdapter.lastDisplayedMessage == null)
+            maxTimestamp = 100000000L;
+        else
+            maxTimestamp = MessagesAdapter.lastDisplayedMessage.getTimestamp();
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MESSAGE_PATH + User.getInstance().getRoomId());
+        Query query = messagesRef.orderByChild("timestamp").startAfter(maxTimestamp);
+        query.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                System.out.println("Получили data");
+                List<Message> messages = new ArrayList<>();
+                if (isNeedFool) {
+                    allMessages.clear();
+                    loadedMessageIds.clear();
+                }
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    Message message = snapshot.getValue(Message.class);
+                    assert message != null;
+                    Long messageId = message.getTimestamp();
+                    System.out.println(messageId);
+                    if (loadedMessageIds.contains(messageId)) {
+                        continue;
+                    }
+                    loadedMessageIds.add(messageId);
+                    messages.add(message);
+                }
+                if (allMessages.isEmpty() && !messages.isEmpty()) {
+                    allMessages.addAll(messages);
+                    adapter.setAllMessages(allMessages);
+                } else if (!messages.isEmpty()) {
+                    adapter.setLatestMessages(messages);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
     }
 
-    void sendMassage(String massage) {
-        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + User.getInstance().getRoomId());
+    synchronized void checkAndSendTextMessageToDatabase(String message) {
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MESSAGE_PATH + User.getInstance().getRoomId());
         Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
         lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -318,34 +302,34 @@ public class Messenger {
                 if (dataSnapshot.exists()) {
                     for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
                         Message lastMessage = messageSnapshot.getValue(Message.class);
-                        if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName()) && !lastMessage.getMassage().startsWith("http")) {
-                            String newMassage = lastMessage.getMassage() + "\n> " + massage;
-                            updateLastMessageText(messageSnapshot.getKey(), newMassage);
+                        if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName()) && !lastMessage.getMessage().startsWith("http")) {
+                            String newMessage = lastMessage.getMessage() + "\n> " + message;
+                            messageSnapshot.getRef().child("/message").setValue(newMessage);
+                            messageSnapshot.getRef().child("/timestamp").setValue(System.currentTimeMillis());
                             return;
                         }
                     }
                 }
-                createNewMessage(massage);
+                sendNewMessageToDatabase(message);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-
             }
         });
     }
 
-    void createNewMessage(String message) {
+    synchronized void sendNewMessageToDatabase(String message) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = MASSAGE_PATH + User.getInstance().getRoomId() + "/" + System.currentTimeMillis();
+        String geoDataPath = MESSAGE_PATH + User.getInstance().getRoomId() + "/" + System.currentTimeMillis();
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/userName", User.getInstance().getUserName());
-        updates.put(geoDataPath + "/massage", message);
+        updates.put(geoDataPath + "/message", message);
         updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
         database.updateChildren(updates);
     }
 
-    public static void onSendFileButtonClick(Activity activity) {
+    public static void onSendFileButtonClick(@NonNull Activity activity) {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*"); // Выберите нужный тип файлов, например, image/* для изображений
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -356,48 +340,23 @@ public class Messenger {
         if (requestCode == REQUEST_CODE_SELECT_FILE && resultCode == RESULT_OK) {
             if (data != null && data.getData() != null) {
                 Uri fileUri = data.getData();
-                sendFile(fileUri);
+                uploadFileToDatabase(fileUri);
             }
         }
-    }
-
-    private void getMessagesFromDatabase(boolean isNeedFool) {
-        System.out.println("Запрос getMessagesFromDatabase");
-        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MASSAGE_PATH + User.getInstance().getRoomId());
-        messagesRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                List<Message> messages = new ArrayList<>();
-                if (isNeedFool) allMessages.clear();
-                if (allMessages.isEmpty()) {
-                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        Message message = snapshot.getValue(Message.class);
-                        allMessages.add(message);
-                    }
-                    adapter.setMessages(allMessages);
-                } else {
-                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        Message message = snapshot.getValue(Message.class);
-                        if (allMessages.contains(message)) continue;
-                        messages.add(message);
-                    }
-                    if (!messages.isEmpty())
-                        adapter.setLatestMessages(messages);
-                }
+        if (requestCode == REQUEST_CODE_CAMERA && resultCode == RESULT_OK) {
+            if (data != null) {
+                photoUri = data.getData();
             }
+            Messenger.getInstance().uploadFileToDatabase(photoUri);
+        }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Обработка ошибки чтения
-            }
-        });
     }
 
     @SuppressLint("IntentReset")
-    private void openCamera(Context context) {
+    private void openPhotoLoaderIntents(@NonNull Context context) {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (takePictureIntent.resolveActivity(context.getPackageManager()) != null) {
-            File photoFile = createImageFile(context);
+            File photoFile = createTempImageFile(context);
             if (photoFile != null) {
                 photoUri = FileProvider.getUriForFile(context, "ru.newlevel.hordemap.fileprovider", photoFile);
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
@@ -408,13 +367,13 @@ public class Messenger {
                 // Создание интента для выбора из нескольких источников
                 Intent chooserIntent = Intent.createChooser(takePictureIntent, "Select Source");
                 chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{galleryIntent});
-
                 ((Activity) context).startActivityForResult(chooserIntent, REQUEST_CODE_CAMERA);
             }
         }
     }
 
-    private File createImageFile(Context context) {
+    @Nullable
+    private File createTempImageFile(@NonNull Context context) {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
@@ -426,7 +385,7 @@ public class Messenger {
         return null;
     }
 
-    protected void downloadFile(String url, String fileName) {
+    synchronized void downloadFile(String url, String fileName) {
         if (ContextCompat.checkSelfPermission(MapsActivity.getContext(), android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
         } else {
@@ -443,6 +402,108 @@ public class Messenger {
             // Обновление медиахранилища после загрузки файла
             MediaScannerConnection.scanFile(MapsActivity.getContext(), new String[]{Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + fileName}, null, null);
         }
+    }
+
+    private void createMessengerButton() {
+        messengerButton = ((Activity) context).findViewById(R.id.massage);
+        messengerButton.setBackgroundResource(R.drawable.nomassage);
+        messengerButton.setClickable(false);
+    }
+
+    private void createDialog() {
+        dialog = new Dialog(context, R.style.AlertDialogNoMargins);
+        dialog.setContentView(R.layout.activity_messages);
+        dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    }
+
+    private void createAndSetupRecyclerView() {
+        recyclerView = dialog.findViewById(R.id.recyclerViewMessages);
+        recyclerView.setLayoutManager(new LinearLayoutManager(context));
+        adapter = new MessagesAdapter(recyclerView, newMessageButton);
+        recyclerView.setAdapter(adapter);
+        recyclerView.setNestedScrollingEnabled(true);
+    }
+
+    private void createScrollDownButton(@NonNull Dialog dialog) {
+        ImageButton scrollDownButton = dialog.findViewById(R.id.go_down);    // кнопка скрола вниз
+        scrollDownButton.setOnClickListener(v14 -> recyclerView.scrollToPosition(adapter.getItemCount() - 1));
+        scrollDownButton.setBackgroundResource(R.drawable.down_button);
+    }
+
+    private void createEditTextMessage(@NonNull Dialog dialog) {
+        textMessage = dialog.findViewById(R.id.editTextMessage);
+        textMessage.setInputType(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE);
+        textMessage.setOnEditorActionListener((textView, actionId, keyEvent) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                String text = String.valueOf(textMessage.getText());
+                if (text.length() > 0)
+                    checkAndSendTextMessageToDatabase(text);
+                getMessagesFromDatabase(false);
+                textMessage.setText("");
+                textMessage.requestFocus();
+                return true;
+            }
+            return false;
+        });  // отпрака фото по нажатию энтер на клавиатуре
+    }
+
+    private void createSendMessageButton(@NonNull Dialog dialog) {
+        ImageButton sendMessageButton = dialog.findViewById(R.id.buttonSend);   // Отправка сообщения
+        sendMessageButton.setBackgroundResource(R.drawable.send_message);
+        sendMessageButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        sendMessageButton.setOnClickListener(v1 -> {
+            String text = String.valueOf(textMessage.getText());
+            if (text.length() > 0)
+                checkAndSendTextMessageToDatabase(text);
+            getMessagesFromDatabase(false);
+            textMessage.setText("");
+            textMessage.requestFocus();
+        });
+    }
+
+    private void createUploadFileButton(@NonNull Dialog dialog) {
+        ImageButton uploadFileButton = dialog.findViewById(R.id.buttonSendFile);   // Отправка файла
+        uploadFileButton.setBackgroundResource(R.drawable.send_file);
+        uploadFileButton.setOnClickListener(v1 -> {
+            onSendFileButtonClick(((Activity) context));
+            textMessage.requestFocus();
+        });
+
+    }
+
+    private void createOpenCameraButton(@NonNull Dialog dialog) {
+        ImageButton openCameraButton = dialog.findViewById(R.id.buttonPhoto);   // Открыть камеру
+        openCameraButton.setBackgroundResource(R.drawable.button_photo);
+        openCameraButton.setOnClickListener(v1 -> {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions((Activity) context, new String[]{Manifest.permission.CAMERA}, REQUEST_CODE_CAMERA_PERMISSION);
+            } else {
+                openPhotoLoaderIntents(context);
+            }
+        });
+    }
+
+    private void createCloseMessengerButton(@NonNull Dialog dialog) {
+        ImageButton closeMessengerButton = dialog.findViewById(R.id.close_massager);  // Кнопка закрыть
+        closeMessengerButton.setOnClickListener(v12 -> dialog.dismiss());
+        closeMessengerButton.setBackgroundResource(R.drawable.close_button);
+    }
+
+    private void createProgressBar(@NonNull Dialog dialog) {
+        progressText = dialog.findViewById(R.id.progressText);
+        progressText.setVisibility(View.INVISIBLE);
+        progressBar = dialog.findViewById(R.id.progressBar);
+        progressBar.setVisibility(View.INVISIBLE);
+    }
+
+    private void createNewMessageAnnounces(@NonNull Dialog dialog) {
+        newMessageButton = dialog.findViewById(R.id.new_message);
+        newMessageButton.setBackgroundResource(R.drawable.new_message_arrived);
+        newMessageButton.setOnClickListener(v14 -> {
+            recyclerView.smoothScrollToPosition(adapter.getItemCount() - 1);
+            newMessageButton.setVisibility(View.GONE);
+        });
+        newMessageButton.setBackgroundResource(R.drawable.new_message_arrived);
     }
 
     private void observeDownloadProgress(DownloadManager downloadManager, long downloadId) {
