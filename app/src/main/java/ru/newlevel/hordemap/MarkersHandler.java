@@ -106,7 +106,7 @@ public class MarkersHandler {
             }
             markers.clear();
             for (String id : map.keySet()) {
-                if (!User.getInstance().getRoomId().equals(id) && isMarkersON) {
+                if (!User.getInstance().getDeviceId().equals(id) && isMarkersON) {
                     String[] data = Objects.requireNonNull(map.get(id)).split("/");
                     @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm");
                     TimeZone timeZone = TimeZone.getDefault();

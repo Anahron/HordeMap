@@ -11,7 +11,6 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.os.SystemClock;
 import android.provider.Settings;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
@@ -32,7 +31,7 @@ public class MyServiceUtils {
     public static PendingIntent pendingIntent;
     public static final int NOTIFICATION_ID = 1;
 
-    @SuppressLint("ShortAlarm")
+
     public static void startAlarmManager(Context context) {
         Log.d("Horde map", "Запустился Аларм Менеджер " + getInstance());
         if (alarmMgr == null) {
@@ -41,7 +40,7 @@ public class MyServiceUtils {
         Intent intent = new Intent(context, MyWakefulReceiver.class);
         intent.setAction("com.newlevel.ACTION_SEND_DATA");
         pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 25000, pendingIntent);
+        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 25000, pendingIntent);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -50,7 +49,7 @@ public class MyServiceUtils {
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
-        NotificationChannel channel = new NotificationChannel("CHANNEL_1", "GPS", NotificationManager.IMPORTANCE_HIGH);
+        NotificationChannel channel = new NotificationChannel("CHANNEL_1", "GPS", NotificationManager.IMPORTANCE_DEFAULT);
         NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
         notificationManager.createNotificationChannel(channel);
 
@@ -58,7 +57,7 @@ public class MyServiceUtils {
                 .setSmallIcon(R.mipmap.hordecircle_round)
                 .setContentTitle("Horde Map")
                 .setContentText("Horde Map получает GPS данные в фоновом режиме")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setTimeoutAfter(500);
@@ -105,9 +104,9 @@ public class MyServiceUtils {
         context.stopService(intent);
     }
 
-    @SuppressLint("HardwareIds")
+
     public static String getDeviceId(Context context) {
-        String androidId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
+        @SuppressLint("HardwareIds") String androidId = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ANDROID_ID);
         if (androidId != null) {
             return androidId;
         } else {

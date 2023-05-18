@@ -21,6 +21,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -29,12 +30,12 @@ import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.request.transition.Transition;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
@@ -55,35 +56,33 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    void setAllMessages(List<Message> messages) {
-        this.messages = messages;
-        System.out.println("Пришли в setAllMessages с количеством сообщений " + messages.size());
-        recyclerView.scrollToPosition(getItemCount() - 1);
-        notifyDataSetChanged();
-    }
-
-    void setLatestMessages(List<Message> latestMessages) {
-        System.out.println("Пришли в setLatestMessages с количеством сообщений " + latestMessages.size());
+    void setMessages(@NonNull List<Message> newMessages) {
+        System.out.println("Пришли в setMessages с количеством сообщений " + newMessages.size());
+        lastDisplayedMessage = newMessages.get(newMessages.size() - 1);
         if (messages == null) {
-            messages = new ArrayList<>();
+            messages = newMessages;
+            notifyDataSetChanged();
+            recyclerView.scrollToPosition(getItemCount() - 1);
+        } else if (!newMessages.equals(messages)) {
+            isAtBottom = !recyclerView.canScrollVertically(1) && recyclerView.computeVerticalScrollRange() > recyclerView.getHeight();
+            if (!isAtBottom && !newMessages.get(newMessages.size() - 1).getUserName().equals(User.getInstance().getUserName())) {
+                newMessageButton.setVisibility(View.VISIBLE);
+            }
+            checkLatestMessageForDelete(newMessages);
         }
-        isAtBottom = !recyclerView.canScrollVertically(1) && recyclerView.computeVerticalScrollRange() > recyclerView.getHeight();
-        if (!isAtBottom && !latestMessages.get(latestMessages.size() - 1).getUserName().equals(User.getInstance().getUserName())) {
-            newMessageButton.setVisibility(View.VISIBLE);
-        }
-        lastDisplayedMessage = latestMessages.get(latestMessages.size() - 1);
-        checkLatestMessageForDelete(latestMessages);
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private void checkLatestMessageForDelete(List<Message> latestMessages) {
+    private void checkLatestMessageForDelete(@NonNull List<Message> latestMessages) {
         Message previousMessage = messages.get(messages.size() - 1);
+        int previousMessagePosition = messages.size() - 1;
         Message currentMessage = latestMessages.get(0);
         if (!messages.get(messages.size() - 1).getMessage().startsWith("http") && previousMessage.getUserName().equals(currentMessage.getUserName())) {
-            messages.remove(previousMessage);
-            messages.addAll(latestMessages);
-            notifyDataSetChanged();
-        } else {
+            messages.set(previousMessagePosition, currentMessage);
+            notifyItemChanged(previousMessagePosition, 1);
+            latestMessages.remove(0);
+        }
+        if (latestMessages.size() > 0) {
             messages.addAll(latestMessages);
             notifyItemRangeInserted(messages.size() - latestMessages.size(), latestMessages.size());
         }
@@ -179,7 +178,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                         });
                     } else {
                         button.setVisibility(View.VISIBLE);
-                        button.setOnClickListener(v -> Messenger.getInstance().downloadFileFromDatabase(strings[0], fileName));
+                        button.setOnClickListener(v -> Messenger.getInstance().getViewModel().downloadFile(strings[0], fileName));
                     }
                 } catch (Exception e) {
                     contentTextView.setText(messageText);

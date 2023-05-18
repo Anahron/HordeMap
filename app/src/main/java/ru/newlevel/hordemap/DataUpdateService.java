@@ -1,17 +1,26 @@
 package ru.newlevel.hordemap;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -23,6 +32,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
@@ -54,7 +64,16 @@ public class DataUpdateService extends Service {
     private LocationRequest locationRequest;
     private FusedLocationProviderClient fusedLocationClient;
     private static Location location;
+    private static PowerManager.WakeLock wakeLock;
     private static final Location[] lastLocation = {null};
+
+    private static final int MY_PERMISSIONS_REQUEST_LOCATION = 2001;
+    private static final int MY_PERMISSIONS_REQUEST_INTERNET = 2002;
+    private static final int MY_PERMISSIONS_REQUEST_SENSOR = 2003;
+    private static final int MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION = 2004;
+    private static final int MY_PERMISSIONS_REQUEST_WAKE_LOCK = 2005;
+    private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 2006;
+    private static final int REQUEST_CODE_FOREGROUND_SERVICE = 2012;
 
     public static synchronized DataUpdateService getInstance() {
         if (instance == null) {
@@ -74,7 +93,37 @@ public class DataUpdateService extends Service {
         updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
         System.out.println("Отправка данных : " + updates);
         database.updateChildren(updates);
-        Messenger.getInstance().checkDatabaseForNewMessages();
+        checkDatabaseForNewMessages();
+    }
+
+    void checkDatabaseForNewMessages() {
+        String MESSAGE_PATH = "messages";
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MESSAGE_PATH + User.getInstance().getRoomId());
+        Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
+        lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    if (MessagesAdapter.lastDisplayedMessage == null) {
+                        Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
+                    } else {
+                        for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
+                            Message lastMessage = messageSnapshot.getValue(Message.class);
+                            assert lastMessage != null;
+                            if (lastMessage.getTimestamp() != MessagesAdapter.lastDisplayedMessage.getTimestamp()) {
+                                Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
     }
 
     static void sendGeoMarkerToDatabase(String userName, double latitude, double longitude, int selectedItem, String title) {
@@ -207,11 +256,56 @@ public class DataUpdateService extends Service {
         return longitude;
     }
 
-    @SuppressLint("MissingPermission")
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        wakeLock.release();
+    }
+    @SuppressLint("BatteryLife")
+    protected void setPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // Запросите разрешения
+            String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
+            int requestCode = MY_PERMISSIONS_REQUEST_LOCATION;
+            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), permissions, requestCode);
+        }
+
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.FOREGROUND_SERVICE}, REQUEST_CODE_FOREGROUND_SERVICE);
+            }
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.INTERNET}, MY_PERMISSIONS_REQUEST_INTERNET);
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission_group.SENSORS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission_group.SENSORS}, MY_PERMISSIONS_REQUEST_SENSOR);
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION);
+            }
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WAKE_LOCK) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.WAKE_LOCK}, MY_PERMISSIONS_REQUEST_WAKE_LOCK);
+        }
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
+            }
+        }
+    }
+    @SuppressLint({"InvalidWakeLockTag"})
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onCreate() {
+        System.out.println("onCreate вызвана");
         super.onCreate();
+        setPermission();
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "WakeLock");
+        wakeLock.acquire();
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -227,8 +321,7 @@ public class DataUpdateService extends Service {
         return null;
     }
 
-    @SuppressLint("MissingPermission")
-    @RequiresApi(api = Build.VERSION_CODES.O)
+    @SuppressLint("InvalidWakeLockTag")
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         System.out.println("onStartCommand вызвана");
@@ -288,11 +381,14 @@ public class DataUpdateService extends Service {
         if (!requestingLocationUpdates) {
             requestingLocationUpdates = true;
             Log.d("Horde map", " Запустили locationCallback");
+            // Разрешения на доступ к местоположению уже предоставлены, выполняем необходимые действия для получения местоположения
+            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION);}
             fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+
         }
         sendGeoDataToDatabase(User.getInstance().getDeviceId(), User.getInstance().getUserName(), latitude, longitude);
         getAllGeoDataFromDatabase();
-        //    exchangeGPSData();
         return START_STICKY;
     }
 }

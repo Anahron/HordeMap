@@ -20,10 +20,14 @@ public class User {
     public String getDeviceId() {
         return deviceId;
     }
+
     public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
     }
+
     public String getRoomId() {
+        if (roomId == null || roomId.equals(""))
+            return "0";
         return roomId;
     }
 

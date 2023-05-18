@@ -28,7 +28,7 @@ public class InfoDialogFragment extends DialogFragment {
         builder.setTitle(INFO);
         builder.setMessage(INFO_MASSAGE);
         builder.setPositiveButton(ACCEPT, (dialog, which) -> {
-            LoginDialogFragment dialogFragment = new LoginDialogFragment(getActivity(), mMapsActivity);
+            LoginDialogFragment dialogFragment = new LoginDialogFragment(mContext, mMapsActivity);
             dialogFragment.show(mMapsActivity.getSupportFragmentManager(), "login_dialog");
             mMapsActivity.setPermission();
         });

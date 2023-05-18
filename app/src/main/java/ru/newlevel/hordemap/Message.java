@@ -13,12 +13,28 @@ public class Message {
     private File file;
     private Bitmap thumbnail = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.downloaded_image);
 
-    public Bitmap getThumbnail() {
-        return thumbnail;
+    public String getUserName() {
+        return userName;
     }
 
-    public void setThumbnail(Bitmap thumbnail) {
-        this.thumbnail = thumbnail;
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
     }
 
     public File getFile() {
@@ -29,16 +45,12 @@ public class Message {
         this.file = file;
     }
 
-    public String getUserName() {
-        return userName;
+    public Bitmap getThumbnail() {
+        return thumbnail;
     }
 
-    public String getMessage() {
-        return message;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
+    public void setThumbnail(Bitmap thumbnail) {
+        this.thumbnail = thumbnail;
     }
 
     @Override
