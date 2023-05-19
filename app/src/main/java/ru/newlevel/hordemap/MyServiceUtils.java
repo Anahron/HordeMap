@@ -23,6 +23,8 @@ import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 
 import java.io.IOException;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.UUID;
 
 public class MyServiceUtils {
@@ -30,16 +32,20 @@ public class MyServiceUtils {
     public static AlarmManager alarmMgr;
     public static PendingIntent pendingIntent;
     public static final int NOTIFICATION_ID = 1;
+    private static Intent intentMyWakefulReceiver;
+    public static final String ACTION_FOREGROUND_SERVICE = "com.example.ACTION_FOREGROUND_SERVICE";
 
 
+    @SuppressLint("ShortAlarm")
     public static void startAlarmManager(Context context) {
         Log.d("Horde map", "Запустился Аларм Менеджер " + getInstance());
         if (alarmMgr == null) {
             alarmMgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         }
-        Intent intent = new Intent(context, MyWakefulReceiver.class);
-        intent.setAction("com.newlevel.ACTION_SEND_DATA");
-        pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        if (intentMyWakefulReceiver == null)
+            intentMyWakefulReceiver = new Intent(context, MyWakefulReceiver.class);
+        if (pendingIntent == null)
+            pendingIntent = PendingIntent.getBroadcast(context, 9991, intentMyWakefulReceiver, PendingIntent.FLAG_IMMUTABLE);
         alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 25000, pendingIntent);
     }
 
@@ -47,9 +53,9 @@ public class MyServiceUtils {
     public static Notification createNotification(Context context) {
         Intent intent = new Intent(context, MapsActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, 9990, intent, PendingIntent.FLAG_IMMUTABLE);
 
-        NotificationChannel channel = new NotificationChannel("CHANNEL_1", "GPS", NotificationManager.IMPORTANCE_DEFAULT);
+        NotificationChannel channel = new NotificationChannel("CHANNEL_1", "GPS", NotificationManager.IMPORTANCE_HIGH);
         NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
         notificationManager.createNotificationChannel(channel);
 
@@ -57,7 +63,7 @@ public class MyServiceUtils {
                 .setSmallIcon(R.mipmap.hordecircle_round)
                 .setContentTitle("Horde Map")
                 .setContentText("Horde Map получает GPS данные в фоновом режиме")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setTimeoutAfter(500);
@@ -78,7 +84,7 @@ public class MyServiceUtils {
         }
         if (!notificationDisplayed) {
             Log.d("Horde map", "Запустили сервис startForeground");
-            dataUpdateService.startForeground(NOTIFICATION_ID, MyServiceUtils.createNotification(MapsActivity.getContext()));
+            dataUpdateService.startForeground(NOTIFICATION_ID, MyServiceUtils.createNotification(dataUpdateService.getBaseContext()));
         } else {
             Log.d("Horde map", "Сервис startForeground уже запущен");
         }
@@ -88,11 +94,14 @@ public class MyServiceUtils {
         MapsActivity.permissionForGeoUpdate = true;
         MarkersHandler.isMarkersON = true;
         Intent service = new Intent(context, DataUpdateService.class);
-        service.setAction("com.newlevel.ACTION_SEND_DATA");
+        service.setAction(ACTION_FOREGROUND_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            System.out.println("Запускаем  context.startForegroundService(service);");
             context.startForegroundService(service);
-            MyServiceUtils.startAlarmManager(context);
+        } else {
+            context.startService(service);
         }
+        MyServiceUtils.startAlarmManager(context);
     }
 
     public static void stopGeoUpdateService(Context context) {
