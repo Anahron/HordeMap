@@ -155,7 +155,7 @@ public class MarkersHandler {
                 for (MyMarker myMarker : myMarkerList) {
                     dateFormat.setTimeZone(timeZone);
                     if (!myMarker.getTitle().equals("Маркер")) {
-                       createTextMarker(myMarker);
+                        createTextMarker(myMarker);
                     }
                     Marker marker = gMap.addMarker(new MarkerOptions()
                             .position(new LatLng(myMarker.getLatitude(), myMarker.getLongitude()))
@@ -171,7 +171,7 @@ public class MarkersHandler {
         });
     }
 
-    private static void createTextMarker(@NonNull MyMarker myMarker){
+    private static void createTextMarker(@NonNull MyMarker myMarker) {
         String text = myMarker.getTitle().length() > 10 ? myMarker.getTitle().substring(0, 8) + "..." : myMarker.getTitle();
         Rect textBounds = new Rect();
         Paint paint = new Paint();
@@ -217,6 +217,7 @@ public class MarkersHandler {
         }
         for (Marker marker : userMarkers) {
             marker.setVisible(true);
+
         }
     }
 

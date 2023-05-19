@@ -55,8 +55,8 @@ public class MyServiceUtils {
     }
 
     public static void stopGeoUpdateService(Context context) {
-        MarkersHandler.markersOff();
         MapsActivity.permissionForGeoUpdate = false;
+        MarkersHandler.markersOff();
         Intent intent = new Intent(context, DataUpdateService.class);
         if (MyServiceUtils.alarmMgr != null)
             MyServiceUtils.alarmMgr.cancel(MyServiceUtils.pendingIntent);

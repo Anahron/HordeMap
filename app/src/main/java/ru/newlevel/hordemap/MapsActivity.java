@@ -4,6 +4,7 @@ import static ru.newlevel.hordemap.DataUpdateService.locationHistory;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -81,6 +82,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static Context context;
     private KmzLoader kmzLoader;
     private Polyline polyline;
+    private Dialog dialog;
     private static HordeMapViewModel viewModel;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
@@ -179,7 +181,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
-        Messenger.getInstance().createMessenger(context, viewModel);
+        dialog = new Dialog(context, R.style.AlertDialogNoMargins);
+        Messenger.getInstance().createMessenger(context, viewModel, dialog);
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
@@ -762,9 +765,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
-        viewModel.loadMessagesListener();
-        viewModel.loadGeoDataListener();
-        viewModel.stopLoadMessages();
+        if (permissionForGeoUpdate) {
+            if (dialog.isShowing())
+                viewModel.loadMessagesListener();
+            viewModel.loadGeoDataListener();
+        }
         if (KmzLoader.savedKmlLayer != null)
             KmzLoader.savedKmlLayer.addLayerToMap();
     }

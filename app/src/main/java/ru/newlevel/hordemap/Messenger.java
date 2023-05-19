@@ -64,10 +64,6 @@ public class Messenger {
     private ImageButton newMessageButton;
     private HordeMapViewModel viewModel;
 
-    public HordeMapViewModel getViewModel() {
-        return viewModel;
-    }
-
     public static Messenger getInstance() {
         if (instance == null) {
             instance = new Messenger();
@@ -79,7 +75,8 @@ public class Messenger {
         return messengerButton;
     }
 
-    void createMessenger(Context context, HordeMapViewModel viewModel) {
+    void createMessenger(Context context, HordeMapViewModel viewModel, Dialog dialog) {
+        this.dialog = dialog;
         this.context = context;
         this.viewModel = viewModel;
         handler = new Handler();
@@ -220,13 +217,12 @@ public class Messenger {
     }
 
     private void createMessengerButton() {
-        messengerButton = ((Activity) context).findViewById(R.id.massage);
+        messengerButton = ((Activity) context).findViewById(R.id.message);
         messengerButton.setBackgroundResource(R.drawable.nomassage);
         messengerButton.setClickable(false);
     }
 
     private void createDialog() {
-        dialog = new Dialog(context, R.style.AlertDialogNoMargins);
         dialog.setContentView(R.layout.activity_messages);
         dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
     }
@@ -317,4 +313,5 @@ public class Messenger {
         });
         newMessageButton.setBackgroundResource(R.drawable.new_message_arrived);
     }
+
 }

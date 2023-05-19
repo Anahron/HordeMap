@@ -101,22 +101,12 @@ public class HordeMapRepository {
         geoDataRef.setValue(myMarker);
 
         System.out.println("Отправка данных : " + myMarker);
-//
-//        Map<String, Object> updates = new HashMap<>();
-//        updates.put(geoDataPath + "/latitude", latitude);
-//        updates.put(geoDataPath + "/longitude", longitude);
-//        updates.put(geoDataPath + "/userName", userName);
-//        updates.put(geoDataPath + "/title", title);
-//        updates.put(geoDataPath + "/item", selectedItem);
-//        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
-//        database.updateChildren(updates);
     }
 
     public void deleteMarkerFromDatabase(Marker marker) {
         String geoDataMarkerPath = GEO_MARKERS_PATH + User.getInstance().getRoomId();
         database.child(geoDataMarkerPath).child(String.valueOf(marker.getTag())).removeValue();
     }
-
 
     synchronized void downloadFileFromDatabase(String url, String fileName) {
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
@@ -208,7 +198,7 @@ public class HordeMapRepository {
         if (valueEventListener != null) {
             query.removeEventListener(valueEventListener); // Удаляем предыдущий слушатель
         }
-        query = messagesRef.orderByChild("timestamp").startAt(timestamp - 1);
+        query = messagesRef.orderByChild("timestamp").startAfter(timestamp);
         query.addValueEventListener(valueEventListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -226,6 +216,7 @@ public class HordeMapRepository {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
+                System.out.println("DatabaseError error");
                 callback.onError(error.getMessage());
             }
         });
@@ -292,7 +283,7 @@ public class HordeMapRepository {
                 progressLiveData.postValue(100);
                 fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
                     String downloadUrl = uri.toString();
-                    sendMessage(downloadUrl + "&&&" + fileName + "&&&" + fileSize);
+                    sendNewMessageToDatabase(downloadUrl + "&&&" + fileName + "&&&" + fileSize);
                 });
             }
         });
@@ -335,11 +326,12 @@ public class HordeMapRepository {
 
     synchronized void sendNewMessageToDatabase(String message) {
         DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = MESSAGE_PATH + User.getInstance().getRoomId() + "/" + System.currentTimeMillis();
+        long time = System.currentTimeMillis();
+        String geoDataPath = MESSAGE_PATH + User.getInstance().getRoomId() + "/" + time;
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/userName", User.getInstance().getUserName());
         updates.put(geoDataPath + "/message", message);
-        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
+        updates.put(geoDataPath + "/timestamp", time);
         database.updateChildren(updates);
     }
 
