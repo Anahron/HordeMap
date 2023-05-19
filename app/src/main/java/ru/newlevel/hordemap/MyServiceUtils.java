@@ -1,6 +1,7 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataUpdateService.getInstance;
+import static ru.newlevel.hordemap.MapsActivity.TIME_TO_SEND_DATA;
 
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
@@ -36,7 +37,8 @@ public class MyServiceUtils {
             intentMyWakefulReceiver = new Intent(context, MyWakefulReceiver.class);
         if (pendingIntent == null)
             pendingIntent = PendingIntent.getBroadcast(context, 9991, intentMyWakefulReceiver, PendingIntent.FLAG_IMMUTABLE);
-        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 25000, pendingIntent);
+        System.out.println("аларм менеджер установится с " + TIME_TO_SEND_DATA);
+        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + TIME_TO_SEND_DATA, pendingIntent);
     }
 
     public static void startGeoUpdateService(Context context) {

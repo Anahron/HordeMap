@@ -7,6 +7,7 @@ import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -25,6 +26,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
@@ -76,6 +78,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView distanceTextView;
     private View viewPopupMenu2;
     private View viewPopupMenu1;
+    private ImageButton messengerButton;
     @SuppressLint("StaticFieldLeak")
     public static TextView AzimuthTextView;
     @SuppressLint("StaticFieldLeak")
@@ -84,7 +87,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polyline polyline;
     private Dialog dialog;
     private static HordeMapViewModel viewModel;
-
+    private SharedPreferences prefs;
+    private int mapType;
+    public static int MARKER_SIZE_USERS = 60;
+    public static int MARKER_SIZE_CUSTOMS = 60;
+    public static int TIME_TO_SEND_DATA = 30000;
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
     private static final int MY_PERMISSIONS_REQUEST_SENSOR = 1003;
@@ -165,6 +172,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         startActivity(intent);
     }
 
+    private void getPrefs() {
+        prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
+        mapType = Integer.parseInt(prefs.getString("mapType", "4"));
+        MARKER_SIZE_USERS = Integer.parseInt(prefs.getString("markerUserSize", "60"));
+        MARKER_SIZE_CUSTOMS = Integer.parseInt(prefs.getString("markerCustomSize", "60"));
+        TIME_TO_SEND_DATA = Integer.parseInt(prefs.getString("timeToUpdate", "30000"));
+    }
+
     @SuppressLint("BatteryLife")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -172,6 +187,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         context = this;
         FirebaseApp.initializeApp(this);
+        getPrefs();
 
         ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -182,20 +198,46 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
         dialog = new Dialog(context, R.style.AlertDialogNoMargins);
-        Messenger.getInstance().createMessenger(context, viewModel, dialog);
+
+        createRightButtons();
+        Messenger.getInstance().createMessenger(context, viewModel, dialog, messengerButton);
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
 
-        popupWindow = new PopupWindow(context);
         createToolbar();
 
         LoginRequest.logIn(context, this);
 
         viewModel.getCustomMarkersLiveData().observe(this, MarkersHandler::createCustomMapMarkers);
         viewModel.getUsersMarkersLiveData().observe(this, MarkersHandler::createAllUsersMarkers);
-        viewModel.getIsHaveNewMessages().observe(this, isNewMessage -> Messenger.getInstance().getMessengerButton().setBackgroundResource(isNewMessage ? R.drawable.yesmassage : R.drawable.nomassage));
+        viewModel.getIsHaveNewMessages().observe(this, isNewMessage -> messengerButton.setBackgroundResource(isNewMessage ? R.drawable.yesmassage : R.drawable.nomassage));
+    }
+
+    private void createRightButtons() {
+
+        messengerButton = findViewById(R.id.message);
+        messengerButton.setBackgroundResource(R.drawable.nomassage);
+        messengerButton.setClickable(false);
+        ImageButton mapTypeButton = findViewById(R.id.map_type);
+        mapTypeButton.setBackgroundResource(R.drawable.map_type);
+        mapTypeButton.setOnClickListener(d -> {
+            SharedPreferences.Editor editor = prefs.edit();
+            int mapType = gMap.getMapType();
+            switch (mapType) {
+                case GoogleMap.MAP_TYPE_NORMAL:
+                    gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+                    editor.putString("mapType", "4");
+                    editor.apply();
+                    break;
+                case GoogleMap.MAP_TYPE_HYBRID:
+                    gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+                    editor.putString("mapType", "1");
+                    editor.apply();
+                    break;
+            }
+        });
     }
 
     public static void makeToast(String text) {
@@ -356,75 +398,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (popupWindow.isShowing()) popupWindow.dismiss();
             else popupWindow.showAsDropDown(menuButton);
 
-            createMenuItem0();
-            createMenuItem1();
-            createMenuItem2();
-            createMenuItem3();
-            createMenuItem4();
-            createMenuItem5();
+            createMenuItemInfoDialog();
+            createMenuItemLoadMapKMZ();
+            createMenuItemMarkerOptions();
+            createMenuItemShowDistance();
+            createMenuItemLogOut();
+            createMenuItemCloseApp();
 
             popupWindow.showAtLocation(menuButton, Gravity.TOP | Gravity.START, 0, 0);
         });
         return menuButton;
     }
 
-    private void createMenuItem0() {
-        Button menuItem0 = viewPopupMenu1.findViewById(R.id.menu_item0);  // Смена типа карты
+    private void createMenuItemInfoDialog() {
+        Button menuItem0 = viewPopupMenu1.findViewById(R.id.menu_item0);
         menuItem0.setBackgroundResource(R.drawable.menubutton);
         menuItem0.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem0.setOnClickListener(s -> {
-            int mapType = gMap.getMapType();
-            switch (mapType) {
-                case GoogleMap.MAP_TYPE_NORMAL:
-                    gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-                    break;
-                case GoogleMap.MAP_TYPE_HYBRID:
-                    gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-                    break;
-            }
-            popupWindow.dismiss();
-        });
-    }
-
-    private void createMenuItem1() {
-        Button menuItem1 = viewPopupMenu1.findViewById(R.id.menu_item1);  // Загрузка карты полигона
-        menuItem1.setBackgroundResource(R.drawable.menubutton);
-        menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
-        menuItem1.setOnClickListener(s -> {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-                // Если разрешение не предоставлено, запросите его у пользователя
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                        REQUEST_CODE_READ_EXTERNAL_STORAGE);
-            } else {
-                kmzLoader = new KmzLoader(context, gMap);
-                kmzLoader.openFilePicker(MapsActivity.this);
-            }
-
-            popupWindow.dismiss();
-        });
-    }
-
-    private void createMenuItem2() {
-        Button menuItem2 = viewPopupMenu1.findViewById(R.id.menu_item2);  // Изменение размера маркеров
-        menuItem2.setBackgroundResource(R.drawable.menubutton);
-        menuItem2.setGravity(Gravity.CENTER_HORIZONTAL);
-        menuItem2.setOnClickListener(s -> {
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle("Размер маркеров");
-            SeekBar seekBar = new SeekBar(context);
-            builder.setView(seekBar);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                seekBar.setMin(10);
-            }
-            seekBar.setMax(120);
-            seekBar.setProgress(60);
+            LayoutInflater inflater = LayoutInflater.from(context);
+            View view = inflater.inflate(R.layout.dialog_user_info, null);
+            TextView textUserName = view.findViewById(R.id.text_user_name);
+            textUserName.setText(User.getInstance().getUserName());
+            TextView textRoomNumber = view.findViewById(R.id.text_room_number);
+            textRoomNumber.setText(User.getInstance().getRoomId());
+            TextView textDeviceId = view.findViewById(R.id.text_device_id);
+            textDeviceId.setText(User.getInstance().getDeviceId());
+            builder.setView(view);
             builder.setPositiveButton("OK", (dialog, which) -> {
-                int value = seekBar.getProgress();
-                MarkersHandler.MARKER_SIZE = value + 1;
-                MarkersHandler.markersOff();
-                MarkersHandler.markersOn();
+                dialog.dismiss();
             });
             AlertDialog dialog = builder.create();
             dialog.show();
@@ -432,8 +434,137 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    private void createMenuItem3() {
-        Button menuItem3 = viewPopupMenu1.findViewById(R.id.menu_item3);   // Показать дистанцию
+    private void createMenuItemLoadMapKMZ() {
+        Button menuItem1 = viewPopupMenu1.findViewById(R.id.menu_item1);  // Загрузка карты полигона
+        menuItem1.setBackgroundResource(R.drawable.menubutton);
+        menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem1.setOnClickListener(s -> {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},REQUEST_CODE_READ_EXTERNAL_STORAGE);
+            } else {
+                kmzLoader = new KmzLoader(context, gMap);
+                kmzLoader.openFilePicker(MapsActivity.this);
+            }
+            popupWindow.dismiss();
+        });
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void createMenuItemMarkerOptions() {
+        Button menuItem2 = viewPopupMenu1.findViewById(R.id.menu_item2);
+        menuItem2.setBackgroundResource(R.drawable.menubutton);
+        menuItem2.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem2.setOnClickListener(s -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            LayoutInflater inflater = LayoutInflater.from(context);
+            @SuppressLint("InflateParams") View view = inflater.inflate(R.layout.dialog_marker_options, null);
+            // юзер маркера
+            SeekBar seekBarUsersMarker = view.findViewById(R.id.seekBar2);
+            seekBarUsersMarker.setProgress(MARKER_SIZE_USERS);
+            // кастом маркера
+            SeekBar seekBarCustomMarkers = view.findViewById(R.id.seekBar3);
+            seekBarCustomMarkers.setProgress(MARKER_SIZE_CUSTOMS);
+
+            // время обновления
+            SeekBar seekBarTime = view.findViewById(R.id.seekBar4);
+            seekBarTime.setProgress(TIME_TO_SEND_DATA / 1000);
+
+            TextView textTime = view.findViewById(R.id.textTimeToSendData);
+            textTime.setText(TIME_TO_SEND_DATA / 1000 + " сек.");
+
+            ImageView imageUserMarker = view.findViewById(R.id.imageUserMarker);
+            imageUserMarker.setImageResource(R.drawable.pngwing);
+
+            ImageView imageCustomMarker = view.findViewById(R.id.imageCustomMarker);
+            imageCustomMarker.setImageResource(R.drawable.swords_icon);
+
+
+            ViewGroup.LayoutParams paramsCustomMarker = imageCustomMarker.getLayoutParams();
+            paramsCustomMarker.width = MARKER_SIZE_CUSTOMS;
+            paramsCustomMarker.height = MARKER_SIZE_CUSTOMS;
+            imageCustomMarker.setLayoutParams(paramsCustomMarker);
+
+            ViewGroup.LayoutParams paramsUserMarker = imageUserMarker.getLayoutParams();
+            paramsUserMarker.width = MARKER_SIZE_USERS;
+            paramsUserMarker.height = MARKER_SIZE_USERS;
+            imageUserMarker.setLayoutParams(paramsUserMarker);
+
+            seekBarTime.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    textTime.setText(Math.max(seekBarTime.getProgress(), 10)  + " сек.");
+                }
+
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+
+                }
+
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+
+                }
+            });
+            seekBarCustomMarkers.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    paramsCustomMarker.width = Math.max(progress, 20);
+                    paramsCustomMarker.height = Math.max(progress, 20);
+                    imageCustomMarker.setLayoutParams(paramsCustomMarker);
+                }
+
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+
+                }
+
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+
+                }
+            });
+            seekBarUsersMarker.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    paramsUserMarker.width = Math.max(progress, 20);
+                    paramsUserMarker.height = Math.max(progress, 20);
+                    imageUserMarker.setLayoutParams(paramsUserMarker);
+                }
+
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+
+                }
+
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+
+                }
+            });
+
+            builder.setPositiveButton("OK", (dialog, which) -> {
+                int seekBarUsersMarkerValue = Math.max(seekBarUsersMarker.getProgress(), 20);
+                int seekBarCustomMarkersValue = Math.max(seekBarCustomMarkers.getProgress(), 20);
+                int seekBarTimeValue = Math.max(seekBarTime.getProgress(), 10);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putString("markerUserSize", String.valueOf(seekBarUsersMarkerValue));
+                editor.putString("markerCustomSize", String.valueOf(seekBarCustomMarkersValue));
+                editor.putString("timeToUpdate", String.valueOf(seekBarTimeValue * 1000));
+                editor.apply();
+                TIME_TO_SEND_DATA = seekBarTimeValue * 1000;
+                MARKER_SIZE_CUSTOMS = seekBarCustomMarkersValue;
+                MARKER_SIZE_USERS = seekBarUsersMarkerValue;
+                MarkersHandler.reCreateMarkers();
+            });
+            builder.setView(view);
+            AlertDialog dialog = builder.create();
+            dialog.show();
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItemShowDistance() {
+        Button menuItem3 = viewPopupMenu1.findViewById(R.id.menu_item3);
         menuItem3.setBackgroundResource(R.drawable.menubutton);
         menuItem3.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem3.setOnClickListener(s -> {
@@ -445,8 +576,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    private void createMenuItem4() {
-        Button menuItem4 = viewPopupMenu1.findViewById(R.id.menu_item4);  // Логаут
+    private void createMenuItemLogOut() {
+        Button menuItem4 = viewPopupMenu1.findViewById(R.id.menu_item4);
         menuItem4.setBackgroundResource(R.drawable.menubutton);
         menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem4.setOnClickListener(s -> {
@@ -456,8 +587,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    private void createMenuItem5() {
-        Button menuItem5 = viewPopupMenu1.findViewById(R.id.menu_item5);  // Закрыть
+    private void createMenuItemCloseApp() {
+        Button menuItem5 = viewPopupMenu1.findViewById(R.id.menu_item5);
         menuItem5.setBackgroundResource(R.drawable.menubutton);
         menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem5.setOnClickListener(s -> {
@@ -495,6 +626,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void createToolbar() {
+        popupWindow = new PopupWindow(context);
         distanceTextView = findViewById(R.id.distance_text_view);
         distanceTextView.setVisibility(View.GONE);
 
@@ -712,7 +844,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
         gMap.setPadding(0, actionBarHeight, 0, 0);
-        gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+
+        gMap.setMapType(mapType);
 
         // Камера на Красноярск
         //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска

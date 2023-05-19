@@ -57,10 +57,10 @@ public class Messenger {
     private ProgressBar progressBar;
     private RecyclerView recyclerView;
     private MessagesAdapter adapter;
-    private ImageButton messengerButton;
     private EditText textMessage;
     private Dialog dialog;
     private Uri photoUri;
+    private ImageButton messengerButton;
     private ImageButton newMessageButton;
     private HordeMapViewModel viewModel;
 
@@ -75,12 +75,12 @@ public class Messenger {
         return messengerButton;
     }
 
-    void createMessenger(Context context, HordeMapViewModel viewModel, Dialog dialog) {
+    void createMessenger(Context context, HordeMapViewModel viewModel, Dialog dialog, ImageButton messageButton) {
         this.dialog = dialog;
         this.context = context;
         this.viewModel = viewModel;
+        this.messengerButton = messageButton;
         handler = new Handler();
-        createMessengerButton();
         createDialog();
         createNewMessageAnnounces(dialog);
         createAndSetupRecyclerView();
@@ -214,12 +214,6 @@ public class Messenger {
             e.printStackTrace();
         }
         return null;
-    }
-
-    private void createMessengerButton() {
-        messengerButton = ((Activity) context).findViewById(R.id.message);
-        messengerButton.setBackgroundResource(R.drawable.nomassage);
-        messengerButton.setClickable(false);
     }
 
     private void createDialog() {

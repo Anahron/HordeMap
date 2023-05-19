@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:padding="15dp"
+    android:layout_margin="15dp"
+    android:background="@drawable/vertical_gradient"
+    android:foregroundTint="#00706767">
+
+    <SeekBar
+        android:id="@+id/seekBar2"
+        style="@android:style/Widget.SeekBar"
+        android:layout_width="210dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="36dp"
+        android:max="100"
+        android:progress="60"
+        android:progressTint="#856C0E0E"
+        android:thumb="@android:drawable/title_bar_tall"
+        android:thumbOffset="0dp"
+        android:thumbTint="#5C0000"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/seekBar4" />
+
+    <SeekBar
+        android:id="@+id/seekBar3"
+        style="@android:style/Widget.SeekBar"
+        android:layout_width="210dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="36dp"
+        android:max="100"
+        android:progress="60"
+        android:progressTint="#856C0E0E"
+        android:thumb="@android:drawable/title_bar_tall"
+        android:thumbOffset="0dp"
+        android:thumbTint="#5C0000"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/seekBar2" />
+
+    <SeekBar
+        android:id="@+id/seekBar4"
+        style="@android:style/Widget.SeekBar"
+        android:layout_width="210dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="36dp"
+        android:max="120"
+        android:progress="30"
+        android:progressTint="#856C0E0E"
+        android:thumb="@android:drawable/title_bar_tall"
+        android:thumbOffset="0dp"
+        android:thumbTint="#5C0000"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView12" />
+
+    <TextView
+        android:id="@+id/textView7"
+        android:layout_width="184dp"
+        android:layout_height="19dp"
+        android:layout_marginBottom="3dp"
+        android:text="Размер игроков"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar2"
+        app:layout_constraintStart_toStartOf="@+id/seekBar2" />
+
+    <TextView
+        android:id="@+id/textView8"
+        android:layout_width="223dp"
+        android:layout_height="19dp"
+        android:layout_marginBottom="3dp"
+        android:text="Размер меток"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar3"
+        app:layout_constraintStart_toStartOf="@+id/seekBar3" />
+
+    <TextView
+        android:id="@+id/textView10"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="3dp"
+        android:text="Частота отправки данных"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar4"
+        app:layout_constraintStart_toStartOf="@+id/seekBar4" />
+
+    <TextView
+        android:id="@+id/textView11"
+        android:layout_width="163dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="16dp"
+        android:text="Выбор моего маркера"
+        app:layout_constraintStart_toStartOf="@+id/seekBar3"
+        app:layout_constraintTop_toBottomOf="@+id/seekBar3" />
+
+    <TextView
+        android:id="@+id/textView12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="1dp"
+        android:text="Настройки"
+        android:textColor="@color/black"
+        android:textSize="22sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/textTimeToSendData"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginBottom="3dp"
+        android:text="TextView"
+        app:layout_constraintBottom_toTopOf="@+id/seekBar4"
+        app:layout_constraintStart_toEndOf="@+id/textView10" />
+
+    <ImageView
+        android:id="@+id/imageUserMarker"
+        android:layout_width="60px"
+        android:layout_height="60px"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="5dp"
+        app:layout_constraintBottom_toBottomOf="@+id/seekBar2"
+        app:layout_constraintStart_toEndOf="@+id/seekBar2"
+        app:srcCompat="@drawable/pngwing" />
+
+    <ImageView
+        android:id="@+id/imageCustomMarker"
+        android:layout_width="60px"
+        android:layout_height="60px"
+        android:foregroundGravity="center"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="5dp"
+        app:layout_constraintBottom_toBottomOf="@+id/seekBar3"
+        app:layout_constraintStart_toEndOf="@+id/seekBar3"
+        app:srcCompat="@drawable/swords_icon" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

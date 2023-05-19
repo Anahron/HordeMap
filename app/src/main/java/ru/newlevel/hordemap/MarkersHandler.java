@@ -1,5 +1,7 @@
 package ru.newlevel.hordemap;
 
+import static ru.newlevel.hordemap.MapsActivity.MARKER_SIZE_CUSTOMS;
+import static ru.newlevel.hordemap.MapsActivity.MARKER_SIZE_USERS;
 import static ru.newlevel.hordemap.MapsActivity.gMap;
 
 import android.annotation.SuppressLint;
@@ -54,10 +56,12 @@ public class MarkersHandler {
     private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
     private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
 
+    private static List<MyMarker> mySavedUsersMarkersList;
+    private static List<MyMarker> mySavedCustomMarkersList;
     private static final ArrayList<Marker> customMarkers = new ArrayList<>();
     private static final ArrayList<Marker> userMarkers = new ArrayList<>();
+
     public static Boolean isMarkersON = true;
-    public static int MARKER_SIZE = 60;
     @SuppressLint("SimpleDateFormat")
     private static final DateFormat dateFormat = new SimpleDateFormat("HH:mm");
     private static final TimeZone timeZone = TimeZone.getDefault();
@@ -95,12 +99,20 @@ public class MarkersHandler {
         }
     }
 
+    public static void reCreateMarkers() {
+        if (mySavedCustomMarkersList != null)
+            createCustomMapMarkers(mySavedCustomMarkersList);
+        if (mySavedUsersMarkersList != null)
+            createAllUsersMarkers(mySavedUsersMarkersList);
+    }
+
     public static void createAllUsersMarkers(List<MyMarker> myMarkerList) {
+        mySavedUsersMarkersList = myMarkerList;
         if (!isMarkersON)
             return;
         dateFormat.setTimeZone(timeZone);
         Bitmap bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
-        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
+        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
             for (Marker marker : userMarkers) {
                 marker.remove();
@@ -142,10 +154,11 @@ public class MarkersHandler {
                 bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.focus);
                 break;
         }
-        return BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
+        return BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE_CUSTOMS, MARKER_SIZE_CUSTOMS, false));
     }
 
     public static void createCustomMapMarkers(List<MyMarker> myMarkerList) {
+        mySavedCustomMarkersList = myMarkerList;
         ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
             for (Marker marker : customMarkers) {
                 marker.remove();
