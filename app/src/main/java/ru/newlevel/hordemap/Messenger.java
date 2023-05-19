@@ -31,8 +31,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.lifecycle.LifecycleOwner;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.lifecycle.ViewModelStoreOwner;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -64,9 +62,9 @@ public class Messenger {
     private Dialog dialog;
     private Uri photoUri;
     private ImageButton newMessageButton;
-    private MessengerViewModel viewModel;
+    private HordeMapViewModel viewModel;
 
-    public MessengerViewModel getViewModel() {
+    public HordeMapViewModel getViewModel() {
         return viewModel;
     }
 
@@ -81,15 +79,14 @@ public class Messenger {
         return messengerButton;
     }
 
-    void createMessenger(Context context) {
+    void createMessenger(Context context, HordeMapViewModel viewModel) {
         this.context = context;
+        this.viewModel = viewModel;
         handler = new Handler();
         createMessengerButton();
         createDialog();
         createNewMessageAnnounces(dialog);
         createAndSetupRecyclerView();
-        if (viewModel == null)
-            viewModel = new ViewModelProvider((ViewModelStoreOwner) context).get(MessengerViewModel.class);
 
         messengerButton.setOnClickListener(v -> {
             if (ContextCompat.checkSelfPermission(MapsActivity.getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -103,12 +100,15 @@ public class Messenger {
             createUploadFileButton(dialog);
             createOpenCameraButton(dialog);
             createCloseMessengerButton(dialog);
-            viewModel.loadMessages();
+            viewModel.loadMessagesListener();
+
             // Наблюдаем за изменениями в LiveData с сообщениями
             viewModel.getMessagesLiveData().observe((LifecycleOwner) context, messages -> {
                 System.out.println(" отправляем типа изменения в  adapter.setMessages(messages);");
-                adapter.setMessages(messages);
+                if (messages.size() > 0)
+                    adapter.setMessages(messages);
             });
+
             // Слушатель прогресса загрузки/отправки файла
             viewModel.getProgressLiveData().observe((LifecycleOwner) context, progress -> {
                 System.out.println("Прогресс загрузки " + progress);
@@ -124,12 +124,11 @@ public class Messenger {
                     progressText.setVisibility(View.GONE);
                 }
             });
-
+            
             Runnable updateMessagesEveryMin = new Runnable() {
                 @Override
                 public void run() {
                     boolean isAtEnd = !recyclerView.canScrollVertically(1) && recyclerView.computeVerticalScrollOffset() > 0;
-                 //   viewModel.loadMessages();
                     if (isAtEnd) {
                         newMessageButton.setVisibility(View.GONE);
                     }

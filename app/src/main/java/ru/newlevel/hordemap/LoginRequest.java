@@ -12,11 +12,13 @@ public class LoginRequest {
 
     static void onLoginSuccess(Context context) {
         MapsActivity.makeToast("Авторизация пройдена, привет " + User.getInstance().getUserName());
+
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString("name", User.getInstance().getUserName());
         editor.putString("roomID", User.getInstance().getRoomId());
         editor.putString("deviceID", User.getInstance().getDeviceId());
         editor.apply();
+
         MyServiceUtils.startGeoUpdateService(context);
         Messenger.getInstance().getMessengerButton().setClickable(true);
     }
@@ -36,6 +38,7 @@ public class LoginRequest {
         String mySavedID = prefs.getString("roomID", "0");
         String mySavedName = prefs.getString("name", "Аноним");
         String mySavedDeviceID = prefs.getString("deviceID", "0");
+
         FirebaseApp.initializeApp(context);
         if (mySavedName.equals("name") || mySavedName.equals("") || mySavedDeviceID.equals("0")) {
             InfoDialogFragment dialogFragment = new InfoDialogFragment(context, mapsActivity);

@@ -16,7 +16,6 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -34,12 +33,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -72,13 +71,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private boolean IsNeedToSave = true;
     private Polyline routePolyline;
+    private PopupWindow popupWindow;
     private TextView distanceTextView;
+    private View viewPopupMenu2;
+    private View viewPopupMenu1;
     @SuppressLint("StaticFieldLeak")
     public static TextView AzimuthTextView;
     @SuppressLint("StaticFieldLeak")
     private static Context context;
     private KmzLoader kmzLoader;
     private Polyline polyline;
+    private static HordeMapViewModel viewModel;
 
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -92,6 +95,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public static Context getContext() {
         return context;
+    }
+
+    public static HordeMapViewModel getViewModel() {
+        return viewModel;
     }
 
     @Override
@@ -167,248 +174,296 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        if (viewModel == null)
+            viewModel = new ViewModelProvider(this).get(HordeMapViewModel.class);
+
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 
-        Messenger.getInstance().createMessenger(context);
+        Messenger.getInstance().createMessenger(context, viewModel);
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
 
+        popupWindow = new PopupWindow(context);
         createToolbar();
 
         LoginRequest.logIn(context, this);
+
+        viewModel.getCustomMarkersLiveData().observe(this, MarkersHandler::createCustomMapMarkers);
+        viewModel.getUsersMarkersLiveData().observe(this, MarkersHandler::createAllUsersMarkers);
+        viewModel.getIsHaveNewMessages().observe(this, isNewMessage -> Messenger.getInstance().getMessengerButton().setBackgroundResource(isNewMessage ? R.drawable.yesmassage : R.drawable.nomassage));
     }
 
     public static void makeToast(String text) {
         Toast.makeText(context, text, Toast.LENGTH_LONG).show();
     }
 
+    @SuppressLint("InflateParams")
     private Button createMenuButtons2(int heightPx) {
-        Button menubutton2 = new Button(this);
-        menubutton2.setBackgroundResource(R.drawable.menu);
-        menubutton2.setLayoutParams(new ViewGroup.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10));
-        menubutton2.setText("PATHS");
-        menubutton2.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
-        menubutton2.setTextColor(Color.parseColor("#d4bd61"));
-        menubutton2.setTextSize(15);
-        menubutton2.setOnClickListener(v -> {
-            PopupWindow popupWindow = new PopupWindow(context);
-            @SuppressLint("InflateParams") View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu2, null, false);
-            popupWindow.setContentView(view);
+        Button menuButton2 = new Button(this);
+        menuButton2.setBackgroundResource(R.drawable.menu);
+        menuButton2.setLayoutParams(new ViewGroup.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10));
+        menuButton2.setText("PATHS");
+        menuButton2.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
+        menuButton2.setTextColor(Color.parseColor("#d4bd61"));
+        menuButton2.setTextSize(15);
+        menuButton2.setOnClickListener(v -> {
+            viewPopupMenu2 = LayoutInflater.from(context).inflate(R.layout.pupup_menu2, null, false);
+            popupWindow.setContentView(viewPopupMenu2);
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
             if (popupWindow.isShowing()) popupWindow.dismiss();
-            else popupWindow.showAsDropDown(menubutton2);
+            else popupWindow.showAsDropDown(menuButton2);
 
-            Button menuItem1clear = view.findViewById(R.id.menu2_item1);  // Очистка пути
-            menuItem1clear.setBackgroundResource(R.drawable.menubutton);
-            menuItem1clear.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem1clear.setOnClickListener(s -> {
-                locationHistory.clear();
-                Toast.makeText(context, "Текущий путь очищен", Toast.LENGTH_LONG).show();
-                popupWindow.dismiss();
-            });
-
-            Button menuItem2showPath = view.findViewById(R.id.menu2_item2);  //Показать путь
-            menuItem2showPath.setBackgroundResource(R.drawable.menubutton);
-            menuItem2showPath.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem2showPath.setOnClickListener(s -> {
-                if (locationHistory.isEmpty())
-                    Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
-                else {
-                    polyline.remove();
-                    MarkersHandler.setVisibleForImportantMarkers();
-                    MarkersHandler.markersOn();
-                    PolylineOptions polylineOptions = new PolylineOptions().addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
-                            .width(10); // Задаем ширину линии
-                    polyline = gMap.addPolyline(polylineOptions);
-                }
-                popupWindow.dismiss();
-            });
-
-            Button menuItem3hidePath = view.findViewById(R.id.menu2_item3);  // Скрыть (на карте)
-            menuItem3hidePath.setBackgroundResource(R.drawable.menubutton);
-            menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem3hidePath.setOnClickListener(s -> {
-                gMap.clear();
-                MarkersHandler.setVisibleForImportantMarkers();
-                MarkersHandler.markersOn();
-                if (KmzLoader.savedKmlLayer != null)
-                    KmzLoader.savedKmlLayer.addLayerToMap();
-                popupWindow.dismiss();
-            });
-
-            Button menuItem4savepath = view.findViewById(R.id.menu2_item4); //Сохранение пути в файловую систему
-            menuItem4savepath.setBackgroundResource(R.drawable.menubutton);
-            menuItem4savepath.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem4savepath.setOnClickListener(s -> {
-                if (!locationHistory.isEmpty()) {
-                    PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(locationHistory)));
-                    Toast.makeText(context, "Текущий путь сохранен и очищен", Toast.LENGTH_LONG).show();
-                    locationHistory.clear();
-                } else {
-                    Toast.makeText(context, "Нет данных для записи", Toast.LENGTH_LONG).show();
-                }
-                IsNeedToSave = false;
-                popupWindow.dismiss();
-            });
-
-            Button menuItem5Loadpath = view.findViewById(R.id.menu2_item5); // Загрузка путей из файловой системы
-            menuItem5Loadpath.setBackgroundResource(R.drawable.menubutton);
-            menuItem5Loadpath.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem5Loadpath.setOnClickListener(s -> {
-                Hashtable<String, List<LatLng>> hashtable = PolylineSaver.getKeys();
-                System.out.println("в меню итем 3 " + hashtable);
-                if (hashtable.isEmpty()) {
-                    Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
-                } else {
-                    AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                    builder.setTitle("Выберите сохраненный файл");
-                    builder.setItems(hashtable.keySet().toArray(new String[0]), (dialog, which) -> {
-                        String selectedItem = hashtable.keySet().toArray(new String[0])[which];
-                        Toast.makeText(context, "Выбран элемент: " + selectedItem, Toast.LENGTH_SHORT).show();
-                        List<LatLng> polylines = hashtable.get(selectedItem);
-                        assert polylines != null;
-                        if (polylines.isEmpty()) {
-                            Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
-                        } else {
-                            PolylineOptions polylineOptions2 = new PolylineOptions()   // тест 1
-                                    .addAll(polylines).jointType(JointType.ROUND).startCap(new RoundCap()).endCap(new SquareCap()).geodesic(true).color(Color.BLACK).width(10);
-                            polyline = gMap.addPolyline(polylineOptions2);
-                        }
-                    });
-                    AlertDialog dialog = builder.create();
-                    dialog.show();
-                }
-                popupWindow.dismiss();
-            });
-
-            Button menuItem6detelepath = view.findViewById(R.id.menu2_item6);  // Удаление записанных путей
-            menuItem6detelepath.setBackgroundResource(R.drawable.menubutton);
-            menuItem6detelepath.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem6detelepath.setOnClickListener(s -> {
-                Toast.makeText(context, "Все записанные пути удалены.", Toast.LENGTH_LONG).show();
-                PolylineSaver.deleteAll(context);
-                popupWindow.dismiss();
-            });
+            createMenuItem1clear();
+            createMenuItem2showPath();
+            createMenuItem3hidePath();
+            createMenuItem4savePath();
+            createMenuItem5LoadPath();
+            createMenuItem6DeletePath();
         });
-        return menubutton2;
+        return menuButton2;
     }
 
+    private void createMenuItem1clear() {
+        Button menuItem1clear = viewPopupMenu2.findViewById(R.id.menu2_item1);  // Очистка пути
+        menuItem1clear.setBackgroundResource(R.drawable.menubutton);
+        menuItem1clear.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem1clear.setOnClickListener(s -> {
+            locationHistory.clear();
+            Toast.makeText(context, "Текущий путь очищен", Toast.LENGTH_LONG).show();
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem2showPath() {
+        Button menuItem2showPath = viewPopupMenu2.findViewById(R.id.menu2_item2);  //Показать путь
+        menuItem2showPath.setBackgroundResource(R.drawable.menubutton);
+        menuItem2showPath.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem2showPath.setOnClickListener(s -> {
+            if (locationHistory.isEmpty())
+                Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
+            else {
+                polyline.remove();
+                MarkersHandler.setVisibleForImportantMarkers();
+                MarkersHandler.markersOn();
+                PolylineOptions polylineOptions = new PolylineOptions().addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
+                        .width(10); // Задаем ширину линии
+                polyline = gMap.addPolyline(polylineOptions);
+            }
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem3hidePath() {
+        Button menuItem3hidePath = viewPopupMenu2.findViewById(R.id.menu2_item3);  // Скрыть (на карте)
+        menuItem3hidePath.setBackgroundResource(R.drawable.menubutton);
+        menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem3hidePath.setOnClickListener(s -> {
+            gMap.clear();
+            MarkersHandler.setVisibleForImportantMarkers();
+            MarkersHandler.markersOn();
+            if (KmzLoader.savedKmlLayer != null)
+                KmzLoader.savedKmlLayer.addLayerToMap();
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem4savePath() {
+        Button menuItem4savePath = viewPopupMenu2.findViewById(R.id.menu2_item4); //Сохранение пути в файловую систему
+        menuItem4savePath.setBackgroundResource(R.drawable.menubutton);
+        menuItem4savePath.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem4savePath.setOnClickListener(s -> {
+            if (!locationHistory.isEmpty()) {
+                PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(locationHistory)));
+                Toast.makeText(context, "Текущий путь сохранен и очищен", Toast.LENGTH_LONG).show();
+                locationHistory.clear();
+            } else {
+                Toast.makeText(context, "Нет данных для записи", Toast.LENGTH_LONG).show();
+            }
+            IsNeedToSave = false;
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem5LoadPath() {
+        Button menuItem5LoadPath = viewPopupMenu2.findViewById(R.id.menu2_item5); // Загрузка путей из файловой системы
+        menuItem5LoadPath.setBackgroundResource(R.drawable.menubutton);
+        menuItem5LoadPath.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem5LoadPath.setOnClickListener(s -> {
+            Hashtable<String, List<LatLng>> hashtable = PolylineSaver.getKeys();
+            System.out.println("в меню итем 3 " + hashtable);
+            if (hashtable.isEmpty()) {
+                Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
+            } else {
+                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                builder.setTitle("Выберите сохраненный файл");
+                builder.setItems(hashtable.keySet().toArray(new String[0]), (dialog, which) -> {
+                    String selectedItem = hashtable.keySet().toArray(new String[0])[which];
+                    Toast.makeText(context, "Выбран элемент: " + selectedItem, Toast.LENGTH_SHORT).show();
+                    List<LatLng> polylines = hashtable.get(selectedItem);
+                    assert polylines != null;
+                    if (polylines.isEmpty()) {
+                        Toast.makeText(context, "Записанного пути нет :(", Toast.LENGTH_LONG).show();
+                    } else {
+                        PolylineOptions polylineOptions2 = new PolylineOptions()   // тест 1
+                                .addAll(polylines).jointType(JointType.ROUND).startCap(new RoundCap()).endCap(new SquareCap()).geodesic(true).color(Color.BLACK).width(10);
+                        polyline = gMap.addPolyline(polylineOptions2);
+                    }
+                });
+                AlertDialog dialog = builder.create();
+                dialog.show();
+            }
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem6DeletePath() {
+        Button menuItem6DetelePath = viewPopupMenu2.findViewById(R.id.menu2_item6);  // Удаление записанных путей
+        menuItem6DetelePath.setBackgroundResource(R.drawable.menubutton);
+        menuItem6DetelePath.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem6DetelePath.setOnClickListener(s -> {
+            Toast.makeText(context, "Все записанные пути удалены.", Toast.LENGTH_LONG).show();
+            PolylineSaver.deleteAll(context);
+            popupWindow.dismiss();
+        });
+    }
+
+    @SuppressLint("InflateParams")
     private Button createMenuButtons(int heightPx) {
         Button menuButton = new Button(this);
         menuButton.setBackgroundResource(R.drawable.menu);
         LinearLayout.LayoutParams layoutParams2 = new LinearLayout.LayoutParams(heightPx * 100 / 60, heightPx * 9 / 10);
         layoutParams2.setMarginEnd(convertDpToPx(7));
+
         menuButton.setLayoutParams(layoutParams2);
         menuButton.setText("MENU");
         menuButton.setShadowLayer(5, 1, 1, Color.parseColor("#a89c6a"));
         menuButton.setTextColor(Color.parseColor("#d4bd61"));
         menuButton.setTextSize(15);
         menuButton.setOnClickListener(v -> {
-            PopupWindow popupWindow = new PopupWindow(context);
-            @SuppressLint("InflateParams") View view = LayoutInflater.from(context).inflate(R.layout.pupup_menu, null, false);
-            popupWindow.setContentView(view);
+            viewPopupMenu1 = LayoutInflater.from(context).inflate(R.layout.pupup_menu, null, false);
+            popupWindow.setContentView(viewPopupMenu1);
             popupWindow.setWidth(convertDpToPx(256));
             popupWindow.setHeight(convertDpToPx(323));
             popupWindow.setFocusable(true);
+
             if (popupWindow.isShowing()) popupWindow.dismiss();
             else popupWindow.showAsDropDown(menuButton);
 
-            Button menuItem0 = view.findViewById(R.id.menu_item0);  // Смена типа карты
-            menuItem0.setBackgroundResource(R.drawable.menubutton);
-            menuItem0.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem0.setOnClickListener(s -> {
-                int mapType = gMap.getMapType();
-                switch (mapType) {
-                    case GoogleMap.MAP_TYPE_NORMAL:
-                        gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-                        break;
-                    case GoogleMap.MAP_TYPE_HYBRID:
-                        gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-                        break;
-                }
-                popupWindow.dismiss();
-            });
+            createMenuItem0();
+            createMenuItem1();
+            createMenuItem2();
+            createMenuItem3();
+            createMenuItem4();
+            createMenuItem5();
 
-            Button menuItem1 = view.findViewById(R.id.menu_item1);  // Загрузка карты полигона
-            menuItem1.setBackgroundResource(R.drawable.menubutton);
-            menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem1.setOnClickListener(s -> {
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                        != PackageManager.PERMISSION_GRANTED) {
-                    // Если разрешение не предоставлено, запросите его у пользователя
-                    ActivityCompat.requestPermissions(this,
-                            new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
-                            REQUEST_CODE_READ_EXTERNAL_STORAGE);
-                } else {
-                    kmzLoader = new KmzLoader(context, gMap);
-                    kmzLoader.openFilePicker(MapsActivity.this);
-                }
-
-                popupWindow.dismiss();
-            });
-
-            Button menuItem2 = view.findViewById(R.id.menu_item2);  // Изменение размера маркеров
-            menuItem2.setBackgroundResource(R.drawable.menubutton);
-            menuItem2.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem2.setOnClickListener(s -> {
-                AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                builder.setTitle("Размер маркеров");
-                SeekBar seekBar = new SeekBar(context);
-                builder.setView(seekBar);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    seekBar.setMin(10);
-                }
-                seekBar.setMax(120);
-                seekBar.setProgress(60);
-                builder.setPositiveButton("OK", (dialog, which) -> {
-                    int value = seekBar.getProgress();
-                    MarkersHandler.MARKER_SIZE = value + 1;
-                    MarkersHandler.markersOff();
-                    MarkersHandler.markersOn();
-                });
-                AlertDialog dialog = builder.create();
-                dialog.show();
-                popupWindow.dismiss();
-            });
-
-            Button menuItem3 = view.findViewById(R.id.menu_item3);   // Показать дистанцию
-            menuItem3.setBackgroundResource(R.drawable.menubutton);
-            menuItem3.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem3.setOnClickListener(s -> {
-                if (locationHistory.isEmpty())
-                    Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
-                else
-                    Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22)))) + " метров.", Toast.LENGTH_LONG).show();
-                popupWindow.dismiss();
-            });
-
-            Button menuItem4 = view.findViewById(R.id.menu_item4);  // Логаут
-            menuItem4.setBackgroundResource(R.drawable.menubutton);
-            menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem4.setOnClickListener(s -> {
-                LoginRequest.logOut(context);
-                LoginRequest.logIn(context, this);
-                popupWindow.dismiss();
-            });
-            popupWindow.showAtLocation(menuButton, Gravity.TOP | Gravity.START, 0, 0);
-
-            Button menuItem5 = view.findViewById(R.id.menu_item5);  // Закрыть
-            menuItem5.setBackgroundResource(R.drawable.menubutton);
-            menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
-            menuItem5.setOnClickListener(s -> {
-                if (IsNeedToSave && locationHistory.size() > 0)
-                    PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
-                MyServiceUtils.stopGeoUpdateService(context);
-                finish();
-                popupWindow.dismiss();
-            });
             popupWindow.showAtLocation(menuButton, Gravity.TOP | Gravity.START, 0, 0);
         });
         return menuButton;
+    }
+
+    private void createMenuItem0() {
+        Button menuItem0 = viewPopupMenu1.findViewById(R.id.menu_item0);  // Смена типа карты
+        menuItem0.setBackgroundResource(R.drawable.menubutton);
+        menuItem0.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem0.setOnClickListener(s -> {
+            int mapType = gMap.getMapType();
+            switch (mapType) {
+                case GoogleMap.MAP_TYPE_NORMAL:
+                    gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+                    break;
+                case GoogleMap.MAP_TYPE_HYBRID:
+                    gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+                    break;
+            }
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem1() {
+        Button menuItem1 = viewPopupMenu1.findViewById(R.id.menu_item1);  // Загрузка карты полигона
+        menuItem1.setBackgroundResource(R.drawable.menubutton);
+        menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem1.setOnClickListener(s -> {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                    != PackageManager.PERMISSION_GRANTED) {
+                // Если разрешение не предоставлено, запросите его у пользователя
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
+                        REQUEST_CODE_READ_EXTERNAL_STORAGE);
+            } else {
+                kmzLoader = new KmzLoader(context, gMap);
+                kmzLoader.openFilePicker(MapsActivity.this);
+            }
+
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem2() {
+        Button menuItem2 = viewPopupMenu1.findViewById(R.id.menu_item2);  // Изменение размера маркеров
+        menuItem2.setBackgroundResource(R.drawable.menubutton);
+        menuItem2.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem2.setOnClickListener(s -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            builder.setTitle("Размер маркеров");
+            SeekBar seekBar = new SeekBar(context);
+            builder.setView(seekBar);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                seekBar.setMin(10);
+            }
+            seekBar.setMax(120);
+            seekBar.setProgress(60);
+            builder.setPositiveButton("OK", (dialog, which) -> {
+                int value = seekBar.getProgress();
+                MarkersHandler.MARKER_SIZE = value + 1;
+                MarkersHandler.markersOff();
+                MarkersHandler.markersOn();
+            });
+            AlertDialog dialog = builder.create();
+            dialog.show();
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem3() {
+        Button menuItem3 = viewPopupMenu1.findViewById(R.id.menu_item3);   // Показать дистанцию
+        menuItem3.setBackgroundResource(R.drawable.menubutton);
+        menuItem3.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem3.setOnClickListener(s -> {
+            if (locationHistory.isEmpty())
+                Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
+            else
+                Toast.makeText(context, "Пройденная дистанция: " + ((int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22)))) + " метров.", Toast.LENGTH_LONG).show();
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem4() {
+        Button menuItem4 = viewPopupMenu1.findViewById(R.id.menu_item4);  // Логаут
+        menuItem4.setBackgroundResource(R.drawable.menubutton);
+        menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem4.setOnClickListener(s -> {
+            LoginRequest.logOut(context);
+            LoginRequest.logIn(context, this);
+            popupWindow.dismiss();
+        });
+    }
+
+    private void createMenuItem5() {
+        Button menuItem5 = viewPopupMenu1.findViewById(R.id.menu_item5);  // Закрыть
+        menuItem5.setBackgroundResource(R.drawable.menubutton);
+        menuItem5.setGravity(Gravity.CENTER_HORIZONTAL);
+        menuItem5.setOnClickListener(s -> {
+            if (IsNeedToSave && locationHistory.size() > 0)
+                PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
+            MyServiceUtils.stopGeoUpdateService(context);
+            finish();
+            popupWindow.dismiss();
+        });
     }
 
     private Button createMarkerSwitch(int heightPx) {
@@ -426,11 +481,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         markerswitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             // Обработка изменения состояния переключателя
             if (isChecked && permissionForGeoUpdate) {
-                System.out.println("Включение маркеров");
                 MarkersHandler.isMarkersON = true;
                 MarkersHandler.markersOn();
             } else {
-                System.out.println("Выключение маркеров");
                 MarkersHandler.isMarkersON = false;
                 MarkersHandler.markersOff();
             }
@@ -622,8 +675,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
                                 if (descriptionEditText.getText().toString().length() > 0)
                                     description[0] = String.valueOf(descriptionEditText.getText());
-                                DataUpdateService.sendGeoMarkerToDatabase(User.getInstance().getUserName(), latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
-                                DataUpdateService.getAllGeoDataFromDatabase();
+                                viewModel.sendMarkerData(latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
                                 dialogInterface.dismiss();
                             });
                             // Создание диалогового окна
@@ -661,48 +713,58 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Камера на Красноярск
         //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
-
         // Камера на полигон
         LatLng location = new LatLng(52.079417, 47.731866);
         gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
-        // Настраиваем карту
+
         gMap.getUiSettings().setMyLocationButtonEnabled(true);
         gMap.getUiSettings().setCompassEnabled(true);
         gMap.getUiSettings().setZoomControlsEnabled(true);
-        // Загружаем метки полигона
+
+        // Загружаем стационарые метки полигона
         MarkersHandler.importantMarkersCreate();
+
         // Показываем только текст маркера, без перемещения к нему камеры
         gMap.setOnMarkerClickListener(marker -> {
             marker.showInfoWindow();
             return true;
         });
 
-        gMap.setOnInfoWindowLongClickListener(marker -> {
+        gMap.setOnInfoWindowLongClickListener(this::deleteMarkerShowDialog);
+
+        gMap.setOnInfoWindowClickListener(Marker::hideInfoWindow);
+    }
+
+    private void deleteMarkerShowDialog(Marker marker) {
+        if (marker.getTag() != null) {
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle("Удаление маркера").setMessage("Вы уверены, что хотите удалить маркер?").setPositiveButton("Да", (dialog, which) -> {
                 // Удаление маркера
-                DataUpdateService.deleteMarkerFromDatabase(marker);
-                marker.remove();
+                if (marker.getTag() != null) {
+                    viewModel.deleteMarker(marker);
+                    marker.remove();
+                    MarkersHandler.markersOff();
+                    MarkersHandler.markersOn();
+                }
             }).setNegativeButton("Нет", (dialog, which) -> {
-                // Отмена удаления
                 dialog.dismiss();
             }).show();
-        });
-
-        gMap.setOnInfoWindowClickListener(Marker::hideInfoWindow);
-
-        if (KmzLoader.savedKmlLayer != null)
-            KmzLoader.savedKmlLayer.addLayerToMap();
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        viewModel.stopLoadGeoData();
+        viewModel.stopLoadMessages();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        viewModel.loadMessagesListener();
+        viewModel.loadGeoDataListener();
+        viewModel.stopLoadMessages();
         if (KmzLoader.savedKmlLayer != null)
             KmzLoader.savedKmlLayer.addLayerToMap();
     }
@@ -710,6 +772,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onStop() {
         super.onStop();
+        viewModel.stopLoadGeoData();
+        viewModel.stopLoadMessages();
     }
 
 }

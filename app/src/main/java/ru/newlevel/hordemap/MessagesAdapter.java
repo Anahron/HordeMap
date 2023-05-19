@@ -145,49 +145,52 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             String messageText = message.getMessage();
 
             if (messageText.startsWith("https://firebasestorage")) {
-                try {
-                    String[] strings = messageText.split("&&&");
-                    boolean hasFileSize = strings.length == 3;
-                    String fileName = strings[1];
-                    String fileSizeText = hasFileSize ? " (" + Integer.parseInt(strings[2]) / 1000 + "kb)" : "";
-
-                    contentTextView.setText(getContentText(fileName, fileSizeText));
-                    itemImageView.setVisibility(View.GONE);
-                    button.setVisibility(View.GONE);
-
-                    if (fileName.endsWith(".jpg")) {
-                        itemImageView.setVisibility(View.VISIBLE);
-
-                        if (message.getThumbnail() != null) {
-                            itemImageView.setImageBitmap(message.getThumbnail());
-                        }
-
-                        File file = new File(downloadsDir, fileName);
-                        if (file.exists()) {
-                            setItemsInMessage(file, message);
-                        }
-
-                        itemImageView.setOnClickListener(v -> {
-                            if (message.getFile() != null) {
-                                openFullScreenImage(message.getFile());
-                            } else {
-                                StorageReference storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(strings[0]);
-                                GlideWrapper glideWrapper = new GlideWrapper();
-                                glideWrapper.load(MapsActivity.getContext(), storageReference, itemImageView, message, fileName);
-                            }
-                        });
-                    } else {
-                        button.setVisibility(View.VISIBLE);
-                        button.setOnClickListener(v -> Messenger.getInstance().getViewModel().downloadFile(strings[0], fileName));
-                    }
-                } catch (Exception e) {
-                    contentTextView.setText(messageText);
-                    e.printStackTrace();
-                }
+                setLinkItemWithButton(message, messageText);
             } else {
                 button.setVisibility(View.GONE);
                 itemImageView.setVisibility(View.GONE);
                 contentTextView.setText(messageText);
+            }
+        }
+        private void setLinkItemWithButton(Message message, String messageText){
+            try {
+                String[] strings = messageText.split("&&&");
+                boolean hasFileSize = strings.length == 3;
+                String fileName = strings[1];
+                String fileSizeText = hasFileSize ? " (" + Integer.parseInt(strings[2]) / 1000 + "kb)" : "";
+
+                contentTextView.setText(getContentText(fileName, fileSizeText));
+                itemImageView.setVisibility(View.GONE);
+                button.setVisibility(View.GONE);
+
+                if (fileName.endsWith(".jpg")) {
+                    itemImageView.setVisibility(View.VISIBLE);
+
+                    if (message.getThumbnail() != null) {
+                        itemImageView.setImageBitmap(message.getThumbnail());
+                    }
+
+                    File file = new File(downloadsDir, fileName);
+                    if (file.exists()) {
+                        setItemsInMessage(file, message);
+                    }
+
+                    itemImageView.setOnClickListener(v -> {
+                        if (message.getFile() != null) {
+                            openFullScreenImage(message.getFile());
+                        } else {
+                            StorageReference storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(strings[0]);
+                            GlideWrapper glideWrapper = new GlideWrapper();
+                            glideWrapper.load(MapsActivity.getContext(), storageReference, itemImageView, message, fileName);
+                        }
+                    });
+                } else {
+                    button.setVisibility(View.VISIBLE);
+                    button.setOnClickListener(v -> Messenger.getInstance().getViewModel().downloadFile(strings[0], fileName));
+                }
+            } catch (Exception e) {
+                contentTextView.setText(messageText);
+                e.printStackTrace();
             }
         }
 

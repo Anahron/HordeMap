@@ -8,17 +8,13 @@ import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
-import android.os.Handler;
 import android.provider.MediaStore;
-import android.view.View;
-import android.widget.ProgressBar;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.google.android.gms.maps.model.Marker;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -34,36 +30,177 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MessengerRepository {
+public class HordeMapRepository {
     private final StorageReference storageRef;
     private final String MESSAGE_PATH = "messages";
     private final static String MESSAGE_FILE_FOLDER = "MessengerFiles";
+    private final static String GEO_DATA_PATH = "geoData";
+    private final static String GEO_MARKERS_PATH = "geoMarkers";
     private long lastReceivedTimestamp = 0;
     private Query query;
     private ValueEventListener valueEventListener;
+    private ValueEventListener markersEventListener;
+    private ValueEventListener customMarkersEventListener;
+    private final DatabaseReference database;
 
     private final MutableLiveData<Integer> progressLiveData = new MutableLiveData<>();
 
-    public MessengerRepository() {
+    public HordeMapRepository() {
         storageRef = FirebaseStorage.getInstance().getReference();
+        database = FirebaseDatabase.getInstance().getReference();
     }
 
-    synchronized void downloadFileFromDatabase(String url, String fileName) {
-            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+    public void sendGeoDataToDatabase(double latitude, double longitude) {
+        String geoDataPath = GEO_DATA_PATH + User.getInstance().getRoomId() + "/" + User.getInstance().getDeviceId();
 
-            DownloadManager downloadManager = (DownloadManager) MapsActivity.getContext().getSystemService(Context.DOWNLOAD_SERVICE);
-            if (downloadManager != null) {
-                long downloadId = downloadManager.enqueue(request);
-                observeDownloadProgress(downloadManager, downloadId);
+        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis());
+
+        DatabaseReference geoDataRef = database.child(geoDataPath);
+        geoDataRef.setValue(myMarker);
+    }
+
+    void checkDatabaseForNewMessages(Callback<Boolean> callback) {
+        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MESSAGE_PATH + User.getInstance().getRoomId());
+        Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
+        lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    if (MessagesAdapter.lastDisplayedMessage == null) {
+                        callback.onSuccess(true);
+                        // Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
+                    } else {
+                        for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
+                            Message lastMessage = messageSnapshot.getValue(Message.class);
+                            assert lastMessage != null;
+                            if (lastMessage.getTimestamp() != MessagesAdapter.lastDisplayedMessage.getTimestamp()) {
+                                callback.onSuccess(true);
+                                //Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
+                                return;
+                            }
+                        }
+                    }
+                    callback.onSuccess(false);
+                }
             }
-            // Обновление медиахранилища после загрузки файла
-            MediaScannerConnection.scanFile(MapsActivity.getContext(), new String[]{Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + fileName}, null, null);
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+    }
+
+    public void sendGeoDataToDatabase(double latitude, double longitude, int selectedItem, String title) {
+        long time = System.currentTimeMillis();
+        String geoDataPath = GEO_MARKERS_PATH + User.getInstance().getRoomId() + "/" + time;
+
+        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), time, selectedItem, title);
+
+        DatabaseReference geoDataRef = database.child(geoDataPath);
+        geoDataRef.setValue(myMarker);
+
+        System.out.println("Отправка данных : " + myMarker);
+//
+//        Map<String, Object> updates = new HashMap<>();
+//        updates.put(geoDataPath + "/latitude", latitude);
+//        updates.put(geoDataPath + "/longitude", longitude);
+//        updates.put(geoDataPath + "/userName", userName);
+//        updates.put(geoDataPath + "/title", title);
+//        updates.put(geoDataPath + "/item", selectedItem);
+//        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
+//        database.updateChildren(updates);
+    }
+
+    public void deleteMarkerFromDatabase(Marker marker) {
+        String geoDataMarkerPath = GEO_MARKERS_PATH + User.getInstance().getRoomId();
+        database.child(geoDataMarkerPath).child(String.valueOf(marker.getTag())).removeValue();
+    }
+
+
+    synchronized void downloadFileFromDatabase(String url, String fileName) {
+        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+
+        DownloadManager downloadManager = (DownloadManager) MapsActivity.getContext().getSystemService(Context.DOWNLOAD_SERVICE);
+        if (downloadManager != null) {
+            long downloadId = downloadManager.enqueue(request);
+            observeDownloadProgress(downloadManager, downloadId);
+        }
+        // Обновление медиахранилища после загрузки файла
+        MediaScannerConnection.scanFile(MapsActivity.getContext(), new String[]{Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/" + fileName}, null, null);
     }
 
     LiveData<Integer> getProgressLiveData() {
         return progressLiveData;
+    }
+
+    void getAllUsersGeoData(Callback<List<MyMarker>> callback) {
+        if (markersEventListener != null) {
+            database.removeEventListener(markersEventListener); // Удаляем предыдущий слушатель
+        }
+        DatabaseReference database = FirebaseDatabase.getInstance().getReference().child(GEO_DATA_PATH + User.getInstance().getRoomId());
+        database.addValueEventListener(markersEventListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                ArrayList<MyMarker> markers = new ArrayList<>();
+                long timeNow = System.currentTimeMillis();
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    try {
+                        float alpha;
+                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
+                        long timeDiffMillis = timeNow - timestamp;
+                        long timeDiffMinutes = timeDiffMillis / 60000;
+                        if (timeDiffMinutes >= 10) {
+                            snapshot.getRef().removeValue();
+                            continue;
+                        } else {
+                            alpha = 1 - (timeDiffMinutes / 10F);
+                            if (alpha < 0.5) alpha = 0.5F;
+                        }
+                        MyMarker myMarker = snapshot.getValue(MyMarker.class);
+
+                        assert myMarker != null;
+                        myMarker.setDeviceId(snapshot.getKey());
+                        myMarker.setAlpha(alpha);
+                        markers.add(myMarker);
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                callback.onSuccess(markers);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+    }
+
+    void getAllCustomMarkers(Callback<List<MyMarker>> callback) {
+        if (customMarkersEventListener != null) {
+            database.removeEventListener(customMarkersEventListener); // Удаляем предыдущий слушатель
+        }
+        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH + User.getInstance().getRoomId());
+        databaseMarkers.addValueEventListener(customMarkersEventListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                ArrayList<MyMarker> markers = new ArrayList<>();
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    MyMarker myMarker = snapshot.getValue(MyMarker.class);
+                    markers.add(myMarker);
+                }
+                callback.onSuccess(markers);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
     }
 
     public void getMessagesSinceTimestamp(long timestamp, Callback<List<Message>> callback) {
@@ -93,8 +230,18 @@ public class MessengerRepository {
             }
         });
     }
-    public void removeEventListener(){
-        query.removeEventListener(valueEventListener);
+
+    public void removeMarkersEventListener() {
+        if (customMarkersEventListener != null)
+            database.removeEventListener(customMarkersEventListener);
+        if (markersEventListener != null)
+            database.removeEventListener(markersEventListener);
+    }
+
+    public void removeMessageEventListener() {
+        if (valueEventListener != null) {
+            query.removeEventListener(valueEventListener); // Удаляем предыдущий слушатель
+        }
     }
 
     public void sendMessage(String message) {
@@ -113,7 +260,7 @@ public class MessengerRepository {
                         if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName()) && !lastMessage.getMessage().startsWith("http")) {
                             String newMessage = lastMessage.getMessage() + "\n> " + message;
                             messageSnapshot.getRef().child("/message").setValue(newMessage);
-                            messageSnapshot.getRef().child("/timestamp").setValue(System.currentTimeMillis()+1);
+                            messageSnapshot.getRef().child("/timestamp").setValue(System.currentTimeMillis() + 1);
                             return;
                         }
                     }

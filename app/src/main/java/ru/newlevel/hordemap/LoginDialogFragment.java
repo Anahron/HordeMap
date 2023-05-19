@@ -14,9 +14,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.DialogFragment;
 
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.FirebaseFirestore;
-
 public class LoginDialogFragment extends DialogFragment {
     private final Context mContext;
     private final MapsActivity mMapsActivity;
@@ -65,6 +62,7 @@ public class LoginDialogFragment extends DialogFragment {
             return true; // Вернуть true, чтобы предотвратить закрытие диалога
         });
         builder.setCancelable(false);
+
         // Установите размеры диалога
         dialog.getWindow().setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
 

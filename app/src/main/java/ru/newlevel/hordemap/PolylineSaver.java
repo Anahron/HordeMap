@@ -34,11 +34,8 @@ public class PolylineSaver {
                 FileOutputStream outputStream = context.openFileOutput("gps.txt", Context.MODE_APPEND);
                 OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
                 outputStreamWriter.write(meters + " метров.\n");
-                System.out.println(meters + " метров.");
                 outputStreamWriter.write(formattedDateTime + "\n");
-                System.out.println(formattedDateTime);
                 outputStreamWriter.write(json + "\n");
-                System.out.println(json + "\n");
                 outputStreamWriter.close();
                 outputStream.close();
                 Toast.makeText(context, "Путь сохранен успешно", Toast.LENGTH_LONG).show();

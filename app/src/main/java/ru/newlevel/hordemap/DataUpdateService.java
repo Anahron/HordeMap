@@ -10,17 +10,13 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.net.Uri;
+
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.PowerManager;
-import android.provider.Settings;
-import android.service.notification.StatusBarNotification;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -36,21 +32,10 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.Marker;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
-import com.google.firebase.database.ValueEventListener;
 import com.google.maps.android.SphericalUtil;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import com.google.firebase.database.DatabaseReference;
-
 
 public class DataUpdateService extends Service {
 
@@ -62,12 +47,6 @@ public class DataUpdateService extends Service {
 
     public static List<LatLng> locationHistory = new ArrayList<>();
     private static boolean requestingLocationUpdates = false;
-    private final static int UPDATE_INTERVAL = 3000;
-    private final static int FASTEST_INTERVAL = 2000;
-    private final static int DISPLACEMENT = 3;
-
-    private final static String GEO_DATA_PATH = "geoData";
-    private final static String GEO_MARKERS_PATH = "geoMarkers";
 
     private static Location location;
     private static final Location[] lastLocation = {null};
@@ -80,6 +59,10 @@ public class DataUpdateService extends Service {
     private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 2006;
     private static final int REQUEST_CODE_FOREGROUND_SERVICE = 2012;
 
+    private final static int UPDATE_INTERVAL = 3000;
+    private final static int FASTEST_INTERVAL = 2000;
+    private final static int DISPLACEMENT = 3;
+
     public static final int NOTIFICATION_ID = 1;
 
     public static synchronized DataUpdateService getInstance() {
@@ -87,172 +70,6 @@ public class DataUpdateService extends Service {
             instance = new DataUpdateService();
         }
         return instance;
-    }
-
-    public static void sendGeoDataToDatabase(String userId, String userName, double latitude, double longitude) {
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = GEO_DATA_PATH + User.getInstance().getRoomId() + "/" + userId;
-
-        Map<String, Object> updates = new HashMap<>();
-        updates.put(geoDataPath + "/latitude", latitude);
-        updates.put(geoDataPath + "/longitude", longitude);
-        updates.put(geoDataPath + "/userName", userName);
-        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
-        System.out.println("Отправка данных : " + updates);
-        database.updateChildren(updates);
-        checkDatabaseForNewMessages();
-    }
-
-    static void checkDatabaseForNewMessages() {
-        String MESSAGE_PATH = "messages";
-        DatabaseReference messagesRef = FirebaseDatabase.getInstance().getReference(MESSAGE_PATH + User.getInstance().getRoomId());
-        Query lastMessageQuery = messagesRef.orderByChild("timestamp").limitToLast(1);
-        lastMessageQuery.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    if (MessagesAdapter.lastDisplayedMessage == null) {
-                        Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
-                    } else {
-                        for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
-                            Message lastMessage = messageSnapshot.getValue(Message.class);
-                            assert lastMessage != null;
-                            if (lastMessage.getTimestamp() != MessagesAdapter.lastDisplayedMessage.getTimestamp()) {
-                                Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-
-            }
-        });
-    }
-
-    static void sendGeoMarkerToDatabase(String userName, double latitude, double longitude, int selectedItem, String title) {
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference();
-        String geoDataPath = GEO_MARKERS_PATH + User.getInstance().getRoomId() + "/" + System.currentTimeMillis();
-
-        Map<String, Object> updates = new HashMap<>();
-        updates.put(geoDataPath + "/latitude", latitude);
-        updates.put(geoDataPath + "/longitude", longitude);
-        updates.put(geoDataPath + "/userName", userName);
-        updates.put(geoDataPath + "/title", title);
-        updates.put(geoDataPath + "/item", selectedItem);
-        updates.put(geoDataPath + "/timestamp", System.currentTimeMillis());
-        System.out.println("Отправка данных : " + updates);
-        database.updateChildren(updates);
-    }
-
-    public static void deleteMarkerFromDatabase(Marker marker) {
-        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH + User.getInstance().getRoomId());
-        databaseMarkers.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                try {
-                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        double latitude = snapshot.child("latitude").getValue(Double.class);
-                        double longitude = snapshot.child("longitude").getValue(Double.class);
-                        if (latitude == marker.getPosition().latitude && longitude == marker.getPosition().longitude) {
-                            snapshot.getRef().removeValue();
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-            }
-        });
-    }
-
-    static void getAllGeoDataFromDatabase() {
-        long timeNow = System.currentTimeMillis();
-        float[] alpha = {0};
-        DatabaseReference database = FirebaseDatabase.getInstance().getReference().child(GEO_DATA_PATH + User.getInstance().getRoomId());
-        database.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                try {
-                    HashMap<String, String> hashMap = new HashMap<>();
-                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        String userId = snapshot.getKey();
-                        String userName = snapshot.child("userName").getValue(String.class);
-                        double latitude = snapshot.child("latitude").getValue(Double.class);
-                        double longitude = snapshot.child("longitude").getValue(Double.class);
-                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
-                        long timeDiffMillis = timeNow - timestamp;
-                        long timeDiffMinutes = timeDiffMillis / 60000;
-                        if (timeDiffMinutes >= 10 || latitude == 0.0) {
-                            snapshot.getRef().removeValue();
-                            continue;
-                        } else {
-                            alpha[0] = 1 - (timeDiffMinutes / 10F);
-                            if (alpha[0] < 0.5) alpha[0] = 0.5F;
-                        }
-                        String data = userName + "/" + latitude + "/" + longitude + "/" + timestamp + "/" + alpha[0];
-                        hashMap.put(userId, data);
-                    }
-                    if (!hashMap.isEmpty()) {
-                        MarkersHandler.createAllUsersMarkers(hashMap);
-                    } else {
-                        Log.d("Horde map", "Данные пусты");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-            }
-        });
-
-        DatabaseReference databaseMarkers = FirebaseDatabase.getInstance().getReference().child(GEO_MARKERS_PATH + User.getInstance().getRoomId());
-        databaseMarkers.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                try {
-                    HashMap<String, String> hashMap = new HashMap<>();
-                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                        double latitude = snapshot.child("latitude").getValue(Double.class);
-                        double longitude = snapshot.child("longitude").getValue(Double.class);
-                        String title = snapshot.child("title").getValue(String.class);
-                        long timestamp = snapshot.child("timestamp").getValue(Long.class);
-                        int item = snapshot.child("item").getValue(Integer.class);
-                        long timeDiffMillis = timeNow - timestamp;
-                        long timeDiffMinutes = timeDiffMillis / 60000;
-                        if (timeDiffMinutes >= 1440 || latitude == 0.0) {
-                            snapshot.getRef().removeValue();
-                            continue;
-                        } else {
-                            alpha[0] = 1;
-                        }
-                        String data = title + "/" + latitude + "/" + longitude + "/" + timestamp + "/" + alpha[0] + "/" + item;
-                        hashMap.put(snapshot.getKey(), data);
-                    }
-                    if (!hashMap.isEmpty()) {
-                        MarkersHandler.createCustomMapMarkers(hashMap);
-                    } else {
-                        Log.d("Horde map", "Данные пусты");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Обработка ошибки
-                System.out.println("Ошибка: " + databaseError.getMessage());
-            }
-        });
     }
 
     public static double getLatitude() {
@@ -266,17 +83,14 @@ public class DataUpdateService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        // wakeLock.release();
     }
 
     @SuppressLint("BatteryLife")
     protected void setPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // Запросите разрешения
             String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
-            int requestCode = MY_PERMISSIONS_REQUEST_LOCATION;
-            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), permissions, requestCode);
+            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), permissions, MY_PERMISSIONS_REQUEST_LOCATION);
         }
 
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED) {
@@ -305,11 +119,8 @@ public class DataUpdateService extends Service {
         }
     }
 
-    @SuppressLint({"InvalidWakeLockTag"})
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onCreate() {
-        System.out.println("onCreate вызвана");
         super.onCreate();
     }
 
@@ -341,7 +152,20 @@ public class DataUpdateService extends Service {
         return builder.build();
     }
 
-    @SuppressLint("MissingPermission")
+    private void checkLastLocationForError() {
+        LatLng firstLatLng = locationHistory.get(0);
+        LatLng secondLatLng = locationHistory.get(1);
+        LatLng thirdLatLng = locationHistory.get(2);
+        double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);   // до 2 = 11
+        Log.d("Horde map", "Дистанция до прошлой: " + distance1);
+        double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14
+        Log.d("Horde map", "Дистанция до позапрошлой: " + distance2);
+        if (distance2 < distance1) {
+            Log.d("Horde map", "координата 1 удалена");
+            locationHistory.remove(1);
+        }
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_FOREGROUND_SERVICE.equals(intent.getAction())) {
@@ -365,37 +189,29 @@ public class DataUpdateService extends Service {
                     location = locationResult.getLastLocation();
                     try {
                         if (location != null) {
-                            Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты" + this);
+                            if (lastLocation[0] == null) {
+                                lastLocation[0] = location;
+                            }
+                            Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты " + this);
                             if (location.getAccuracy() < 25) {
                                 Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
                                 latitude = location.getLatitude();
                                 longitude = location.getLongitude();
-                                if (lastLocation[0] == null) {
-                                    lastLocation[0] = location;
-                                }
                                 if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 8) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
                                     Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
                                     locationHistory.add(0, new LatLng(latitude, longitude));
-                                    if (locationHistory.size() > 2) {
-                                        LatLng firstLatLng = locationHistory.get(0);
-                                        LatLng secondLatLng = locationHistory.get(1);
-                                        LatLng thirdLatLng = locationHistory.get(2);
-                                        double distance1 = SphericalUtil.computeDistanceBetween(firstLatLng, secondLatLng);   // до 2 = 11
-                                        Log.d("Horde map", "Дистанция до прошлой: " + distance1);
-                                        double distance2 = SphericalUtil.computeDistanceBetween(firstLatLng, thirdLatLng);    // до 3 = 14
-                                        Log.d("Horde map", "Дистанция до позапрошлой: " + distance2);
-                                        if (distance2 < distance1) {
-                                            Log.d("Horde map", "координата 1 удалена");
-                                            locationHistory.remove(1);
-                                        }
-                                        lastLocation[0] = location;
-                                        Log.d("Horde map", "В coordinates добавлено " + latitude + " " + longitude);
-                                    } else {
-                                        Log.d("Horde map", "Растояние < 8 метров, пропускаем");
-                                    }
-                                } else if (lastLocation[0].getAccuracy() > location.getAccuracy()) {
-                                    lastLocation[0] = location;
+                                    // Отправляем данные
+                                    MapsActivity.getViewModel().sendMarkerData(latitude, longitude);
+                                    Log.d("Horde map", "В locationHistory добавлено " + latitude + " " + longitude);
+                                    if (locationHistory.size() > 2)
+                                        // проверка прошлой точки на неликвидность
+                                        checkLastLocationForError();
+                                } else {
+                                    Log.d("Horde map", "Растояние < 8 метров, пропускаем");
                                 }
+                                lastLocation[0] = location;
+                            } else if (lastLocation[0].getAccuracy() > location.getAccuracy()) {
+                                lastLocation[0] = location;
                             }
                         }
                     } catch (Exception e) {
@@ -412,13 +228,11 @@ public class DataUpdateService extends Service {
             if (!requestingLocationUpdates) {
                 requestingLocationUpdates = true;
                 Log.d("Horde map", " Запустили locationCallback");
-                // Разрешения на доступ к местоположению уже предоставлены, выполняем необходимые действия для получения местоположения
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION);
+                }
                 fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
-
             }
-            sendGeoDataToDatabase(User.getInstance().getDeviceId(), User.getInstance().getUserName(), latitude, longitude);
-            getAllGeoDataFromDatabase();
-
         }
         return START_STICKY;
     }

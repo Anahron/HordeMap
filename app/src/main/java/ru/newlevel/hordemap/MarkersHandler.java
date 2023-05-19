@@ -13,6 +13,8 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.os.Build;
 
+import androidx.annotation.NonNull;
+
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -23,9 +25,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.TimeZone;
 
 public class MarkersHandler {
@@ -54,12 +54,13 @@ public class MarkersHandler {
     private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
     private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
 
-    private static HashMap<String, String> savedmarkers = new HashMap<>();
-    private static HashMap<String, String> savedMapMarkers = new HashMap<>();
-    private static final ArrayList<Marker> mapMarkers = new ArrayList<>();
-    private static final ArrayList<Marker> markers = new ArrayList<>();
+    private static final ArrayList<Marker> customMarkers = new ArrayList<>();
+    private static final ArrayList<Marker> userMarkers = new ArrayList<>();
     public static Boolean isMarkersON = true;
     public static int MARKER_SIZE = 60;
+    @SuppressLint("SimpleDateFormat")
+    private static final DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+    private static final TimeZone timeZone = TimeZone.getDefault();
 
     public static void importantMarkersCreate() {
         if (importantMarkers.size() == 0) {
@@ -94,136 +95,129 @@ public class MarkersHandler {
         }
     }
 
-    public static void createAllUsersMarkers(HashMap<String, String> map) {
-        savedmarkers = map;
+    public static void createAllUsersMarkers(List<MyMarker> myMarkerList) {
+        if (!isMarkersON)
+            return;
+        dateFormat.setTimeZone(timeZone);
         Bitmap bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
-     //   Bitmap bitmapcom = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwingcomander);
         BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
-     //   BitmapDescriptor iconcom = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmapcom, MARKER_SIZE, MARKER_SIZE, false));
         ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
-            for (Marker marker : markers) {
+            for (Marker marker : userMarkers) {
                 marker.remove();
             }
-            markers.clear();
-            for (String id : map.keySet()) {
-                if (!User.getInstance().getDeviceId().equals(id) && isMarkersON) {
-                    String[] data = Objects.requireNonNull(map.get(id)).split("/");
-                    @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm");
-                    TimeZone timeZone = TimeZone.getDefault();
+            userMarkers.clear();
+            for (MyMarker myMarker : myMarkerList) {
+                if (User.getInstance().getDeviceId().equals(myMarker.getDeviceId()))
+                    continue;
+                Marker marker = gMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(myMarker.getLatitude(), myMarker.getLongitude()))
+                        .title(myMarker.getUserName())
+                        .alpha(myMarker.getAlpha())
+                        .snippet(dateFormat.format(new Date(myMarker.getTimestamp())))
+                        .icon(icon));
+                userMarkers.add(marker);
+            }
+        });
+    }
+
+    public static BitmapDescriptor getBitmapFromMyMarker(int item) {
+        Bitmap bitmap;
+        switch (item) {
+            case 1:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords_icon);
+                break;
+            case 2:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_red);
+                break;
+            case 3:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_yellow);
+                break;
+            case 4:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_green);
+                break;
+            case 5:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_blue);
+                break;
+            default:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.focus);
+                break;
+        }
+        return BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
+    }
+
+    public static void createCustomMapMarkers(List<MyMarker> myMarkerList) {
+        ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
+            for (Marker marker : customMarkers) {
+                marker.remove();
+            }
+            customMarkers.clear();
+            if (isMarkersON) {
+                for (MyMarker myMarker : myMarkerList) {
                     dateFormat.setTimeZone(timeZone);
+                    if (!myMarker.getTitle().equals("Маркер")) {
+                       createTextMarker(myMarker);
+                    }
                     Marker marker = gMap.addMarker(new MarkerOptions()
-                            .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
-                            .title(data[0])
-                            .alpha(Float.parseFloat(data[4]))
-                            .snippet(dateFormat.format(new Date(Long.parseLong(data[3]))))
-                            .icon(icon));
-                    markers.add(marker);
+                            .position(new LatLng(myMarker.getLatitude(), myMarker.getLongitude()))
+                            .title(myMarker.getTitle())
+                            .alpha(myMarker.getAlpha())
+                            .snippet(dateFormat.format(new Date(myMarker.getTimestamp())))
+                            .icon(getBitmapFromMyMarker(myMarker.getItem())));
+                    assert marker != null;
+                    marker.setTag(myMarker.getTimestamp());
+                    customMarkers.add(marker);
                 }
             }
         });
     }
 
-    public static void createCustomMapMarkers(HashMap<String, String> map) {
-        savedMapMarkers = map;
-        ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
-            for (Marker marker : mapMarkers) {
-                marker.remove();
-            }
-            mapMarkers.clear();
-            if (isMarkersON) {
-                for (String id : map.keySet()) {
-                    Bitmap bitmap;
-                    String[] data = Objects.requireNonNull(map.get(id)).split("/");
+    private static void createTextMarker(@NonNull MyMarker myMarker){
+        String text = myMarker.getTitle().length() > 10 ? myMarker.getTitle().substring(0, 8) + "..." : myMarker.getTitle();
+        Rect textBounds = new Rect();
+        Paint paint = new Paint();
+        paint.setTextSize(25);
+        paint.setColor(Color.BLACK);
+        paint.setFakeBoldText(true);
+        paint.setShadowLayer(8, 0, 0, Color.WHITE);
+        paint.setAntiAlias(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            paint.setBlendMode(BlendMode.SRC_OVER);
+        }
 
-                    switch (Integer.parseInt(data[5])) {
-                        case 1:
-                            bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords_icon);
-                            break;
-                        case 2:
-                            bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_red);
-                            break;
-                        case 3:
-                            bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_yellow);
-                            break;
-                        case 4:
-                            bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_green);
-                            break;
-                        case 5:
-                            bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_blue);
-                            break;
-                        default:
-                            bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.focus);
-                            break;
-                    }
-                    BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE, MARKER_SIZE, false));
+        paint.getTextBounds(text, 0, text.length(), textBounds);
+        int textWidth = textBounds.width();
 
-                    @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm");
-                    TimeZone timeZone = TimeZone.getDefault();
-                    dateFormat.setTimeZone(timeZone);
+        Bitmap bitmap1 = Bitmap.createBitmap(textBounds.width() + 15, 100, Bitmap.Config.ARGB_8888);
+        Bitmap mutableBitmap = bitmap1.copy(Bitmap.Config.ARGB_8888, true);
 
-                    if (!data[0].equals("Маркер")) {
-                        String text = data[0].length() > 10 ? data[0].substring(0, 8) + "..." : data[0];
-                        Rect textBounds = new Rect();
-                        Paint paint = new Paint();
-                        paint.setTextSize(25);
-                        paint.setColor(Color.BLACK);
-                        paint.setFakeBoldText(true);
-                        paint.setShadowLayer(8, 0, 0, Color.WHITE);
-                        paint.setAntiAlias(true);
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            paint.setBlendMode(BlendMode.SRC_OVER);
-                        }
+        Canvas canvas = new Canvas(mutableBitmap);
+        canvas.drawText(text, (mutableBitmap.getWidth() - textWidth) / 2F, 25, paint);
 
-                        paint.getTextBounds(text, 0, text.length(), textBounds);
-                        int textWidth = textBounds.width();
+        Marker markerText = gMap.addMarker(new MarkerOptions()
+                .position(new LatLng(myMarker.getLatitude(), myMarker.getLongitude()))
+                .icon(BitmapDescriptorFactory.fromBitmap(mutableBitmap)));
 
-                        Bitmap bitmap1 = Bitmap.createBitmap(textBounds.width() + 15, 100, Bitmap.Config.ARGB_8888);
-                        Bitmap mutableBitmap = bitmap1.copy(Bitmap.Config.ARGB_8888, true);
-                        Canvas canvas = new Canvas(mutableBitmap);
-
-                        canvas.drawText(text, (mutableBitmap.getWidth() - textWidth) / 2F, 25, paint);
-
-                        Marker markerText = gMap.addMarker(new MarkerOptions()
-                                .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
-                                .icon(BitmapDescriptorFactory.fromBitmap(mutableBitmap)));
-                        assert markerText != null;
-                        markerText.setAnchor(0.5F, 0f);
-                        markers.add(markerText);
-                    }
-                    Marker marker = gMap.addMarker(new MarkerOptions()
-                            .position(new LatLng(Double.parseDouble(data[1]), Double.parseDouble(data[2])))
-                            .title(data[0])
-                            .alpha(Float.parseFloat(data[4]))
-                            .snippet(dateFormat.format(new Date(Long.parseLong(data[3]))))
-                            .icon(icon));
-                    markers.add(marker);
-                }
-            }
-        });
+        assert markerText != null;
+        markerText.setAnchor(0.5F, 0f);
+        customMarkers.add(markerText);
     }
 
     public static void markersOff() {
-        for (Marker marker : markers) {
-            marker.remove();
+        for (Marker marker : customMarkers) {
+            marker.setVisible(false);
         }
-        for (Marker marker : mapMarkers) {
-            marker.remove();
+        for (Marker marker : userMarkers) {
+            marker.setVisible(false);
         }
     }
 
     public static void markersOn() {
-        if (mapMarkers.isEmpty())
-            createCustomMapMarkers(savedMapMarkers);
-        else
-            for (Marker marker : mapMarkers) {
-                marker.setVisible(true);
-            }
-        if (markers.isEmpty())
-            createAllUsersMarkers(savedmarkers);
-        else
-            for (Marker marker : markers) {
-                marker.setVisible(true);
-            }
+        for (Marker marker : customMarkers) {
+            marker.setVisible(true);
+        }
+        for (Marker marker : userMarkers) {
+            marker.setVisible(true);
+        }
     }
 
 }
