@@ -132,7 +132,7 @@ public class Messenger {
                     handler.postDelayed(this, 1000);
                 }
             };
-
+            handler.post(updateMessagesEveryMin);
             // слушатель размера экрана для прокрутки элементов при открытии клавиатуры
             final View activityRootView = dialog.findViewById(R.id.activityRoot);
             activityRootView.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
@@ -148,7 +148,7 @@ public class Messenger {
                 }
             });
 
-            handler.post(updateMessagesEveryMin);
+
             dialog.setOnDismissListener(dialog1 -> {
                 handler.removeCallbacks(updateMessagesEveryMin);
                 viewModel.getMessagesLiveData().removeObservers((LifecycleOwner) context);

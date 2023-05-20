@@ -5,6 +5,7 @@ public class User {
     private String roomId;
     private String userName;
     private String deviceId;
+    private int marker;
 
     private User() {
     }
@@ -40,5 +41,13 @@ public class User {
 
     public void setUserName(String userName) {
         this.userName = userName;
+    }
+
+    public int getMarker() {
+        return marker;
+    }
+
+    public void setMarker(int marker) {
+        this.marker = marker;
     }
 }

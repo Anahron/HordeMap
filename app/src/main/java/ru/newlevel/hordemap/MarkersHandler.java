@@ -55,6 +55,16 @@ public class MarkersHandler {
     private static final BitmapDescriptor swordsicon9 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords9, markerSize, markerSize, false));
     private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
     private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
+    private static final  Bitmap bitmap0 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
+    private static final Bitmap bitmap1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_yellow);
+    private static final Bitmap bitmap2 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_green);
+    private static final Bitmap bitmap3 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_blue);
+    private static final Bitmap bitmap4 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_purple);
+    private static BitmapDescriptor icon0 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap0, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+    private static BitmapDescriptor icon1 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap1, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+    private static BitmapDescriptor icon2 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap2, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+    private static BitmapDescriptor icon3 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap3, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+    private static BitmapDescriptor icon4 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap4, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
 
     private static List<MyMarker> mySavedUsersMarkersList;
     private static List<MyMarker> mySavedCustomMarkersList;
@@ -100,6 +110,11 @@ public class MarkersHandler {
     }
 
     public static void reCreateMarkers() {
+        icon0 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap0, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+        icon1 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap1, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+        icon2 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap2, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+        icon3 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap3, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+        icon4 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap4, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         if (mySavedCustomMarkersList != null)
             createCustomMapMarkers(mySavedCustomMarkersList);
         if (mySavedUsersMarkersList != null)
@@ -111,8 +126,8 @@ public class MarkersHandler {
         if (!isMarkersON)
             return;
         dateFormat.setTimeZone(timeZone);
-        Bitmap bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
-        BitmapDescriptor icon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+
+
         ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
             for (Marker marker : userMarkers) {
                 marker.remove();
@@ -121,6 +136,23 @@ public class MarkersHandler {
             for (MyMarker myMarker : myMarkerList) {
                 if (User.getInstance().getDeviceId().equals(myMarker.getDeviceId()))
                     continue;
+                BitmapDescriptor icon;
+                switch (myMarker.getItem()) {
+                    case 1:
+                        icon = icon1;
+                        break;
+                    case 2:
+                        icon = icon2;
+                        break;
+                    case 3:
+                        icon = icon3;
+                        break;
+                    case 4:
+                        icon = icon4;
+                        break;
+                    default:
+                        icon = icon0;
+                }
                 Marker marker = gMap.addMarker(new MarkerOptions()
                         .position(new LatLng(myMarker.getLatitude(), myMarker.getLongitude()))
                         .title(myMarker.getUserName())

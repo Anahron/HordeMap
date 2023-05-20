@@ -14,12 +14,13 @@ public class MyMarker {
         // пустой конструктор требуется для Firebase
     }
 
-    public MyMarker(String userName, double latitude, double longitude, String deviceId, long timestamp) {
+    public MyMarker(String userName, double latitude, double longitude, String deviceId, long timestamp, int item) {
         this.userName = userName;
         this.latitude = latitude;
         this.longitude = longitude;
         this.deviceId = deviceId;
         this.timestamp = timestamp;
+        this.item = item;
     }
 
     public MyMarker(String userName, double latitude, double longitude, String deviceId, long timestamp, int item, String title) {

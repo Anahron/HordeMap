@@ -15,5 +15,9 @@
     <string name="save_path">Сохранить путь</string>
     <string name="Load_path">Загрузить путь</string>
     <string name="delete_all_path">Удалить все пути</string>
+    <string name="self_marker_change">Выбор своего маркера</string>
+    <string name="time_to_send_data">Частота отправки данных</string>
+    <string name="marker_size">Размер меток</string>
+    <string name="user_marker_size">Размер игроков</string>
     />
 </resources>

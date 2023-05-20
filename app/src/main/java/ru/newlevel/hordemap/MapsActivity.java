@@ -18,6 +18,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -30,12 +31,15 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
@@ -64,6 +68,7 @@ import com.google.maps.android.SphericalUtil;
 import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
@@ -90,7 +95,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private SharedPreferences prefs;
     private int mapType;
     public static int MARKER_SIZE_USERS = 60;
-    public static int MARKER_SIZE_CUSTOMS = 60;
+    public static int MARKER_SIZE_CUSTOMS = 50;
     public static int TIME_TO_SEND_DATA = 30000;
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
@@ -175,12 +180,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void getPrefs() {
         prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
         mapType = Integer.parseInt(prefs.getString("mapType", "4"));
-        MARKER_SIZE_USERS = Integer.parseInt(prefs.getString("markerUserSize", "60"));
-        MARKER_SIZE_CUSTOMS = Integer.parseInt(prefs.getString("markerCustomSize", "60"));
+        MARKER_SIZE_USERS = Integer.parseInt(prefs.getString("markerUserSize", "50"));
+        MARKER_SIZE_CUSTOMS = Integer.parseInt(prefs.getString("markerCustomSize", "50"));
         TIME_TO_SEND_DATA = Integer.parseInt(prefs.getString("timeToUpdate", "30000"));
+        User.getInstance().setMarker(Integer.parseInt(prefs.getString("myMarker", "0")));
     }
 
-    @SuppressLint("BatteryLife")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -199,7 +204,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         dialog = new Dialog(context, R.style.AlertDialogNoMargins);
 
-        createRightButtons();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            createRightButtons();
+        }
+
         Messenger.getInstance().createMessenger(context, viewModel, dialog, messengerButton);
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -213,8 +221,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         viewModel.getCustomMarkersLiveData().observe(this, MarkersHandler::createCustomMapMarkers);
         viewModel.getUsersMarkersLiveData().observe(this, MarkersHandler::createAllUsersMarkers);
         viewModel.getIsHaveNewMessages().observe(this, isNewMessage -> messengerButton.setBackgroundResource(isNewMessage ? R.drawable.yesmassage : R.drawable.nomassage));
+
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     private void createRightButtons() {
 
         messengerButton = findViewById(R.id.message);
@@ -223,6 +233,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ImageButton mapTypeButton = findViewById(R.id.map_type);
         mapTypeButton.setBackgroundResource(R.drawable.map_type);
         mapTypeButton.setOnClickListener(d -> {
+            PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            if (powerManager.isIgnoringBatteryOptimizations(context.getPackageName())){
+                makeToast("Разрешение isIgnoringBatteryOptimizations есть");
+            } else {
+                makeToast("Разрешение isIgnoringBatteryOptimizations нет");
+            }
+           //  переводит в режим настроек приложения
+//            @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+//            intent.setData(Uri.parse("package:" + context.getPackageName()));
+//            context.startActivity(intent);
+
+            @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            intent.setData(Uri.parse("package:" + context.getPackageName()));
+            context.startActivity(intent);
+
+            // режим экономии трафика
+//            @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS);
+//            intent.setData(Uri.parse("package:" + context.getPackageName()));
+//            context.startActivity(intent);
+
             SharedPreferences.Editor editor = prefs.edit();
             int mapType = gMap.getMapType();
             switch (mapType) {
@@ -440,7 +470,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menuItem1.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem1.setOnClickListener(s -> {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},REQUEST_CODE_READ_EXTERNAL_STORAGE);
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_CODE_READ_EXTERNAL_STORAGE);
             } else {
                 kmzLoader = new KmzLoader(context, gMap);
                 kmzLoader.openFilePicker(MapsActivity.this);
@@ -468,17 +498,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // время обновления
             SeekBar seekBarTime = view.findViewById(R.id.seekBar4);
             seekBarTime.setProgress(TIME_TO_SEND_DATA / 1000);
-
             TextView textTime = view.findViewById(R.id.textTimeToSendData);
             textTime.setText(TIME_TO_SEND_DATA / 1000 + " сек.");
-
+            // примеры маркеров
             ImageView imageUserMarker = view.findViewById(R.id.imageUserMarker);
             imageUserMarker.setImageResource(R.drawable.pngwing);
-
             ImageView imageCustomMarker = view.findViewById(R.id.imageCustomMarker);
             imageCustomMarker.setImageResource(R.drawable.swords_icon);
-
-
+            // установка текущего размера маркеров
             ViewGroup.LayoutParams paramsCustomMarker = imageCustomMarker.getLayoutParams();
             paramsCustomMarker.width = MARKER_SIZE_CUSTOMS;
             paramsCustomMarker.height = MARKER_SIZE_CUSTOMS;
@@ -488,11 +515,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             paramsUserMarker.width = MARKER_SIZE_USERS;
             paramsUserMarker.height = MARKER_SIZE_USERS;
             imageUserMarker.setLayoutParams(paramsUserMarker);
-
+            // слушатели сикбаров
             seekBarTime.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    textTime.setText(Math.max(seekBarTime.getProgress(), 10)  + " сек.");
+                    textTime.setText(Math.max(seekBarTime.getProgress(), 10) + " сек.");
                 }
 
                 @Override
@@ -541,8 +568,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 }
             });
+            // выбор пользовательского маркера
+            RadioGroup radioGroup = view.findViewById(R.id.radioGroup);
+            RadioButton radioButton0 = view.findViewById(R.id.radioButton0);
+            RadioButton radioButton1 = view.findViewById(R.id.radioButton1);
+            RadioButton radioButton2 = view.findViewById(R.id.radioButton2);
+            RadioButton radioButton3 = view.findViewById(R.id.radioButton3);
+            RadioButton radioButton4 = view.findViewById(R.id.radioButton4);
+            switch (User.getInstance().getMarker()) {
+                case 1:
+                    radioButton1.setAlpha(1f);
+                    break;
+                case 2:
+                    radioButton2.setAlpha(1f);
+                    break;
+                case 3:
+                    radioButton3.setAlpha(1f);
+                    break;
+                case 4:
+                    radioButton4.setAlpha(1f);
+                    break;
+                default:
+                    radioButton0.setAlpha(1f);
+            }
+            AtomicInteger checkedButton = new AtomicInteger(0);
+            radioGroup.setOnCheckedChangeListener((group, checkedId) -> {
+                // Сначала делаем все кнопки полупрозрачными
+                radioButton0.setAlpha(0.3f);
+                radioButton1.setAlpha(0.3f);
+                radioButton2.setAlpha(0.3f);
+                radioButton3.setAlpha(0.3f);
+                radioButton4.setAlpha(0.3f);
+                // Затем делаем выбранную кнопку полностью видимой
+                RadioButton checkedRadioButton = view.findViewById(checkedId);
+                checkedRadioButton.setAlpha(1.0f);
+                checkedButton.set(Integer.parseInt(checkedRadioButton.getTag().toString()));
+            });
 
-            builder.setPositiveButton("OK", (dialog, which) -> {
+            builder.setPositiveButton("Применить", (dialog, which) -> {
                 int seekBarUsersMarkerValue = Math.max(seekBarUsersMarker.getProgress(), 20);
                 int seekBarCustomMarkersValue = Math.max(seekBarCustomMarkers.getProgress(), 20);
                 int seekBarTimeValue = Math.max(seekBarTime.getProgress(), 10);
@@ -550,10 +613,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 editor.putString("markerUserSize", String.valueOf(seekBarUsersMarkerValue));
                 editor.putString("markerCustomSize", String.valueOf(seekBarCustomMarkersValue));
                 editor.putString("timeToUpdate", String.valueOf(seekBarTimeValue * 1000));
+                editor.putString("myMarker", checkedButton.toString());
                 editor.apply();
+                User.getInstance().setMarker(checkedButton.intValue());
                 TIME_TO_SEND_DATA = seekBarTimeValue * 1000;
                 MARKER_SIZE_CUSTOMS = seekBarCustomMarkersValue;
                 MARKER_SIZE_USERS = seekBarUsersMarkerValue;
+                MarkersHandler.reCreateMarkers();
+            });
+            builder.setNegativeButton("Сбросить", (dialog, which) -> {
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.clear();
+                editor.apply();
+                getPrefs();
                 MarkersHandler.reCreateMarkers();
             });
             builder.setView(view);

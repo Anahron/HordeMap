@@ -53,7 +53,7 @@ public class HordeMapRepository {
     public void sendGeoDataToDatabase(double latitude, double longitude) {
         String geoDataPath = GEO_DATA_PATH + User.getInstance().getRoomId() + "/" + User.getInstance().getDeviceId();
 
-        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis());
+        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis(), User.getInstance().getMarker());
 
         DatabaseReference geoDataRef = database.child(geoDataPath);
         geoDataRef.setValue(myMarker);

@@ -62,7 +62,7 @@
         android:layout_width="184dp"
         android:layout_height="19dp"
         android:layout_marginBottom="3dp"
-        android:text="Размер игроков"
+        android:text="@string/user_marker_size"
         app:layout_constraintBottom_toTopOf="@+id/seekBar2"
         app:layout_constraintStart_toStartOf="@+id/seekBar2" />
 
@@ -71,7 +71,7 @@
         android:layout_width="223dp"
         android:layout_height="19dp"
         android:layout_marginBottom="3dp"
-        android:text="Размер меток"
+        android:text="@string/marker_size"
         app:layout_constraintBottom_toTopOf="@+id/seekBar3"
         app:layout_constraintStart_toStartOf="@+id/seekBar3" />
 
@@ -80,7 +80,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="3dp"
-        android:text="Частота отправки данных"
+        android:text="@string/time_to_send_data"
         app:layout_constraintBottom_toTopOf="@+id/seekBar4"
         app:layout_constraintStart_toStartOf="@+id/seekBar4" />
 
@@ -89,7 +89,7 @@
         android:layout_width="163dp"
         android:layout_height="24dp"
         android:layout_marginTop="16dp"
-        android:text="Выбор моего маркера"
+        android:text="@string/self_marker_change"
         app:layout_constraintStart_toStartOf="@+id/seekBar3"
         app:layout_constraintTop_toBottomOf="@+id/seekBar3" />
 
@@ -99,7 +99,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="1dp"
         android:layout_marginTop="1dp"
-        android:text="Настройки"
+        android:text="@string/options"
         android:textColor="@color/black"
         android:textSize="22sp"
         app:layout_constraintStart_toStartOf="parent"
@@ -111,7 +111,6 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginBottom="3dp"
-        android:text="TextView"
         app:layout_constraintBottom_toTopOf="@+id/seekBar4"
         app:layout_constraintStart_toEndOf="@+id/textView10" />
 
@@ -135,5 +134,65 @@
         app:layout_constraintBottom_toBottomOf="@+id/seekBar3"
         app:layout_constraintStart_toEndOf="@+id/seekBar3"
         app:srcCompat="@drawable/swords_icon" />
+
+    <RadioGroup
+        android:id="@+id/radioGroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView11">
+
+        <RadioButton
+            android:id="@+id/radioButton0"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/pngwing"
+            android:button="@null"
+            android:alpha="0.3"
+            android:tag="0"/>
+
+        <RadioButton
+            android:id="@+id/radioButton1"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/pngwing_yellow"
+            android:button="@null"
+            android:alpha="0.3"
+            android:tag="1"/>
+        <RadioButton
+            android:id="@+id/radioButton2"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/pngwing_green"
+            android:button="@null"
+            android:alpha="0.3"
+            android:tag="2"/>
+        <RadioButton
+            android:id="@+id/radioButton3"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/pngwing_blue"
+            android:button="@null"
+            android:alpha="0.3"
+            android:tag="3"/>
+        <RadioButton
+            android:id="@+id/radioButton4"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/pngwing_purple"
+            android:button="@null"
+            android:alpha="0.3"
+            android:tag="4"/>
+
+    </RadioGroup>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
