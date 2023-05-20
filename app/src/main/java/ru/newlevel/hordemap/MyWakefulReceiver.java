@@ -1,7 +1,5 @@
 package ru.newlevel.hordemap;
 
-import static ru.newlevel.hordemap.MyServiceUtils.ACTION_FOREGROUND_SERVICE;
-
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,6 +8,8 @@ import android.os.Build;
 import android.util.Log;
 
 public class MyWakefulReceiver extends BroadcastReceiver {
+    public static boolean isInactive = false;
+
     public MyWakefulReceiver() {
     }
 
@@ -17,13 +17,13 @@ public class MyWakefulReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         MapsActivity.getViewModel().sendMarkerData(DataUpdateService.getLatitude(), DataUpdateService.getLongitude());
-        MapsActivity.getViewModel().checkForNewMessages();
+        if (!isInactive)
+            MapsActivity.getViewModel().checkForNewMessages();
         Log.d("Horde map", "Запустился MyWakefulReceiver ");
         MyServiceUtils.startAlarmManager(context);
         Intent service = new Intent(context, DataUpdateService.class);
-        service.setAction(ACTION_FOREGROUND_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            System.out.println("Запускаем  context.startForegroundService(service) из BroadcastReceiver");
+            System.out.println("Запускаем  context.startForegroundService(service);");
             context.startForegroundService(service);
         } else {
             context.startService(service);

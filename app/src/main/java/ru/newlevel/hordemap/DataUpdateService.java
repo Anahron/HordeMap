@@ -1,5 +1,7 @@
 package ru.newlevel.hordemap;
 
+import static android.content.ContentValues.TAG;
+import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
 import static ru.newlevel.hordemap.MyServiceUtils.ACTION_FOREGROUND_SERVICE;
 
 import android.Manifest;
@@ -10,14 +12,20 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 
+import android.os.Binder;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.service.notification.StatusBarNotification;
 import android.util.Log;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -44,24 +52,13 @@ public class DataUpdateService extends Service {
 
     private static double latitude;
     private static double longitude;
-
     public static List<LatLng> locationHistory = new ArrayList<>();
     private static boolean requestingLocationUpdates = false;
-
     private static Location location;
     private static final Location[] lastLocation = {null};
-
-    private static final int MY_PERMISSIONS_REQUEST_LOCATION = 2001;
-    private static final int MY_PERMISSIONS_REQUEST_INTERNET = 2002;
-    private static final int MY_PERMISSIONS_REQUEST_SENSOR = 2003;
-    private static final int MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION = 2004;
-    private static final int MY_PERMISSIONS_REQUEST_WAKE_LOCK = 2005;
-    private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 2006;
-    private static final int REQUEST_CODE_FOREGROUND_SERVICE = 2012;
-
-    private final static int UPDATE_INTERVAL = 3000;
-    private final static int FASTEST_INTERVAL = 2000;
-    private final static int DISPLACEMENT = 3;
+    private final static int UPDATE_INTERVAL = 10000;
+    private final static int FASTEST_INTERVAL = 8000;
+    private final static int DISPLACEMENT = 5;
 
     public static final int NOTIFICATION_ID = 1;
 
@@ -80,48 +77,12 @@ public class DataUpdateService extends Service {
         return longitude;
     }
 
+    private Handler handler;
+    private Runnable sendGeoTimer;
+
     @Override
     public void onDestroy() {
-        super.onDestroy();
-    }
-
-    @SuppressLint("BatteryLife")
-    protected void setPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
-            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), permissions, MY_PERMISSIONS_REQUEST_LOCATION);
-        }
-
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.FOREGROUND_SERVICE}, REQUEST_CODE_FOREGROUND_SERVICE);
-            }
-        }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.INTERNET}, MY_PERMISSIONS_REQUEST_INTERNET);
-        }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission_group.SENSORS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission_group.SENSORS}, MY_PERMISSIONS_REQUEST_SENSOR);
-        }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.ACCESS_BACKGROUND_LOCATION}, MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION);
-            }
-        }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WAKE_LOCK) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.WAKE_LOCK}, MY_PERMISSIONS_REQUEST_WAKE_LOCK);
-        }
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                ActivityCompat.requestPermissions((Activity) MapsActivity.getContext(), new String[]{android.Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
-            }
-        }
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
+      //  super.onDestroy();
     }
 
     @Nullable
@@ -129,6 +90,12 @@ public class DataUpdateService extends Service {
     public IBinder onBind(Intent intent) {
         return null;
     }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+    }
+
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     public Notification createNotification() {
@@ -168,12 +135,33 @@ public class DataUpdateService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACTION_FOREGROUND_SERVICE.equals(intent.getAction())) {
-            System.out.println("onStartCommand в ACTION_FOREGROUND_SERVICE вызвана");
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        boolean isNotificationShow = false;
+        System.out.println("onStartCommand в ACTION_FOREGROUND_SERVICE вызвана");
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        StatusBarNotification[] notifications = mNotificationManager.getActiveNotifications();
+        for (StatusBarNotification notification : notifications) {
+            if (notification.getId() == NOTIFICATION_ID) {
+                isNotificationShow = true;
+                System.out.println("Нотификация показывает, ничего не делаем");
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isNotificationShow) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                this.startForeground(NOTIFICATION_ID, createNotification(), FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
                 this.startForeground(NOTIFICATION_ID, createNotification());
             }
-            setPermission();
+            System.out.println("Нотификации НЕТ, запускаем startForeground");
+            handler = new Handler();
+            sendGeoTimer = new Runnable() {
+                @Override
+                public void run() {
+                    System.out.println("отсылаются данные в handler'e ");
+                    MapsActivity.getViewModel().sendMarkerData(DataUpdateService.getLatitude(), DataUpdateService.getLongitude());
+                    handler.postDelayed(this, 30000);
+                }
+            };
+            handler.post(sendGeoTimer);
             FusedLocationProviderClient fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
             LocationRequest locationRequest = LocationRequest.create();
             locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);

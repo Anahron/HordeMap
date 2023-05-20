@@ -65,7 +65,7 @@
         <receiver
             android:name=".MyWakefulReceiver"
             android:enabled="true"
-            android:exported="false"
+            android:exported="true"
             android:permission="android.permission.WAKE_LOCK">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -77,6 +77,7 @@
         <service
             android:name=".DataUpdateService"
             android:enabled="true"
+            android:foregroundServiceType="location"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.example.ACTION_FOREGROUND_SERVICE" />
@@ -88,7 +89,8 @@
 
         <service
             android:name=".MyWakefulReceiver"
-            android:enabled="true" />
+            android:enabled="true"
+            android:exported="true" />
         <!--
              TODO: Before you run your application, you need a Google Maps API key.
 

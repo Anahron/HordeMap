@@ -3,20 +3,27 @@ package ru.newlevel.hordemap;
 import static ru.newlevel.hordemap.DataUpdateService.getInstance;
 import static ru.newlevel.hordemap.MapsActivity.TIME_TO_SEND_DATA;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.provider.Settings;
 import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.UUID;
 
 public class MyServiceUtils {
@@ -37,15 +44,18 @@ public class MyServiceUtils {
             intentMyWakefulReceiver = new Intent(context, MyWakefulReceiver.class);
         if (pendingIntent == null)
             pendingIntent = PendingIntent.getBroadcast(context, 9991, intentMyWakefulReceiver, PendingIntent.FLAG_IMMUTABLE);
+        long timeInMillis = System.currentTimeMillis() + TIME_TO_SEND_DATA;
         System.out.println("аларм менеджер установится с " + TIME_TO_SEND_DATA);
-        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + TIME_TO_SEND_DATA, pendingIntent);
+        AlarmManager.AlarmClockInfo alarmClockInfo = new AlarmManager.AlarmClockInfo(timeInMillis, pendingIntent);
+        alarmMgr.setAlarmClock(alarmClockInfo, pendingIntent);
+        alarmMgr.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
     }
+
 
     public static void startGeoUpdateService(Context context) {
         MapsActivity.permissionForGeoUpdate = true;
         MarkersHandler.isMarkersON = true;
         Intent service = new Intent(context, DataUpdateService.class);
-        service.setAction(ACTION_FOREGROUND_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             System.out.println("Запускаем  context.startForegroundService(service);");
             context.startForegroundService(service);
@@ -54,6 +64,7 @@ public class MyServiceUtils {
         }
         MapsActivity.getViewModel().loadGeoDataListener();
         MyServiceUtils.startAlarmManager(context);
+
     }
 
     public static void stopGeoUpdateService(Context context) {

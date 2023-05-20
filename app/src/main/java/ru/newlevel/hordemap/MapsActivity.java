@@ -4,6 +4,7 @@ import static ru.newlevel.hordemap.DataUpdateService.locationHistory;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
@@ -72,11 +73,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback{
 
     public static GoogleMap gMap;
     public static Boolean permissionForGeoUpdate = false;
-
+    private boolean isServiceBound = false;
     private boolean IsNeedToSave = true;
     private Polyline routePolyline;
     private PopupWindow popupWindow;
@@ -88,10 +89,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static TextView AzimuthTextView;
     @SuppressLint("StaticFieldLeak")
     private static Context context;
+    private static HordeMapViewModel viewModel;
     private KmzLoader kmzLoader;
     private Polyline polyline;
     private Dialog dialog;
-    private static HordeMapViewModel viewModel;
     private SharedPreferences prefs;
     private int mapType;
     public static int MARKER_SIZE_USERS = 60;
@@ -102,10 +103,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int MY_PERMISSIONS_REQUEST_SENSOR = 1003;
     private static final int MY_PERMISSIONS_REQUEST_ACCESS_BACKGROUND_LOCATION = 1004;
     private static final int MY_PERMISSIONS_REQUEST_WAKE_LOCK = 1005;
-    private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
     private static final int REQUEST_CODE_READ_EXTERNAL_STORAGE = 1007;
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1008;
     private static final int REQUEST_CODE_FOREGROUND_SERVICE = 1012;
+    private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
+
 
     public static Context getContext() {
         return context;
@@ -128,7 +130,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (IsNeedToSave && locationHistory.size() > 0)
             PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 1))));
         super.onDestroy();
-        finish();
+       // finish();
     }
 
     private int convertDpToPx(int dp) {
@@ -163,9 +165,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WAKE_LOCK) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WAKE_LOCK}, MY_PERMISSIONS_REQUEST_WAKE_LOCK);
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
+                ActivityCompat.requestPermissions((Activity) context, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
             }
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -226,33 +228,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     private void createRightButtons() {
-
         messengerButton = findViewById(R.id.message);
         messengerButton.setBackgroundResource(R.drawable.nomassage);
         messengerButton.setClickable(false);
         ImageButton mapTypeButton = findViewById(R.id.map_type);
         mapTypeButton.setBackgroundResource(R.drawable.map_type);
         mapTypeButton.setOnClickListener(d -> {
-            PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-            if (powerManager.isIgnoringBatteryOptimizations(context.getPackageName())){
-                makeToast("Разрешение isIgnoringBatteryOptimizations есть");
-            } else {
-                makeToast("Разрешение isIgnoringBatteryOptimizations нет");
-            }
-           //  переводит в режим настроек приложения
-//            @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-//            intent.setData(Uri.parse("package:" + context.getPackageName()));
-//            context.startActivity(intent);
-
-            @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-            intent.setData(Uri.parse("package:" + context.getPackageName()));
-            context.startActivity(intent);
-
-            // режим экономии трафика
-//            @SuppressLint("BatteryLife") Intent intent = new Intent(Settings.ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS);
-//            intent.setData(Uri.parse("package:" + context.getPackageName()));
-//            context.startActivity(intent);
-
             SharedPreferences.Editor editor = prefs.edit();
             int mapType = gMap.getMapType();
             switch (mapType) {
@@ -963,6 +944,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onPause() {
         super.onPause();
+        MyWakefulReceiver.isInactive = true;
         viewModel.stopLoadGeoData();
         viewModel.stopLoadMessages();
     }
@@ -970,6 +952,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
+        MyWakefulReceiver.isInactive = false;
         if (permissionForGeoUpdate) {
             if (dialog.isShowing())
                 viewModel.loadMessagesListener();
@@ -982,6 +965,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onStop() {
         super.onStop();
+        MyWakefulReceiver.isInactive = true;
         viewModel.stopLoadGeoData();
         viewModel.stopLoadMessages();
     }

@@ -4,6 +4,8 @@ import static android.content.Context.MODE_PRIVATE;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+
+
 import com.google.firebase.FirebaseApp;
 
 public class LoginRequest {
@@ -18,7 +20,6 @@ public class LoginRequest {
         editor.putString("roomID", User.getInstance().getRoomId());
         editor.putString("deviceID", User.getInstance().getDeviceId());
         editor.apply();
-
         MyServiceUtils.startGeoUpdateService(context);
         Messenger.getInstance().getMessengerButton().setClickable(true);
     }
