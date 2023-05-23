@@ -1,5 +1,7 @@
 package ru.newlevel.hordemap;
 
+import static ru.newlevel.hordemap.MapsActivity.isInactive;
+
 import android.net.Uri;
 
 import androidx.lifecycle.LiveData;
@@ -112,6 +114,9 @@ public class HordeMapViewModel extends ViewModel {
             @Override
             public void onSuccess(Boolean result) {
                 isHaveNewMessages.setValue(result);
+                System.out.println("Есть новые сообщения? " + result);
+                if (isInactive && result)
+                    DataUpdateService.getInstance().showNewMessageNotification();
             }
 
             @Override

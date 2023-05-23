@@ -39,12 +39,16 @@ public class HordeMapRepository {
     private final static String MESSAGE_FILE_FOLDER = "MessengerFiles";
     private final static String GEO_DATA_PATH = "geoData";
     private final static String GEO_MARKERS_PATH = "geoMarkers";
+    private final int TIME_TO_DELETE_USER_MARKER = 20; // в минутах
     private long lastReceivedTimestamp = 0;
     private Query query;
     private ValueEventListener valueEventListener;
     private ValueEventListener markersEventListener;
     private ValueEventListener customMarkersEventListener;
     private final DatabaseReference database;
+    private String dateRepo = "";
+
+    private long lastSavedTimestamp = 0;
 
     private final MutableLiveData<Integer> progressLiveData = new MutableLiveData<>();
 
@@ -54,9 +58,15 @@ public class HordeMapRepository {
     }
 
     public void sendGeoDataToDatabase(double latitude, double longitude) {
+
         String geoDataPath = GEO_DATA_PATH + User.getInstance().getRoomId() + "/" + User.getInstance().getDeviceId();
         @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
-        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis(), User.getInstance().getMarker(), dateFormat.format(new Date(System.currentTimeMillis())));
+        String date = dateFormat.format(new Date(System.currentTimeMillis()));
+
+        //TODO временно для логирования на сервере
+        dateRepo += " / " + date;
+
+        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis(), User.getInstance().getMarker(), dateRepo);
 
         DatabaseReference geoDataRef = database.child(geoDataPath);
         geoDataRef.setValue(myMarker);
@@ -69,22 +79,22 @@ public class HordeMapRepository {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    if (MessagesAdapter.lastDisplayedMessage == null) {
-                        callback.onSuccess(true);
-                        // Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
-                    } else {
-                        for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
-                            Message lastMessage = messageSnapshot.getValue(Message.class);
-                            assert lastMessage != null;
-                            if (lastMessage.getTimestamp() != MessagesAdapter.lastDisplayedMessage.getTimestamp()) {
-                                callback.onSuccess(true);
-                                //Messenger.getInstance().getMessengerButton().setBackgroundResource(R.drawable.yesmassage);
-                                return;
-                            }
+                    for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
+                        Message lastMessage = messageSnapshot.getValue(Message.class);
+                        assert lastMessage != null;
+                        long messageTimestamp = lastMessage.getTimestamp();
+                        if (lastSavedTimestamp == 0) {
+                            lastSavedTimestamp = messageTimestamp;
+                            return;
+                        }
+                        if (lastSavedTimestamp != messageTimestamp) {
+                            callback.onSuccess(true);
+                            lastSavedTimestamp = messageTimestamp;
+                            return;
                         }
                     }
-                    callback.onSuccess(false);
                 }
+                callback.onSuccess(false);
             }
 
             @Override
@@ -145,12 +155,13 @@ public class HordeMapRepository {
                         long timestamp = snapshot.child("timestamp").getValue(Long.class);
                         long timeDiffMillis = timeNow - timestamp;
                         long timeDiffMinutes = timeDiffMillis / 60000;
-                        if (timeDiffMinutes >= 10) {
+                        // Удаляем маркера которым больше TIME_TO_DELETE_USER_MARKER минут
+                        if (timeDiffMinutes >= TIME_TO_DELETE_USER_MARKER) {
                             snapshot.getRef().removeValue();
                             continue;
                         } else {
-                            alpha = 1 - (timeDiffMinutes / 10F);
-                            if (alpha < 0.5) alpha = 0.5F;
+                            // Устанавливаем прозрачность маркера от 0 до 5 минут максимум до 50%
+                            alpha = 1F - Math.min(timeDiffMinutes / 10F, 0.5F);
                         }
                         MyMarker myMarker = snapshot.getValue(MyMarker.class);
 
@@ -210,11 +221,13 @@ public class HordeMapRepository {
                     Message message = snapshot.getValue(Message.class);
                     if (message != null && message.getTimestamp() > lastReceivedTimestamp) {
                         messages.add(message);
-                        lastReceivedTimestamp = message.getTimestamp(); // Обновляем метку времени последнего полученного сообщения
                     }
                 }
-                if (!messages.isEmpty())
+                if (!messages.isEmpty()) {
+                    lastSavedTimestamp = messages.get(messages.size() - 1).getTimestamp(); // обновляем отдельную метку для индикации новых сообщений
+                    lastReceivedTimestamp = lastSavedTimestamp; // Обновляем метку времени последнего полученного сообщения
                     callback.onSuccess(messages);
+                }
             }
 
             @Override
@@ -342,6 +355,7 @@ public class HordeMapRepository {
         void onSuccess(T result);
 
         void onError(String errorMessage);
+
     }
 
     private void observeDownloadProgress(DownloadManager downloadManager, long downloadId) {

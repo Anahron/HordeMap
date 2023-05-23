@@ -17,11 +17,15 @@ import androidx.fragment.app.DialogFragment;
 public class LoginDialogFragment extends DialogFragment {
     private final Context mContext;
     private final MapsActivity mMapsActivity;
+    private final String tempName;
+    private final String tempRoom;
     private static final String SEND_MASSAGE = "ОТПРАВИТЬ";
 
-    public LoginDialogFragment(Context context, MapsActivity mapsActivity) {
+    public LoginDialogFragment(Context context, MapsActivity mapsActivity, String tempName, String tempRoom) {
         mContext = context;
         mMapsActivity = mapsActivity;
+        this.tempName = tempName;
+        this.tempRoom = tempRoom;
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -35,8 +39,10 @@ public class LoginDialogFragment extends DialogFragment {
 
         EditText roomNumber = dialogView.findViewById(R.id.editTextNumber);
         roomNumber.setInputType(InputType.TYPE_CLASS_NUMBER);
+        roomNumber.setText(tempRoom);
 
         EditText name = dialogView.findViewById(R.id.editTextPersonName);
+        name.setText(tempName);
 
         builder.setView(dialogView)
                 .setPositiveButton(SEND_MASSAGE, (dialog, which) -> {

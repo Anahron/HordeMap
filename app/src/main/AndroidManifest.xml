@@ -5,10 +5,6 @@
 
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -63,7 +59,7 @@
             android:value="https://your-database-url.firebaseio.com" />
         <!-- Register WakefulBroadcastReceiver -->
         <receiver
-            android:name=".MyWakefulReceiver"
+            android:name=".AlarmManagerReceiver"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.WAKE_LOCK">
@@ -74,6 +70,7 @@
             </intent-filter>
         </receiver>
         <!-- Declare service -->
+
         <service
             android:name=".DataUpdateService"
             android:enabled="true"
@@ -88,18 +85,10 @@
         </service>
 
         <service
-            android:name=".MyWakefulReceiver"
+            android:name=".AlarmManagerReceiver"
             android:enabled="true"
             android:exported="true" />
-        <!--
-             TODO: Before you run your application, you need a Google Maps API key.
 
-             To get one, follow the directions here:
-                https://developers.google.com/maps/documentation/android-sdk/get-api-key
-             Once you have your API key (it starts with "AIza"), define a new property in your
-             project's local.properties file (e.g. MAPS_API_KEY=Aiza...), and replace the
-             "YOUR_API_KEY" string in this file with "${MAPS_API_KEY}".
-        -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_api_key" />

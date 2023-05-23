@@ -11,6 +11,8 @@ import com.google.firebase.FirebaseApp;
 public class LoginRequest {
 
     private static SharedPreferences prefs;
+    private static String tempName = "";
+    private static String tempRoom = "";
 
     static void onLoginSuccess(Context context) {
         MapsActivity.makeToast("Авторизация пройдена, привет " + User.getInstance().getUserName());
@@ -24,8 +26,13 @@ public class LoginRequest {
         Messenger.getInstance().getMessengerButton().setClickable(true);
     }
 
-    public static void logOut(Context context) {
-        MyServiceUtils.stopGeoUpdateService(context);
+    public static void logOut() {
+        if (!User.getInstance().getUserName().equals("Аноним"))
+            tempName = User.getInstance().getUserName();
+        else
+            tempName = "";
+        tempRoom = User.getInstance().getRoomId();
+        MyServiceUtils.stopGeoUpdateService();
         SharedPreferences.Editor editor = prefs.edit();
         editor.clear();
         editor.apply();
@@ -42,7 +49,7 @@ public class LoginRequest {
 
         FirebaseApp.initializeApp(context);
         if (mySavedName.equals("name") || mySavedName.equals("") || mySavedDeviceID.equals("0")) {
-            InfoDialogFragment dialogFragment = new InfoDialogFragment(context, mapsActivity);
+            InfoDialogFragment dialogFragment = new InfoDialogFragment(context, mapsActivity, tempName, tempRoom);
             dialogFragment.show(mapsActivity.getSupportFragmentManager(), "info_dialog");
         } else {
             User.getInstance().setUserName(mySavedName);

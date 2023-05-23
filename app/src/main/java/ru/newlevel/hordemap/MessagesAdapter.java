@@ -193,9 +193,6 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
                 contentTextView.setText(messageText);
             }
         }
-        private void setLinkItemWithButton(Message message, String messageText){
-
-        }
 
         private String getContentText(String fileName, String fileSizeText) {
             if (fileName.endsWith(".jpg")) {

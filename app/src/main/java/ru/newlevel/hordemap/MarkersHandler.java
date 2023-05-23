@@ -31,30 +31,29 @@ import java.util.List;
 import java.util.TimeZone;
 
 public class MarkersHandler {
-    private static final int markerSize = 60;
     private static final List<Marker> importantMarkers = new ArrayList<>();
-    private static final Bitmap swords1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.citadelyellow);
-    private static final Bitmap swords2 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.checkblue);
-    private static final Bitmap swords3 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.checkyellow);
-    private static final Bitmap swords4 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.citadelblue);
-    private static final Bitmap swords5 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.boss);
-    private static final Bitmap swords6 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.bomb);
-    private static final Bitmap swords7 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.exit);
-    private static final Bitmap swords8 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords8);
-    private static final Bitmap swords9 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords9);
-    private static final Bitmap blue_camp = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.blue_camp);
-    private static final Bitmap yellow_camp = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.yellow_camp);
-    private static final BitmapDescriptor swordsicon1 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords1, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon2 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords2, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon3 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords3, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon4 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords4, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon5 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords5, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon6 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords6, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon7 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords7, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon8 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords8, markerSize, markerSize, false));
-    private static final BitmapDescriptor swordsicon9 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords9, markerSize, markerSize, false));
-    private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
-    private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
+//    private static final Bitmap swords1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.citadelyellow);
+//    private static final Bitmap swords2 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.checkblue);
+//    private static final Bitmap swords3 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.checkyellow);
+//    private static final Bitmap swords4 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.citadelblue);
+//    private static final Bitmap swords5 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.boss);
+//    private static final Bitmap swords6 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.bomb);
+//    private static final Bitmap swords7 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.exit);
+//    private static final Bitmap swords8 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords8);
+//    private static final Bitmap swords9 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.swords9);
+//    private static final Bitmap blue_camp = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.blue_camp);
+//    private static final Bitmap yellow_camp = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.yellow_camp);
+//    private static final BitmapDescriptor swordsicon1 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords1, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon2 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords2, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon3 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords3, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon4 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords4, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon5 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords5, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon6 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords6, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon7 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords7, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon8 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords8, markerSize, markerSize, false));
+//    private static final BitmapDescriptor swordsicon9 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords9, markerSize, markerSize, false));
+//    private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
+//    private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
     private static final  Bitmap bitmap0 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
     private static final Bitmap bitmap1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_yellow);
     private static final Bitmap bitmap2 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_green);
@@ -77,30 +76,30 @@ public class MarkersHandler {
     private static final TimeZone timeZone = TimeZone.getDefault();
 
     public static void importantMarkersCreate() {
-        if (importantMarkers.size() == 0) {
-            MarkerOptions marker1 = new MarkerOptions().position(new LatLng(52.079440, 47.732110)).icon(swordsicon1);  //база желтая
-            importantMarkers.add(gMap.addMarker(marker1));
-            MarkerOptions marker2 = new MarkerOptions().position(new LatLng(52.079159, 47.731756)).icon(swordsicon2);  // точка интереса синяя
-            importantMarkers.add(gMap.addMarker(marker2));
-            MarkerOptions marker3 = new MarkerOptions().position(new LatLng(52.079230, 47.730936)).icon(swordsicon3); //точка интереса желтая
-            importantMarkers.add(gMap.addMarker(marker3));
-            MarkerOptions marker4 = new MarkerOptions().position(new LatLng(52.079166, 47.730533)).icon(swordsicon4); //база синяя
-            importantMarkers.add(gMap.addMarker(marker4));
-            MarkerOptions marker5 = new MarkerOptions().position(new LatLng(52.079776, 47.731070)).icon(swordsicon5);  // валера
-            importantMarkers.add(gMap.addMarker(marker5));
-            MarkerOptions marker6 = new MarkerOptions().position(new LatLng(52.078645, 47.731751)).icon(swordsicon6);  // бомба
-            importantMarkers.add(gMap.addMarker(marker6));
-            MarkerOptions marker7 = new MarkerOptions().position(new LatLng(52.078817, 47.731735)).icon(swordsicon7);  // эвакуация
-            importantMarkers.add(gMap.addMarker(marker7));
-//        MarkerOptions marker8 = new MarkerOptions().position(new LatLng(55.6734572,85.1064004)).icon(swordsicon8);
-//        importantMarkers.add(gMap.addMarker(marker8));
-//        MarkerOptions marker9 = new MarkerOptions().position(new LatLng(55.6713818,85.104792)).icon(swordsicon9);
-//        importantMarkers.add(gMap.addMarker(marker9));
-            MarkerOptions markerM1 = new MarkerOptions().position(new LatLng(52.079139, 47.730093)).title("Мертвяк ЮГ").icon(blue_campicon);
-            importantMarkers.add(gMap.addMarker(markerM1));
-            MarkerOptions markerM2 = new MarkerOptions().position(new LatLng(52.079244, 47.732764)).title("Мертвяк").icon(yellow_campicon);
-            importantMarkers.add(gMap.addMarker(markerM2));
-        }
+//        if (importantMarkers.size() == 0) {
+//            MarkerOptions marker1 = new MarkerOptions().position(new LatLng(52.079440, 47.732110)).icon(swordsicon1);  //база желтая
+//            importantMarkers.add(gMap.addMarker(marker1));
+//            MarkerOptions marker2 = new MarkerOptions().position(new LatLng(52.079159, 47.731756)).icon(swordsicon2);  // точка интереса синяя
+//            importantMarkers.add(gMap.addMarker(marker2));
+//            MarkerOptions marker3 = new MarkerOptions().position(new LatLng(52.079230, 47.730936)).icon(swordsicon3); //точка интереса желтая
+//            importantMarkers.add(gMap.addMarker(marker3));
+//            MarkerOptions marker4 = new MarkerOptions().position(new LatLng(52.079166, 47.730533)).icon(swordsicon4); //база синяя
+//            importantMarkers.add(gMap.addMarker(marker4));
+//            MarkerOptions marker5 = new MarkerOptions().position(new LatLng(52.079776, 47.731070)).icon(swordsicon5);  // валера
+//            importantMarkers.add(gMap.addMarker(marker5));
+//            MarkerOptions marker6 = new MarkerOptions().position(new LatLng(52.078645, 47.731751)).icon(swordsicon6);  // бомба
+//            importantMarkers.add(gMap.addMarker(marker6));
+//            MarkerOptions marker7 = new MarkerOptions().position(new LatLng(52.078817, 47.731735)).icon(swordsicon7);  // эвакуация
+//            importantMarkers.add(gMap.addMarker(marker7));
+////        MarkerOptions marker8 = new MarkerOptions().position(new LatLng(55.6734572,85.1064004)).icon(swordsicon8);
+////        importantMarkers.add(gMap.addMarker(marker8));
+////        MarkerOptions marker9 = new MarkerOptions().position(new LatLng(55.6713818,85.104792)).icon(swordsicon9);
+////        importantMarkers.add(gMap.addMarker(marker9));
+//            MarkerOptions markerM1 = new MarkerOptions().position(new LatLng(52.079139, 47.730093)).title("Мертвяк ЮГ").icon(blue_campicon);
+//            importantMarkers.add(gMap.addMarker(markerM1));
+//            MarkerOptions markerM2 = new MarkerOptions().position(new LatLng(52.079244, 47.732764)).title("Мертвяк").icon(yellow_campicon);
+//            importantMarkers.add(gMap.addMarker(markerM2));
+//        }
     }
 
     public static void setVisibleForImportantMarkers() {
@@ -126,7 +125,6 @@ public class MarkersHandler {
         if (!isMarkersON)
             return;
         dateFormat.setTimeZone(timeZone);
-
 
         ((Activity) MapsActivity.getContext()).runOnUiThread(() -> {
             for (Marker marker : userMarkers) {
@@ -217,7 +215,7 @@ public class MarkersHandler {
     }
 
     private static void createTextMarker(@NonNull MyMarker myMarker) {
-        String text = myMarker.getTitle().length() > 10 ? myMarker.getTitle().substring(0, 8) + "..." : myMarker.getTitle();
+        String text = myMarker.getTitle().length() > 9 ? myMarker.getTitle().substring(0, 7) + "..." : myMarker.getTitle();
         Rect textBounds = new Rect();
         Paint paint = new Paint();
         paint.setTextSize(25);

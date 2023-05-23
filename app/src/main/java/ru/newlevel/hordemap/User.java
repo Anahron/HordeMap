@@ -36,6 +36,8 @@ public class User {
     }
 
     public String getUserName() {
+        if (userName == null)
+            return "Аноним";
         return userName;
     }
 

@@ -11,14 +11,19 @@ import androidx.fragment.app.DialogFragment;
 public class InfoDialogFragment extends DialogFragment {
     private final Context mContext;
     private final MapsActivity mMapsActivity;
+    private final String tempName;
+    private final String tempRoom;
     private static final String INFO = "Раскрытие информации.";
     private static final String INFO_MASSAGE = " Для корректной работы приложения требуется собирать Ваши данные о местоположении для работы функции обмена геоданными и построения маршрута пройденого пути, в том числе в фоновом режиме, даже если приложение закрыто и не используется. Мы не передаем данные о вашем местоположении третьим лицам и используем их только внутри нашего приложения, в том числе для передачи другим пользователям.";
     private static final String ACCEPT = "Я ПОНИМАЮ";
     private static final String DECLINE ="Отказываюсь";
 
-    public InfoDialogFragment(Context context, MapsActivity mapsActivity) {
+
+    public InfoDialogFragment(Context context, MapsActivity mapsActivity, String tempName, String tempRoom) {
         mContext = context;
         mMapsActivity = mapsActivity;
+        this.tempName = tempName;
+        this.tempRoom = tempRoom;
     }
 
     @NonNull
@@ -28,7 +33,7 @@ public class InfoDialogFragment extends DialogFragment {
         builder.setTitle(INFO);
         builder.setMessage(INFO_MASSAGE);
         builder.setPositiveButton(ACCEPT, (dialog, which) -> {
-            LoginDialogFragment dialogFragment = new LoginDialogFragment(mContext, mMapsActivity);
+            LoginDialogFragment dialogFragment = new LoginDialogFragment(mContext, mMapsActivity, tempName, tempRoom);
             dialogFragment.show(mMapsActivity.getSupportFragmentManager(), "login_dialog");
             mMapsActivity.setPermission();
         });

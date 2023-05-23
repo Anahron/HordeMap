@@ -1,6 +1,7 @@
 package ru.newlevel.hordemap;
 
 import static ru.newlevel.hordemap.DataUpdateService.locationHistory;
+import static ru.newlevel.hordemap.DataUpdateService.sendTimesList;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -19,7 +20,6 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -73,11 +73,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import ru.newlevel.hordemap.databinding.ActivityMapsBinding;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback{
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     public static GoogleMap gMap;
     public static Boolean permissionForGeoUpdate = false;
-    private boolean isServiceBound = false;
     private boolean IsNeedToSave = true;
     private Polyline routePolyline;
     private PopupWindow popupWindow;
@@ -93,11 +92,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private KmzLoader kmzLoader;
     private Polyline polyline;
     private Dialog dialog;
-    private SharedPreferences prefs;
     private int mapType;
+    private long timeOfTurnOnPause;
     public static int MARKER_SIZE_USERS = 60;
     public static int MARKER_SIZE_CUSTOMS = 50;
     public static int TIME_TO_SEND_DATA = 30000;
+    public static boolean isInactive = false;
     private static final int MY_PERMISSIONS_REQUEST_LOCATION = 1001;
     private static final int MY_PERMISSIONS_REQUEST_INTERNET = 1002;
     private static final int MY_PERMISSIONS_REQUEST_SENSOR = 1003;
@@ -107,7 +107,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1008;
     private static final int REQUEST_CODE_FOREGROUND_SERVICE = 1012;
     private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
-
 
     public static Context getContext() {
         return context;
@@ -127,10 +126,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     protected void onDestroy() {
+        MyServiceUtils.stopGeoUpdateService();
         if (IsNeedToSave && locationHistory.size() > 0)
             PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 1))));
         super.onDestroy();
-       // finish();
     }
 
     private int convertDpToPx(int dp) {
@@ -180,21 +179,57 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void getPrefs() {
-        prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
-        mapType = Integer.parseInt(prefs.getString("mapType", "4"));
-        MARKER_SIZE_USERS = Integer.parseInt(prefs.getString("markerUserSize", "50"));
-        MARKER_SIZE_CUSTOMS = Integer.parseInt(prefs.getString("markerCustomSize", "50"));
-        TIME_TO_SEND_DATA = Integer.parseInt(prefs.getString("timeToUpdate", "30000"));
-        User.getInstance().setMarker(Integer.parseInt(prefs.getString("myMarker", "0")));
+        SharedPreferences prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
+        try {
+            mapType = prefs.getInt("mapType", 4);
+            MARKER_SIZE_USERS = prefs.getInt("markerUserSize", 50);
+            MARKER_SIZE_CUSTOMS = prefs.getInt("markerCustomSize", 50);
+            TIME_TO_SEND_DATA = prefs.getInt("timeToUpdate", 30000);
+            User.getInstance().setMarker(prefs.getInt("myMarker", 0));
+        } catch (Exception e) {
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.clear();
+            editor.apply();
+            getPrefs();
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void openDialogCloseBySystem(int type) {
+        SharedPreferences prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putBoolean("isCloseBySystem", false);
+        editor.apply();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle("Предупреждение");
+        TextView textMessage = new TextView(context);
+        if (type == 1)
+            textMessage.setText(" Сервис слишком редко получал обновления GPS в фоновом режиме, для корректной работы пожалуйста перейдите в настройки и отключите режим оптимизации/автоматическое управление для приложения");
+        else
+            textMessage.setText(" Сервис НЕ получал обновления GPS в фоновом режиме, для корректной работы пожалуйста перейдите в настройки и отключите режим оптимизации/автоматическое управление батареи для приложения");
+        textMessage.setPadding(25, 25, 25, 25);
+        builder.setView(textMessage);
+        builder.setPositiveButton("Перейти в настройки", (dialog, which) -> {
+            Intent intent = new Intent();
+            intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            dialog.dismiss();
+        });
+        builder.setNegativeButton("закрыть", (dialog, which) -> dialog.dismiss());
+        dialog.setCancelable(false);
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        isInactive = false;
         context = this;
+
         FirebaseApp.initializeApp(this);
-        getPrefs();
 
         ActivityMapsBinding binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
@@ -217,13 +252,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
 
         createToolbar();
-
         LoginRequest.logIn(context, this);
+        getPrefs();
 
         viewModel.getCustomMarkersLiveData().observe(this, MarkersHandler::createCustomMapMarkers);
         viewModel.getUsersMarkersLiveData().observe(this, MarkersHandler::createAllUsersMarkers);
-        viewModel.getIsHaveNewMessages().observe(this, isNewMessage -> messengerButton.setBackgroundResource(isNewMessage ? R.drawable.yesmassage : R.drawable.nomassage));
-
+        viewModel.getIsHaveNewMessages().observe(this, isNewMessage -> {
+            if (isNewMessage)
+                messengerButton.setBackgroundResource(R.drawable.yesmassage);
+        });
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -234,17 +271,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ImageButton mapTypeButton = findViewById(R.id.map_type);
         mapTypeButton.setBackgroundResource(R.drawable.map_type);
         mapTypeButton.setOnClickListener(d -> {
+            SharedPreferences prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = prefs.edit();
             int mapType = gMap.getMapType();
             switch (mapType) {
                 case GoogleMap.MAP_TYPE_NORMAL:
                     gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-                    editor.putString("mapType", "4");
+                    editor.putInt("mapType", 4);
                     editor.apply();
                     break;
                 case GoogleMap.MAP_TYPE_HYBRID:
                     gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
-                    editor.putString("mapType", "1");
+                    editor.putInt("mapType", 1);
                     editor.apply();
                     break;
             }
@@ -302,7 +340,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (locationHistory.isEmpty())
                 Toast.makeText(context, "Записаного пути нет.", Toast.LENGTH_LONG).show();
             else {
-                polyline.remove();
+                if (polyline != null)
+                    polyline.remove();
                 MarkersHandler.setVisibleForImportantMarkers();
                 MarkersHandler.markersOn();
                 PolylineOptions polylineOptions = new PolylineOptions().addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
@@ -436,9 +475,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             TextView textDeviceId = view.findViewById(R.id.text_device_id);
             textDeviceId.setText(User.getInstance().getDeviceId());
             builder.setView(view);
-            builder.setPositiveButton("OK", (dialog, which) -> {
-                dialog.dismiss();
-            });
+            builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
             AlertDialog dialog = builder.create();
             dialog.show();
             popupWindow.dismiss();
@@ -460,7 +497,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    @SuppressLint("SetTextI18n")
+    @SuppressLint({"SetTextI18n", "SuspiciousIndentation"})
     private void createMenuItemMarkerOptions() {
         Button menuItem2 = viewPopupMenu1.findViewById(R.id.menu_item2);
         menuItem2.setBackgroundResource(R.drawable.menubutton);
@@ -590,23 +627,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 int seekBarUsersMarkerValue = Math.max(seekBarUsersMarker.getProgress(), 20);
                 int seekBarCustomMarkersValue = Math.max(seekBarCustomMarkers.getProgress(), 20);
                 int seekBarTimeValue = Math.max(seekBarTime.getProgress(), 10);
+                SharedPreferences prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
                 SharedPreferences.Editor editor = prefs.edit();
-                editor.putString("markerUserSize", String.valueOf(seekBarUsersMarkerValue));
-                editor.putString("markerCustomSize", String.valueOf(seekBarCustomMarkersValue));
-                editor.putString("timeToUpdate", String.valueOf(seekBarTimeValue * 1000));
-                editor.putString("myMarker", checkedButton.toString());
+                editor.putInt("markerUserSize", seekBarUsersMarkerValue);
+                editor.putInt("markerCustomSize", seekBarCustomMarkersValue);
+                editor.putInt("timeToUpdate", seekBarTimeValue * 1000);
+                editor.putInt("myMarker", checkedButton.intValue());
                 editor.apply();
                 User.getInstance().setMarker(checkedButton.intValue());
                 TIME_TO_SEND_DATA = seekBarTimeValue * 1000;
                 MARKER_SIZE_CUSTOMS = seekBarCustomMarkersValue;
                 MARKER_SIZE_USERS = seekBarUsersMarkerValue;
+                if (permissionForGeoUpdate)
+                    DataUpdateService.getInstance().restartSendGeoTimer(TIME_TO_SEND_DATA);
                 MarkersHandler.reCreateMarkers();
             });
             builder.setNegativeButton("Сбросить", (dialog, which) -> {
+                SharedPreferences prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.clear();
                 editor.apply();
                 getPrefs();
+                if (permissionForGeoUpdate)
+                    DataUpdateService.getInstance().restartSendGeoTimer(TIME_TO_SEND_DATA);
                 MarkersHandler.reCreateMarkers();
             });
             builder.setView(view);
@@ -634,7 +677,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menuItem4.setBackgroundResource(R.drawable.menubutton);
         menuItem4.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem4.setOnClickListener(s -> {
-            LoginRequest.logOut(context);
+            LoginRequest.logOut();
             LoginRequest.logIn(context, this);
             popupWindow.dismiss();
         });
@@ -647,9 +690,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menuItem5.setOnClickListener(s -> {
             if (IsNeedToSave && locationHistory.size() > 0)
                 PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
-            MyServiceUtils.stopGeoUpdateService(context);
-            finish();
+            //finish();
             popupWindow.dismiss();
+
         });
     }
 
@@ -892,7 +935,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         gMap = googleMap;
         enableMyLocationAndClicksListener();
 
-        // Смещаем карту ниже тулбара
+//         Смещаем карту ниже тулбара
         TypedValue tv = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true);
         int actionBarHeight = getResources().getDimensionPixelSize(tv.resourceId);
@@ -900,27 +943,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         gMap.setMapType(mapType);
 
-        // Камера на Красноярск
-        //  LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
-        // Камера на полигон
-        LatLng location = new LatLng(52.079417, 47.731866);
-        gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 13));
+//         Камера на Красноярск
+        LatLng location = new LatLng(56.0901, 93.2329);   //координаты красноярска
+//         Камера на полигон
+//        LatLng location = new LatLng(52.079417, 47.731866);
+        gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 8));
 
         gMap.getUiSettings().setMyLocationButtonEnabled(true);
         gMap.getUiSettings().setCompassEnabled(true);
         gMap.getUiSettings().setZoomControlsEnabled(true);
-
-        // Загружаем стационарые метки полигона
-        MarkersHandler.importantMarkersCreate();
-
-        // Показываем только текст маркера, без перемещения к нему камеры
+//         Загружаем стационарые метки полигона
+//         MarkersHandler.importantMarkersCreate();                            // пока не нужны
+//         Показываем только текст маркера, без перемещения к нему камеры
         gMap.setOnMarkerClickListener(marker -> {
             marker.showInfoWindow();
             return true;
         });
-
+//         Создание диалога удаления маркера по долгому клику на инфо
         gMap.setOnInfoWindowLongClickListener(this::deleteMarkerShowDialog);
-
+//         Скрываем диалог при коротком клике по нему
         gMap.setOnInfoWindowClickListener(Marker::hideInfoWindow);
     }
 
@@ -935,24 +976,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     MarkersHandler.markersOff();
                     MarkersHandler.markersOn();
                 }
-            }).setNegativeButton("Нет", (dialog, which) -> {
-                dialog.dismiss();
-            }).show();
+            }).setNegativeButton("Нет", (dialog, which) -> dialog.dismiss()).show();
         }
+    }
+
+    private void checkGeoUpdatesTimes() {
+        if (sendTimesList.size() > 3) {
+            long times = 0L;
+            long tempTime = 0L;
+            for (Long time : sendTimesList) {
+                if (tempTime != 0L)
+                    times = time - tempTime;
+                tempTime = time;
+            }
+            makeToast("Среднее время обновлений в фоне " + times / 1000 + "сек. количество отправок на сервер: " + sendTimesList.size());
+            if (times / sendTimesList.size() > TIME_TO_SEND_DATA * 2L)
+                openDialogCloseBySystem(1);
+        } else if (timeOfTurnOnPause > 0 && System.currentTimeMillis() - timeOfTurnOnPause > 120000 && sendTimesList.size() < 2)
+            openDialogCloseBySystem(0);
+        sendTimesList.clear();
     }
 
     @Override
     protected void onPause() {
-        super.onPause();
-        MyWakefulReceiver.isInactive = true;
+        timeOfTurnOnPause = System.currentTimeMillis();
+        DataUpdateService.getInstance().switchToInactiveState();
+        isInactive = true;
         viewModel.stopLoadGeoData();
         viewModel.stopLoadMessages();
+        super.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        MyWakefulReceiver.isInactive = false;
+        DataUpdateService.getInstance().switchToActiveState();
+        isInactive = false;
         if (permissionForGeoUpdate) {
             if (dialog.isShowing())
                 viewModel.loadMessagesListener();
@@ -960,14 +1019,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         if (KmzLoader.savedKmlLayer != null)
             KmzLoader.savedKmlLayer.addLayerToMap();
+        checkGeoUpdatesTimes();
+        timeOfTurnOnPause = 0;
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        MyWakefulReceiver.isInactive = true;
-        viewModel.stopLoadGeoData();
-        viewModel.stopLoadMessages();
     }
 
 }

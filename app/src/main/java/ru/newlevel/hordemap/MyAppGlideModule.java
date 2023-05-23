@@ -47,7 +47,7 @@ public class MyAppGlideModule extends AppGlideModule {
     }
 
     public static class StorageReferenceLoaderFactory implements ModelLoaderFactory<StorageReference, InputStream> {
-        private Context context;
+        private final Context context;
 
         public StorageReferenceLoaderFactory(Context context) {
             this.context = context;
