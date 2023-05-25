@@ -21,7 +21,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -64,7 +63,6 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.gms.maps.model.SquareCap;
 import com.google.firebase.FirebaseApp;
-import com.google.maps.FindPlaceFromTextRequest;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 
@@ -274,6 +272,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         else
             mapTypeButton.setBackgroundResource(R.drawable.map_type_hybrid);
         mapTypeButton.setOnClickListener(d -> {
+            setPermission();
             SharedPreferences prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = prefs.edit();
             int mapType = gMap.getMapType();
@@ -347,7 +346,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             else {
                 if (polyline != null)
                     polyline.remove();
-                MarkersHandler.setVisibleForImportantMarkers();
                 MarkersHandler.markersOn();
                 PolylineOptions polylineOptions = new PolylineOptions().addAll(locationHistory).jointType(JointType.ROUND).startCap(new SquareCap()).endCap(new RoundCap()).geodesic(true).color(Color.RED) // Задаем цвет линии
                         .width(10); // Задаем ширину линии
@@ -363,7 +361,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem3hidePath.setOnClickListener(s -> {
             gMap.clear();
-            MarkersHandler.setVisibleForImportantMarkers();
             MarkersHandler.markersOn();
             if (KmzLoader.savedKmlLayer != null)
                 KmzLoader.savedKmlLayer.addLayerToMap();
@@ -948,18 +945,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             });
         }
-    }
-
-    private void setInputTypeText(EditText descriptionEditText) {
-        descriptionEditText.setInputType(InputType.TYPE_CLASS_TEXT);
-        descriptionEditText.setMaxEms(20);
-        descriptionEditText.setHint("Введите название");
-    }
-
-    private void setInputTypeNumbers(EditText descriptionEditText) {
-        descriptionEditText.setMaxEms(1);
-        descriptionEditText.setInputType(InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        descriptionEditText.setHint("Введите номер точки 1-9");
     }
 
 
