@@ -40,6 +40,7 @@ public class KmzLoader {
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_CODE_PICK_KMZ_FILE && resultCode == Activity.RESULT_OK) {
+            MapsActivity.makeToast("Подождите, загрузка выполняется");
             if (data != null) {
                 Uri kmzFileUri = data.getData();
                 InputStream inputStream = null;
@@ -49,6 +50,7 @@ public class KmzLoader {
                     savedKmlLayer = kmlLayer;
                     kmlLayer.addLayerToMap();
                 } catch (XmlPullParserException | IOException e) {
+                    MapsActivity.makeToast("Загрузка неудачна");
                     e.printStackTrace();
                 } finally {
                     if (inputStream != null) {

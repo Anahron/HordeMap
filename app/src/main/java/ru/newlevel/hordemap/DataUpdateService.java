@@ -4,6 +4,7 @@ import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
 
 import static ru.newlevel.hordemap.MapsActivity.TIME_TO_SEND_DATA;
 import static ru.newlevel.hordemap.MapsActivity.getViewModel;
+import static ru.newlevel.hordemap.MapsActivity.isInactive;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -194,6 +195,8 @@ public class DataUpdateService extends Service {
                                     Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
                                     latitude = location.getLatitude();
                                     longitude = location.getLongitude();
+                                    if (isInactive)
+                                        sendTimesList.add(System.currentTimeMillis());
                                     lastTimeSanded = System.currentTimeMillis();
                                     MapsActivity.getViewModel().sendMarkerData(latitude, longitude);
                                     if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 8) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
@@ -247,6 +250,8 @@ public class DataUpdateService extends Service {
                 getViewModel().checkForNewMessages();
                 long sysTime = System.currentTimeMillis();
                 if (location != null && sysTime - lastTimeSanded > 10000L) {
+                    if (isInactive)
+                        sendTimesList.add(sysTime);
                     MapsActivity.getViewModel().sendMarkerData(latitude, longitude);
                     lastTimeSanded = sysTime;
 
@@ -296,6 +301,8 @@ public class DataUpdateService extends Service {
         Log.d("Horde map", "locationCallback остановлен");
         if (handler != null)
             handler.removeCallbacksAndMessages(null); // Удаляем все задачи из handler
+        if (alarmManager != null)
+            alarmManager.cancel(pendingIntent);
         fusedLocationClient.removeLocationUpdates(locationCallback);
         stopForeground(true);
         stopSelf();

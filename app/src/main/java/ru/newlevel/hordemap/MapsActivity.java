@@ -259,6 +259,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (isNewMessage)
                 messengerButton.setBackgroundResource(R.drawable.yesmassage);
         });
+        if (KmzLoader.savedKmlLayer != null)
+            KmzLoader.savedKmlLayer.addLayerToMap();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -360,10 +362,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menuItem3hidePath.setBackgroundResource(R.drawable.menubutton);
         menuItem3hidePath.setGravity(Gravity.CENTER_HORIZONTAL);
         menuItem3hidePath.setOnClickListener(s -> {
-            gMap.clear();
-            MarkersHandler.markersOn();
-            if (KmzLoader.savedKmlLayer != null)
-                KmzLoader.savedKmlLayer.addLayerToMap();
+            if (polyline != null)
+                polyline.remove();
             popupWindow.dismiss();
         });
     }
@@ -692,9 +692,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menuItem5.setOnClickListener(s -> {
             if (IsNeedToSave && locationHistory.size() > 0)
                 PolylineSaver.savePathList(context, locationHistory, (int) Math.round(SphericalUtil.computeLength(PolyUtil.simplify(locationHistory, 22))));
-            //finish();
+            MyServiceUtils.stopGeoUpdateService();
+            System.exit(0);
             popupWindow.dismiss();
-
         });
     }
 
@@ -947,7 +947,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-
     @SuppressLint("PotentialBehaviorOverride")
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
@@ -1000,7 +999,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void checkGeoUpdatesTimes() {
-        if (sendTimesList.size() > 3) {
+        if (sendTimesList.size() > 5) {
             long times = 0L;
             long tempTime = 0L;
             for (Long time : sendTimesList) {
@@ -1033,8 +1032,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 viewModel.loadMessagesListener();
             viewModel.loadGeoDataListener();
         }
-        if (KmzLoader.savedKmlLayer != null)
-            KmzLoader.savedKmlLayer.addLayerToMap();
         checkGeoUpdatesTimes();
         timeOfTurnOnPause = 0;
     }
