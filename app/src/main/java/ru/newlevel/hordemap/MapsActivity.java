@@ -21,6 +21,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.InputType;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -63,6 +64,7 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.RoundCap;
 import com.google.android.gms.maps.model.SquareCap;
 import com.google.firebase.FirebaseApp;
+import com.google.maps.FindPlaceFromTextRequest;
 import com.google.maps.android.PolyUtil;
 import com.google.maps.android.SphericalUtil;
 
@@ -238,13 +240,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             viewModel = new ViewModelProvider(this).get(HordeMapViewModel.class);
 
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        getPrefs();
 
         dialog = new Dialog(context, R.style.AlertDialogNoMargins);
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             createRightButtons();
         }
-
         Messenger.getInstance().createMessenger(context, viewModel, dialog, messengerButton);
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
@@ -253,7 +254,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         createToolbar();
         LoginRequest.logIn(context, this);
-        getPrefs();
 
         viewModel.getCustomMarkersLiveData().observe(this, MarkersHandler::createCustomMapMarkers);
         viewModel.getUsersMarkersLiveData().observe(this, MarkersHandler::createAllUsersMarkers);
@@ -269,7 +269,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         messengerButton.setBackgroundResource(R.drawable.nomassage);
         messengerButton.setClickable(false);
         ImageButton mapTypeButton = findViewById(R.id.map_type);
-        mapTypeButton.setBackgroundResource(R.drawable.map_type);
+        if (mapType == 4)
+            mapTypeButton.setBackgroundResource(R.drawable.map_type_normal);
+        else
+            mapTypeButton.setBackgroundResource(R.drawable.map_type_hybrid);
         mapTypeButton.setOnClickListener(d -> {
             SharedPreferences prefs = context.getSharedPreferences("HordeMapPref", Context.MODE_PRIVATE);
             SharedPreferences.Editor editor = prefs.edit();
@@ -277,11 +280,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             switch (mapType) {
                 case GoogleMap.MAP_TYPE_NORMAL:
                     gMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+                    mapTypeButton.setBackgroundResource(R.drawable.map_type_normal);
                     editor.putInt("mapType", 4);
                     editor.apply();
                     break;
                 case GoogleMap.MAP_TYPE_HYBRID:
                     gMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+                    mapTypeButton.setBackgroundResource(R.drawable.map_type_hybrid);
                     editor.putInt("mapType", 1);
                     editor.apply();
                     break;
@@ -828,7 +833,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             break;
                         case 3:
                             AlertDialog.Builder dialogMarkerBuilder = new AlertDialog.Builder(context);
-                            dialogMarkerBuilder.setTitle(" Выберите иконку \n и введите название");
+                            dialogMarkerBuilder.setTitle(" Выберите иконку ");
 
                             // Загрузка макета для диалогового окна
                             LayoutInflater inflater = LayoutInflater.from(context);
@@ -842,7 +847,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             ImageView icon4 = dialogView.findViewById(R.id.icon4_flag_yellow);
                             ImageView icon5 = dialogView.findViewById(R.id.icon5_flag_green);
                             ImageView icon6 = dialogView.findViewById(R.id.icon6_flag_blue);
+
                             EditText descriptionEditText = dialogView.findViewById(R.id.description_edit_text);
+                            EditText numberPointText = dialogView.findViewById(R.id.description_edit_text_number);
                             String[] description = {"Маркер"};
                             int[] selectedIcon = {0};
                             icon1.setOnClickListener(v -> {
@@ -853,6 +860,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon4.setAlpha(0.3F);
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(0.3F);
+                                numberPointText.setVisibility(View.VISIBLE);
                             });
                             icon2.setOnClickListener(v -> {
                                 selectedIcon[0] = 1;
@@ -862,6 +870,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon4.setAlpha(0.3F);
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(0.3F);
+                                numberPointText.setVisibility(View.GONE);
                             });
                             icon3.setOnClickListener(v -> {
                                 selectedIcon[0] = 2;
@@ -871,6 +880,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon4.setAlpha(0.3F);
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(0.3F);
+                                numberPointText.setVisibility(View.GONE);
                             });
                             icon4.setOnClickListener(v -> {
                                 selectedIcon[0] = 3;
@@ -880,6 +890,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon4.setAlpha(1F);
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(0.3F);
+                                numberPointText.setVisibility(View.GONE);
                             });
                             icon5.setOnClickListener(v -> {
                                 selectedIcon[0] = 4;
@@ -889,6 +900,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon4.setAlpha(0.3F);
                                 icon5.setAlpha(1F);
                                 icon6.setAlpha(0.3F);
+                                numberPointText.setVisibility(View.GONE);
                             });
                             icon6.setOnClickListener(v -> {
                                 selectedIcon[0] = 5;
@@ -898,15 +910,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 icon4.setAlpha(0.3F);
                                 icon5.setAlpha(0.3F);
                                 icon6.setAlpha(1F);
+                                numberPointText.setVisibility(View.GONE);
                             });
 
                             // Установка кнопки "Отмена"
                             dialogMarkerBuilder.setNegativeButton("Отмена", (dialogInterface, which1) -> dialogInterface.dismiss());
                             // Установка кнопки "Поставить маркер"
                             dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
-                                if (descriptionEditText.getText().toString().length() > 0)
+                                String selectedIconFinal = "10";
+                                if (selectedIcon[0] == 0) {
+                                    if (numberPointText.getText().toString().length() > 0)
+                                        selectedIconFinal = "1" + numberPointText.getText();
+                                    if (descriptionEditText.getText().toString().length() > 0)
+                                        description[0] = String.valueOf(descriptionEditText.getText());
+                                    viewModel.sendMarkerData(latLng.latitude, latLng.longitude, Integer.parseInt(selectedIconFinal), description[0]);
+                                } else if (descriptionEditText.getText().toString().length() > 0)
                                     description[0] = String.valueOf(descriptionEditText.getText());
-                                viewModel.sendMarkerData(latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
+                                else
+                                    viewModel.sendMarkerData(latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
                                 dialogInterface.dismiss();
                             });
                             // Создание диалогового окна
@@ -928,6 +949,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             });
         }
     }
+
+    private void setInputTypeText(EditText descriptionEditText) {
+        descriptionEditText.setInputType(InputType.TYPE_CLASS_TEXT);
+        descriptionEditText.setMaxEms(20);
+        descriptionEditText.setHint("Введите название");
+    }
+
+    private void setInputTypeNumbers(EditText descriptionEditText) {
+        descriptionEditText.setMaxEms(1);
+        descriptionEditText.setInputType(InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        descriptionEditText.setHint("Введите номер точки 1-9");
+    }
+
 
     @SuppressLint("PotentialBehaviorOverride")
     @Override
@@ -986,22 +1020,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             long tempTime = 0L;
             for (Long time : sendTimesList) {
                 if (tempTime != 0L)
-                    times = time - tempTime;
+                    times += time - tempTime;
                 tempTime = time;
             }
-            makeToast("Среднее время обновлений в фоне " + times / 1000 + "сек. количество отправок на сервер: " + sendTimesList.size());
+            makeToast("Среднее время обновлений в фоне " + times / sendTimesList.size() / 1000 + "сек. количество отправок на сервер: " + sendTimesList.size());
             if (times / sendTimesList.size() > TIME_TO_SEND_DATA * 2L)
                 openDialogCloseBySystem(1);
-        } else if (timeOfTurnOnPause > 0 && System.currentTimeMillis() - timeOfTurnOnPause > 120000 && sendTimesList.size() < 2)
+        } else if (timeOfTurnOnPause > 0 && System.currentTimeMillis() - timeOfTurnOnPause > 130000 && sendTimesList.size() < 2)
             openDialogCloseBySystem(0);
         sendTimesList.clear();
     }
 
     @Override
     protected void onPause() {
-        timeOfTurnOnPause = System.currentTimeMillis();
-        DataUpdateService.getInstance().switchToInactiveState();
-        isInactive = true;
         viewModel.stopLoadGeoData();
         viewModel.stopLoadMessages();
         super.onPause();
@@ -1010,9 +1041,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
-        DataUpdateService.getInstance().switchToActiveState();
         isInactive = false;
         if (permissionForGeoUpdate) {
+            DataUpdateService.getInstance().switchToActiveState();
             if (dialog.isShowing())
                 viewModel.loadMessagesListener();
             viewModel.loadGeoDataListener();
@@ -1025,6 +1056,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onStop() {
+        isInactive = true;
+        if (permissionForGeoUpdate) {
+            timeOfTurnOnPause = System.currentTimeMillis();
+            DataUpdateService.getInstance().switchToInactiveState();
+        }
         super.onStop();
     }
 

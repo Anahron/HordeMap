@@ -14,15 +14,7 @@
         android:layout_marginTop="15sp"
         android:padding="8sp">
 
-        <ImageView
-            android:id="@+id/icon1_focus"
-            android:layout_width="35sp"
-            android:layout_height="35sp"
-            android:foreground="@drawable/focus"
-            android:layout_gravity="center_horizontal"
-            android:layout_margin="8sp"
-            android:alpha="1"
-             />
+
 
         <ImageView
             android:id="@+id/icon2_swords"
@@ -34,6 +26,15 @@
             android:alpha="0.3"
             />
 
+        <ImageView
+            android:id="@+id/icon1_focus"
+            android:layout_width="35sp"
+            android:layout_height="35sp"
+            android:foreground="@drawable/marker_point9"
+            android:layout_gravity="center_horizontal"
+            android:layout_margin="8sp"
+            android:alpha="0.3"
+            />
         <ImageView
             android:id="@+id/icon3_flag_red"
             android:layout_width="35sp"
@@ -74,9 +75,18 @@
 
     <EditText
         android:id="@+id/description_edit_text"
+        style="@style/Widget.AppCompat.AutoCompleteTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Введите название"
-        />
+        android:hint="Введите название" />
 
+    <EditText
+        android:id="@+id/description_edit_text_number"
+        style="@style/Widget.AppCompat.AutoCompleteTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:maxLength="1"
+        android:visibility="gone"
+        android:hint="Введите номер точки 0-9" />
 </LinearLayout>

@@ -1,5 +1,7 @@
 package ru.newlevel.hordemap;
 
+import static ru.newlevel.hordemap.MapsActivity.TIME_TO_SEND_DATA;
+
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -14,7 +16,7 @@ public class AlarmManagerReceiver extends BroadcastReceiver {
     @SuppressLint("UnsafeProtectedBroadcastReceiver")
     @Override
     public void onReceive(Context context, Intent intent) {
-        MapsActivity.getViewModel().sendMarkerData(DataUpdateService.getLatitude(), DataUpdateService.getLongitude());
+        DataUpdateService.getInstance().restartSendGeoTimer(TIME_TO_SEND_DATA);
         Log.d("Horde map", "Запустился AlarmManagerReceiver ");
     }
 }

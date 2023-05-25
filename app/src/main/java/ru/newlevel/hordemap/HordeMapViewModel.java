@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel;
 import com.google.android.gms.maps.model.Marker;
 
 import java.util.List;
+import java.util.concurrent.Semaphore;
 
 public class HordeMapViewModel extends ViewModel {
     private final HordeMapRepository repository;
@@ -18,6 +19,7 @@ public class HordeMapViewModel extends ViewModel {
     private final MutableLiveData<List<MyMarker>> usersMarkersLiveData = new MutableLiveData<>();
     private final MutableLiveData<List<MyMarker>> customMarkersLiveData = new MutableLiveData<>();
     private final MutableLiveData<Boolean> isHaveNewMessages = new MutableLiveData<>();
+    private final Semaphore semaphore = new Semaphore(1);
 
     public HordeMapViewModel() {
         isHaveNewMessages.setValue(false);
@@ -106,7 +108,16 @@ public class HordeMapViewModel extends ViewModel {
     }
 
     public void sendMarkerData(double latitude, double longitude){
-        repository.sendGeoDataToDatabase(latitude,longitude);
+        boolean acquired = semaphore.tryAcquire();
+        if (acquired) {
+            try {
+                repository.sendGeoDataToDatabase(latitude,longitude);
+            } finally {
+                semaphore.release();
+            }
+        } else {
+            System.out.println("Метод уже выполняется другим потоком");
+        }
     }
 
     public void checkForNewMessages(){

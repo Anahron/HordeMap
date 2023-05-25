@@ -4,10 +4,10 @@ import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION;
 
 import static ru.newlevel.hordemap.MapsActivity.TIME_TO_SEND_DATA;
 import static ru.newlevel.hordemap.MapsActivity.getViewModel;
-import static ru.newlevel.hordemap.MapsActivity.isInactive;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 
@@ -53,20 +54,25 @@ public class DataUpdateService extends Service {
     private Location location;
     private final Location[] lastLocation = {null};
 
-    private final static int UPDATE_INTERVAL = 5000;
-    private final static int FASTEST_INTERVAL = 4000;
-    private final static int DISPLACEMENT = 1;
+    private final static int UPDATE_INTERVAL = 8000;
+    private final static int FASTEST_INTERVAL = 5000;
+    private final static int DISPLACEMENT = 3;
 
-    private final static int DISPLACEMENT_INACTIVE = 1;
+    private final static int DISPLACEMENT_INACTIVE = 3;
 
     public int NOTIFICATION_ID_MESSAGE = 2;
     private int countNewMessages = 0;
+
+    private AlarmManager alarmManager;
+    private PendingIntent pendingIntent;
 
     private Runnable sendGeoTimer;
     private Handler handler;
     private LocationCallback locationCallback;
     private FusedLocationProviderClient fusedLocationClient;
     private LocationRequest locationRequest;
+
+    private volatile long lastTimeSanded;
 
     public static ArrayList<Long> sendTimesList = new ArrayList<>();
 
@@ -85,7 +91,6 @@ public class DataUpdateService extends Service {
         return longitude;
     }
 
-
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -93,9 +98,27 @@ public class DataUpdateService extends Service {
     }
 
     @Override
+    public void onDestroy() {
+        stopDataUpdateService();
+        stopLocationUpdates();
+        alarmManager.cancel(pendingIntent);
+        fusedLocationClient = null;
+        locationRequest = null;
+        locationCallback = null;
+        handler = null;
+        sendGeoTimer = null;
+        super.onDestroy();
+    }
+
+    @Override
     public void onCreate() {
         super.onCreate();
+        createAlarmManager();
         instance = this;
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        locationRequest = LocationRequest.create();
+        configureLocationRequestForActiveState();
+        handler = new Handler();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -154,51 +177,48 @@ public class DataUpdateService extends Service {
                 startForeground(NOTIFICATION_ID, createNotification());
             }
             super.onStartCommand(intent, flags, startId);
-
-            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-            locationRequest = LocationRequest.create();
-            locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
-            configureLocationRequestForActiveState();
-            locationCallback = new LocationCallback() {
-                @SuppressLint("SuspiciousIndentation")
-                @Override
-                public void onLocationResult(@NonNull LocationResult locationResult) {
-                    super.onLocationResult(locationResult);
-                    location = locationResult.getLastLocation();
-                    try {
-                        if (location != null) {
-                            if (lastLocation[0] == null) {
-                                lastLocation[0] = location;
-                            }
-                            Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты " + location.toString());
-                            if (location.getAccuracy() < 25) {
-                                Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
-                                latitude = location.getLatitude();
-                                longitude = location.getLongitude();
-                                MapsActivity.getViewModel().sendMarkerData(latitude, longitude);
-                                if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 8) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
-                                    Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
-                                    locationHistory.add(0, new LatLng(latitude, longitude));
-                                    // Отправляем данные
-                                    Log.d("Horde map", "В locationHistory добавлено " + latitude + " " + longitude);
-                                    if (locationHistory.size() > 2)
-                                        // проверка прошлой точки на неликвидность
-                                        checkLastLocationForError();
-                                } else {
-                                    Log.d("Horde map", "Растояние < 8 метров, пропускаем");
+            if (locationCallback == null)
+                locationCallback = new LocationCallback() {
+                    @SuppressLint("SuspiciousIndentation")
+                    @Override
+                    public void onLocationResult(@NonNull LocationResult locationResult) {
+                        super.onLocationResult(locationResult);
+                        location = locationResult.getLastLocation();
+                        try {
+                            if (location != null) {
+                                if (lastLocation[0] == null) {
+                                    lastLocation[0] = location;
                                 }
-                                lastLocation[0] = location;
-                            } else if (lastLocation[0].getAccuracy() > location.getAccuracy()) {
-                                lastLocation[0] = location;
+                                Log.d("Horde map", location.getLatitude() + " " + location.getLongitude() + "   " + location.getAccuracy() + "   получены координаты " + location.toString() + " " + this);
+                                if (location.getAccuracy() < 25) {
+                                    Log.d("Horde map", "Аккуратность < 25, проверяем на растояние");
+                                    latitude = location.getLatitude();
+                                    longitude = location.getLongitude();
+                                    lastTimeSanded = System.currentTimeMillis();
+                                    MapsActivity.getViewModel().sendMarkerData(latitude, longitude);
+                                    if (SphericalUtil.computeDistanceBetween(new LatLng(latitude, longitude), new LatLng(lastLocation[0].getLatitude(), lastLocation[0].getLongitude())) > 8) {    // Проверяем если растояние меньше 8 метров межу последней точкой и полученой - не добавляем
+                                        Log.d("Horde map", "Растояние > 8 добавляем в locationHistory и в lastLocation");
+                                        locationHistory.add(0, new LatLng(latitude, longitude));
+                                        // Отправляем данные
+                                        Log.d("Horde map", "В locationHistory добавлено " + latitude + " " + longitude);
+                                        if (locationHistory.size() > 2)
+                                            // проверка прошлой точки на неликвидность
+                                            checkLastLocationForError();
+                                    } else {
+                                        Log.d("Horde map", "Растояние < 8 метров, пропускаем");
+                                    }
+                                    lastLocation[0] = location;
+                                } else if (lastLocation[0].getAccuracy() > location.getAccuracy()) {
+                                    lastLocation[0] = location;
+                                }
                             }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
                     }
-                }
-            };
+                };
+            Log.d("Horde map", " Запускаем locationCallback в onStartCommand");
             startLocationUpdates();
-            handler = new Handler();
             startSendGeoHandler(TIME_TO_SEND_DATA);
         }
         return START_STICKY;
@@ -221,15 +241,18 @@ public class DataUpdateService extends Service {
         sendGeoTimer = new Runnable() {
             @Override
             public void run() {
-                Log.d("Horde map", "отсылаются данные в handler'e ");
+                alarmManager.cancel(pendingIntent);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + updateInterval, pendingIntent);
+                Log.d("Horde map", "отсылаются данные в TimerTask'e ");
                 getViewModel().checkForNewMessages();
-                if (isInactive)
-                    sendTimesList.add(System.currentTimeMillis());
-                if (location != null)
-                    if (System.currentTimeMillis() - location.getTime() > TIME_TO_SEND_DATA)
-                        MapsActivity.getViewModel().sendMarkerData(latitude, longitude);
+                long sysTime = System.currentTimeMillis();
+                if (location != null && sysTime - lastTimeSanded > 10000L) {
+                    MapsActivity.getViewModel().sendMarkerData(latitude, longitude);
+                    lastTimeSanded = sysTime;
+
+                }
                 handler.removeCallbacks(sendGeoTimer);
-                handler.postDelayed(this, updateInterval);
+                handler.postDelayed(this, updateInterval + 10000);
             }
         };
         handler.post(sendGeoTimer);
@@ -254,9 +277,10 @@ public class DataUpdateService extends Service {
     }
 
     private void configureLocationRequestForInactiveState() {
-        locationRequest.setInterval(TIME_TO_SEND_DATA * 8L / 10L);
+        locationRequest.setInterval(TIME_TO_SEND_DATA * 7L / 10L);
         locationRequest.setSmallestDisplacement(DISPLACEMENT_INACTIVE);
-        locationRequest.setFastestInterval(TIME_TO_SEND_DATA * 7L / 10L);
+        locationRequest.setFastestInterval(TIME_TO_SEND_DATA * 5L / 10L);
+        locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
         // locationRequest.setWaitForAccurateLocation(true);
     }
 
@@ -264,6 +288,7 @@ public class DataUpdateService extends Service {
         locationRequest.setInterval(UPDATE_INTERVAL);
         locationRequest.setFastestInterval(FASTEST_INTERVAL);
         locationRequest.setSmallestDisplacement(DISPLACEMENT);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         //  locationRequest.setWaitForAccurateLocation(true);
     }
 
@@ -277,10 +302,10 @@ public class DataUpdateService extends Service {
     }
 
     protected void restartSendGeoTimer(long newDelayMillis) {
-        Log.d("Horde map", "locationCallback запущен");
+        Log.d("Horde map", "locationCallback перезапущен");
         //Удаляем предыдущий запланированный Runnable
         if (handler != null)
-            handler.removeCallbacks(sendGeoTimer); // Удаляем задачи из handler
+            handler.removeCallbacksAndMessages(null); // Удаляем задачи из handler
         startSendGeoHandler(newDelayMillis);
     }
 
@@ -303,7 +328,7 @@ public class DataUpdateService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "CHANNEL_2")
                 .setSmallIcon(R.drawable.hordecircle)
                 .setContentTitle("Сообщение")
-                .setContentText("В чате новое сообщение" + "(" + countNewMessages +")")
+                .setContentText("В чате новое сообщение" + "(" + countNewMessages + ")")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
@@ -321,4 +346,9 @@ public class DataUpdateService extends Service {
         }
     }
 
+    private void createAlarmManager() {
+        alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(this, AlarmManagerReceiver.class);
+        pendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
+    }
 }

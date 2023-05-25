@@ -32,7 +32,7 @@ import java.util.TimeZone;
 
 public class MarkersHandler {
     private static final List<Marker> importantMarkers = new ArrayList<>();
-//    private static final Bitmap swords1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.citadelyellow);
+    //    private static final Bitmap swords1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.citadelyellow);
 //    private static final Bitmap swords2 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.checkblue);
 //    private static final Bitmap swords3 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.checkyellow);
 //    private static final Bitmap swords4 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.citadelblue);
@@ -54,7 +54,7 @@ public class MarkersHandler {
 //    private static final BitmapDescriptor swordsicon9 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(swords9, markerSize, markerSize, false));
 //    private static final BitmapDescriptor blue_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(blue_camp, markerSize, markerSize, false));
 //    private static final BitmapDescriptor yellow_campicon = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(yellow_camp, markerSize, markerSize, false));
-    private static final  Bitmap bitmap0 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
+    private static final Bitmap bitmap0 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing);
     private static final Bitmap bitmap1 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_yellow);
     private static final Bitmap bitmap2 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_green);
     private static final Bitmap bitmap3 = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.pngwing_blue);
@@ -109,7 +109,7 @@ public class MarkersHandler {
     }
 
     public static void reCreateMarkers() {
-        icon0 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap0, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+        icon0 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap1, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         icon1 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap1, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         icon2 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap2, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         icon3 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap3, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
@@ -180,9 +180,35 @@ public class MarkersHandler {
             case 5:
                 bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.flag_blue);
                 break;
-            default:
-                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.focus);
+            case 11:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point1);
                 break;
+            case 12:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point2);
+                break;
+            case 13:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point3);
+                break;
+            case 14:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point4);
+                break;
+            case 15:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point5);
+                break;
+            case 16:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point6);
+                break;
+            case 17:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point7);
+                break;
+            case 18:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point8);
+                break;
+            case 19:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point9);
+                break;
+            default:
+                bitmap = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.marker_point0);
         }
         return BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap, MARKER_SIZE_CUSTOMS, MARKER_SIZE_CUSTOMS, false));
     }
@@ -197,7 +223,7 @@ public class MarkersHandler {
             if (isMarkersON) {
                 for (MyMarker myMarker : myMarkerList) {
                     dateFormat.setTimeZone(timeZone);
-                    if (!myMarker.getTitle().equals("Маркер")) {
+                    if (!myMarker.getTitle().equals("Маркер") && myMarker.getItem() < 10) {
                         createTextMarker(myMarker);
                     }
                     Marker marker = gMap.addMarker(new MarkerOptions()
@@ -215,7 +241,7 @@ public class MarkersHandler {
     }
 
     private static void createTextMarker(@NonNull MyMarker myMarker) {
-        String text = myMarker.getTitle().length() > 9 ? myMarker.getTitle().substring(0, 7) + "..." : myMarker.getTitle();
+        String text = myMarker.getTitle().length() > 10 ? myMarker.getTitle().substring(0, 7) + "..." : myMarker.getTitle();
         Rect textBounds = new Rect();
         Paint paint = new Paint();
         paint.setTextSize(25);
