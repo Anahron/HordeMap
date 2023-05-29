@@ -106,6 +106,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int REQUEST_CODE_READ_EXTERNAL_STORAGE = 1007;
     private static final int REQUEST_CODE_WRITE_EXTERNAL_STORAGE = 1008;
     private static final int REQUEST_CODE_FOREGROUND_SERVICE = 1012;
+    private static final int MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION = 1013;
     private static final int MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS = 1006;
 
     public static Context getContext() {
@@ -164,7 +165,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WAKE_LOCK) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WAKE_LOCK}, MY_PERMISSIONS_REQUEST_WAKE_LOCK);
         }
-        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.SCHEDULE_EXACT_ALARM) != PackageManager.PERMISSION_GRANTED) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ActivityCompat.requestPermissions((Activity) context, new String[]{Manifest.permission.SCHEDULE_EXACT_ALARM}, MY_PERMISSIONS_REQUEST_SCHEDULE_EXACT_ALARMS);
             }
@@ -172,6 +173,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_WRITE_EXTERNAL_STORAGE);
         }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)
+                != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACTIVITY_RECOGNITION},
+                        MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION);
+            }
+        }
+
         Intent intent = new Intent();
         intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
         intent.setData(Uri.parse("package:" + getPackageName()));
@@ -595,23 +605,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             RadioButton radioButton2 = view.findViewById(R.id.radioButton2);
             RadioButton radioButton3 = view.findViewById(R.id.radioButton3);
             RadioButton radioButton4 = view.findViewById(R.id.radioButton4);
+            AtomicInteger checkedButton = new AtomicInteger(0);
             switch (User.getInstance().getMarker()) {
                 case 1:
                     radioButton1.setAlpha(1f);
+                    checkedButton.set(1);
                     break;
                 case 2:
                     radioButton2.setAlpha(1f);
+                    checkedButton.set(2);
                     break;
                 case 3:
                     radioButton3.setAlpha(1f);
+                    checkedButton.set(3);
                     break;
                 case 4:
                     radioButton4.setAlpha(1f);
+                    checkedButton.set(4);
                     break;
                 default:
                     radioButton0.setAlpha(1f);
+                    checkedButton.set(0);
             }
-            AtomicInteger checkedButton = new AtomicInteger(0);
+
             radioGroup.setOnCheckedChangeListener((group, checkedId) -> {
                 // Сначала делаем все кнопки полупрозрачными
                 radioButton0.setAlpha(0.3f);
@@ -923,8 +939,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                     viewModel.sendMarkerData(latLng.latitude, latLng.longitude, Integer.parseInt(selectedIconFinal), description[0]);
                                 } else if (descriptionEditText.getText().toString().length() > 0)
                                     description[0] = String.valueOf(descriptionEditText.getText());
-                                else
-                                    viewModel.sendMarkerData(latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
+                                viewModel.sendMarkerData(latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
                                 dialogInterface.dismiss();
                             });
                             // Создание диалогового окна

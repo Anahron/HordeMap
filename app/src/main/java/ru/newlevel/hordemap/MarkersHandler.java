@@ -54,7 +54,7 @@ public class MarkersHandler {
     private static final TimeZone timeZone = TimeZone.getDefault();
 
     public static void reCreateMarkers() {
-        icon0 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap1, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
+        icon0 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap0, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         icon1 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap1, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         icon2 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap2, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));
         icon3 = BitmapDescriptorFactory.fromBitmap(Bitmap.createScaledBitmap(bitmap3, MARKER_SIZE_USERS, MARKER_SIZE_USERS, false));

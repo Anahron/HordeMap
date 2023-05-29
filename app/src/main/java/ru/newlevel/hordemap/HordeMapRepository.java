@@ -46,7 +46,7 @@ public class HordeMapRepository {
     private ValueEventListener markersEventListener;
     private ValueEventListener customMarkersEventListener;
     private final DatabaseReference database;
-    private String dateRepo = "";
+//    private String dateRepo = "";
 
     private long lastSavedTimestamp = 0;
 
@@ -64,9 +64,9 @@ public class HordeMapRepository {
         String date = dateFormat.format(new Date(System.currentTimeMillis()));
 
         //TODO временно для логирования на сервере
-        dateRepo += " / " + date;
+      //  dateRepo += " / " + date;
 
-        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis(), User.getInstance().getMarker(), dateRepo);
+        MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis(), User.getInstance().getMarker(), date);
 
         DatabaseReference geoDataRef = database.child(geoDataPath);
         geoDataRef.setValue(myMarker);
@@ -264,7 +264,7 @@ public class HordeMapRepository {
                 if (dataSnapshot.exists()) {
                     for (DataSnapshot messageSnapshot : dataSnapshot.getChildren()) {
                         Message lastMessage = messageSnapshot.getValue(Message.class);
-                        if (lastMessage != null && lastMessage.getUserName().equals(User.getInstance().getUserName()) && !lastMessage.getMessage().startsWith("http")) {
+                        if (lastMessage != null && lastMessage.getDeviceID().equals(User.getInstance().getDeviceId()) && !lastMessage.getMessage().startsWith("http")) {
                             String newMessage = lastMessage.getMessage() + "\n> " + message;
                             messageSnapshot.getRef().child("/message").setValue(newMessage);
                             messageSnapshot.getRef().child("/timestamp").setValue(System.currentTimeMillis() + 1);
@@ -347,6 +347,7 @@ public class HordeMapRepository {
         Map<String, Object> updates = new HashMap<>();
         updates.put(geoDataPath + "/userName", User.getInstance().getUserName());
         updates.put(geoDataPath + "/message", message);
+        updates.put(geoDataPath + "/deviceID", User.getInstance().getDeviceId());
         updates.put(geoDataPath + "/timestamp", time);
         database.updateChildren(updates);
     }

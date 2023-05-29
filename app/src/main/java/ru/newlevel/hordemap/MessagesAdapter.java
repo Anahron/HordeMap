@@ -65,7 +65,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
             recyclerView.scrollToPosition(getItemCount() - 1);
         } else if (!newMessages.equals(messages)) {
             isAtBottom = !recyclerView.canScrollVertically(1) && recyclerView.computeVerticalScrollRange() > recyclerView.getHeight();
-            if (!isAtBottom && !newMessages.get(newMessages.size() - 1).getUserName().equals(User.getInstance().getUserName())) {
+            if (!isAtBottom && !newMessages.get(newMessages.size() - 1).getDeviceID().equals(User.getInstance().getDeviceId())) {
                 newMessageButton.setVisibility(View.VISIBLE);
             }
             checkLatestMessageForDelete(newMessages);
@@ -80,7 +80,7 @@ public class MessagesAdapter extends RecyclerView.Adapter<MessagesAdapter.Messag
         Message currentMessage = latestMessages.get(0);
         if (!previousMessage.getMessage().startsWith("http")
                 && !currentMessage.getMessage().startsWith("http")
-                && previousMessage.getUserName().equals(currentMessage.getUserName())) {
+                && previousMessage.getDeviceID().equals(currentMessage.getDeviceID())) {
             messages.set(previousMessagePosition, currentMessage);
             notifyItemChanged(previousMessagePosition, 1);
             latestMessages.remove(0);

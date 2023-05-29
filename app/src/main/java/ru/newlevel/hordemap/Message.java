@@ -10,11 +10,22 @@ public class Message {
     private String userName;
     private String message;
     private long timestamp;
+    private String deviceID;
     private File file;
     private Bitmap thumbnail = BitmapFactory.decodeResource(MapsActivity.getContext().getResources(), R.drawable.downloaded_image);
 
     public String getUserName() {
         return userName;
+    }
+
+    public String getDeviceID() {
+        if (deviceID == null)
+            return "0000";
+        return deviceID;
+    }
+
+    public void setDeviceID(String deviceID) {
+        this.deviceID = deviceID;
     }
 
     public void setUserName(String userName) {
