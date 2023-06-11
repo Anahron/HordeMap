@@ -46,7 +46,6 @@ public class HordeMapRepository {
     private ValueEventListener markersEventListener;
     private ValueEventListener customMarkersEventListener;
     private final DatabaseReference database;
-//    private String dateRepo = "";
 
     private long lastSavedTimestamp = 0;
 
@@ -62,9 +61,6 @@ public class HordeMapRepository {
         String geoDataPath = GEO_DATA_PATH + User.getInstance().getRoomId() + "/" + User.getInstance().getDeviceId();
         @SuppressLint("SimpleDateFormat") DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
         String date = dateFormat.format(new Date(System.currentTimeMillis()));
-
-        //TODO временно для логирования на сервере
-      //  dateRepo += " / " + date;
 
         MyMarker myMarker = new MyMarker(User.getInstance().getUserName(), latitude, longitude, User.getInstance().getDeviceId(), System.currentTimeMillis(), User.getInstance().getMarker(), date);
 

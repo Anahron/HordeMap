@@ -16,7 +16,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -825,26 +824,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             gMap.setMyLocationEnabled(true);
             gMap.setOnMapLongClickListener(latLng -> {
                 AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-                builder.setTitle("Выберите действие").setItems(new CharSequence[]{"Показать расстояние до точки", "Построить маршрут", "Очистить маршрут", "Поставить маркер"}, (dialog, which) -> {
+                builder.setTitle("Выберите действие").setItems(new CharSequence[]{"Построить маршрут", "Очистить маршрут", "Поставить маркер"}, (dialog, which) -> {
                     switch (which) {
                         case 0:
-                            // Показать расстояние до точки
-                            float[] distance = new float[1];
-                            Location.distanceBetween(DataUpdateService.getLatitude(), DataUpdateService.getLongitude(), latLng.latitude, latLng.longitude, distance);
-                            Toast.makeText(context, "Расстояние до точки: " + (distance[0] > 1000 ? (Math.round(distance[0] / 10) / 100.0) : (int) distance[0]) + " м", Toast.LENGTH_LONG).show();
-                            break;
-                        case 1:
                             // Построить маршрут
                             buildRoute(latLng);
                             break;
-                        case 2:
+                        case 1:
                             // Очистить маршрут
                             if (routePolyline != null) {
                                 routePolyline.remove();
                             }
                             distanceTextView.setVisibility(View.INVISIBLE);
                             break;
-                        case 3:
+                        case 2:
                             AlertDialog.Builder dialogMarkerBuilder = new AlertDialog.Builder(context);
                             dialogMarkerBuilder.setTitle(" Выберите иконку ");
 
@@ -864,9 +857,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             EditText descriptionEditText = dialogView.findViewById(R.id.description_edit_text);
                             EditText numberPointText = dialogView.findViewById(R.id.description_edit_text_number);
                             String[] description = {"Маркер"};
-                            int[] selectedIcon = {0};
+                            int[] selectedIcon = {1};
                             icon1.setOnClickListener(v -> {
-                                selectedIcon[0] = 0;
+                                selectedIcon[0] = 10;
                                 icon1.setAlpha(1F);
                                 icon2.setAlpha(0.3F);
                                 icon3.setAlpha(0.3F);
@@ -930,15 +923,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             dialogMarkerBuilder.setNegativeButton("Отмена", (dialogInterface, which1) -> dialogInterface.dismiss());
                             // Установка кнопки "Поставить маркер"
                             dialogMarkerBuilder.setPositiveButton("Поставить маркер", (dialogInterface, which1) -> {
-                                String selectedIconFinal = "10";
-                                if (selectedIcon[0] == 0) {
+                                if (selectedIcon[0] == 10) {
                                     if (numberPointText.getText().toString().length() > 0)
-                                        selectedIconFinal = "1" + numberPointText.getText();
-                                    if (descriptionEditText.getText().toString().length() > 0)
-                                        description[0] = String.valueOf(descriptionEditText.getText());
-                                    viewModel.sendMarkerData(latLng.latitude, latLng.longitude, Integer.parseInt(selectedIconFinal), description[0]);
-                                } else if (descriptionEditText.getText().toString().length() > 0)
+                                        selectedIcon[0] = Integer.parseInt("1" + numberPointText.getText());
+                                }
+                                if (descriptionEditText.getText().toString().length() > 0) {
                                     description[0] = String.valueOf(descriptionEditText.getText());
+                                }
                                 viewModel.sendMarkerData(latLng.latitude, latLng.longitude, selectedIcon[0], description[0]);
                                 dialogInterface.dismiss();
                             });
